@@ -79,11 +79,11 @@ Consultadas em 2026-10-01. A última estável de cada uma, salvo nota.
 | Java | 25 (Temurin) |
 | Spring Boot | 4.1.1 |
 | Maven | 3.9.x via Maven Wrapper 3.3.4 |
-| springdoc-openapi | 3.1.1 |
+| springdoc-openapi | 3.1.1 (`starter-webmvc-api`, sem a interface do Swagger) |
 | Testcontainers | 2.0.5 |
 | ArchUnit | 1.5.1 |
 | JaCoCo | 0.8.15 |
-| Spotless (palantir-java-format) | 3.10.3 |
+| Spotless (palantir-java-format) | 3.10.3 (palantir 2.101.0) |
 | PostgreSQL | `postgres:18-alpine` |
 | Node | 24 LTS (`node:24-alpine` no build) |
 | Vue | 3.5.x |
@@ -172,6 +172,8 @@ Content-Type: application/json
 
 - Não consulta o banco. Responde 200 mesmo com o Postgres fora; o estado do banco fica no `/actuator/health`.
 - Contrato documentado via springdoc (code-first). Um teste gera o OpenAPI e compara com `docs/api/openapi.json`. Se divergir, o teste falha com instrução para regenerar (`./mvnw verify -Dopenapi.atualizar=true`). Assim o contrato versionado nunca fica desatualizado.
+- O contrato declara `application/json` (via `produces`) e todos os campos como obrigatórios (`requiredProperties`). Sem isso, o springdoc publicava `*/*` e campos opcionais, e os tipos do frontend sairiam errados.
+- `springdoc.paths-to-match: /api/**` deixa o Actuator fora do contrato. `writer-with-order-by-keys` mantém o arquivo estável entre execuções.
 
 ### 5.5 Flyway
 
@@ -297,7 +299,7 @@ A execução para ao fim de cada etapa, e o usuário decide se continua. A próx
 | T1 | `git init`, `.gitignore`, `.gitattributes`, `.env.example`, repositório no GitHub | Primeiro push com o épico e esta spec | ✅ 2026-10-01 |
 | T2 | Backend: Maven Wrapper, `pom.xml`, app Spring Boot, `application.yml`, Flyway `V1` | `./mvnw verify` verde com teste de contexto via Testcontainers | ✅ 2026-10-01 |
 | T3 | Backend: pacotes hexagonais, `Clock`, ArchUnit R1–R5 com teste da fixture | Cenário 2 provado em teste | ✅ 2026-10-01 |
-| T4 | Backend: `/api/v1/sistema/status`, springdoc, snapshot OpenAPI, Spotless, JaCoCo 80% | `verify` verde com cobertura ≥ 80% | Pendente |
+| T4 | Backend: `/api/v1/sistema/status`, springdoc, snapshot OpenAPI, Spotless, JaCoCo 80% | `verify` verde com cobertura ≥ 80% | ✅ 2026-10-01 |
 | T5 | Backend: teste do Cenário 3 (pause/unpause) e Dockerfile | Imagem builda e o container fica `healthy` | Pendente |
 | T6 | Frontend: Vite + Vue + TS, `HomeView`, cliente HTTP, ESLint, Vitest 80%, Dockerfile + nginx | `lint`, `typecheck` e `test` verdes; imagem builda | Pendente |
 | T7 | `docker-compose.yml` completo | Cenários 1 e 3 verificados manualmente na máquina local | Pendente |
@@ -310,7 +312,7 @@ A execução para ao fim de cada etapa, e o usuário decide se continua. A próx
 |---|---|
 | Porta 80 ocupada no Windows (IIS, outro app) | `FRONTEND_PORT` no `.env`; README explica como trocar |
 | Docker Desktop parado na máquina (estava parado em 2026-10-01) | README lista iniciar o Docker Desktop como pré-requisito; testes de integração exigem Docker rodando |
-| Incompatibilidade entre springdoc 3.1 e Spring Boot 4.1 | Validar na T4; se falhar, documentar o contrato à mão em `docs/api/` e abrir pendência |
+| ~~Incompatibilidade entre springdoc 3.1 e Spring Boot 4.1~~ | Resolvido na T4: funciona (o start.spring.io já o lista para o Boot 4.1) |
 | Teste de pause/unpause instável no CI | Timeouts curtos do Hikari e espera com `Awaitility` em vez de `sleep` |
 | TypeScript 7 incompatível com `vue-tsc` | TS fixado em 6.0.x (seção 4) |
 | Sem proteção de branch (repositório privado no GitHub Free) | Merge só com CI verde, por disciplina (seção 8) |

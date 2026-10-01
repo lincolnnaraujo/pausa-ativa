@@ -79,16 +79,15 @@ final class RegrasDeArquitetura {
                 .that()
                 .resideOutsideOfPackage(pacote + "..")
                 .should()
-                .dependOnClassesThat(resideInAPackage(pacote + "..")
-                        .and(not(resideInAPackage(pacote + ".application.port.in.."))))
+                .dependOnClassesThat(
+                        resideInAPackage(pacote + "..").and(not(resideInAPackage(pacote + ".application.port.in.."))))
                 .as("ninguém de fora de " + modulo + " acessa " + modulo + " fora do application.port.in")
                 .allowEmptyShould(true);
     }
 
     /** R5: sem ciclos entre os pacotes de primeiro nível (módulos e shared). */
     static ArchRule modulosSemCiclos(String base) {
-        return slices()
-                .matching(base + ".(*)..")
+        return slices().matching(base + ".(*)..")
                 .should()
                 .beFreeOfCycles()
                 .as("R5: sem ciclos entre módulos")

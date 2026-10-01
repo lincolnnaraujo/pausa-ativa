@@ -20,15 +20,13 @@ class FlywayMigracaoTest {
 
     @Test
     void aplicaBaselineEmBancoLimpo() {
-        List<Map<String, Object>> historico = jdbc.queryForList(
-                "select version, script, success from flyway_schema_history order by installed_rank");
+        List<Map<String, Object>> historico =
+                jdbc.queryForList("select version, script, success from flyway_schema_history order by installed_rank");
 
-        assertThat(historico)
-                .singleElement()
-                .satisfies(migracao -> {
-                    assertThat(migracao).containsEntry("version", "1");
-                    assertThat(migracao).containsEntry("script", "V1__baseline.sql");
-                    assertThat(migracao).containsEntry("success", true);
-                });
+        assertThat(historico).singleElement().satisfies(migracao -> {
+            assertThat(migracao).containsEntry("version", "1");
+            assertThat(migracao).containsEntry("script", "V1__baseline.sql");
+            assertThat(migracao).containsEntry("success", true);
+        });
     }
 }

@@ -47,8 +47,8 @@ class RegrasDeArquiteturaTest {
     void r3RecusaCasoDeUsoQueUsaAdapterDireto() {
         String base = FIXTURES + ".r3";
 
-        assertThatThrownBy(() -> RegrasDeArquitetura.aplicacaoNaoDependeDeAdapters(base)
-                        .check(importar(base)))
+        assertThatThrownBy(() ->
+                        RegrasDeArquitetura.aplicacaoNaoDependeDeAdapters(base).check(importar(base)))
                 .isInstanceOf(AssertionError.class)
                 .hasMessageContaining("R3")
                 .hasMessageContaining("IniciarJornadaService");

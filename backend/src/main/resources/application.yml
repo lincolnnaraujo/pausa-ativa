@@ -21,6 +21,11 @@ spring:
   flyway:
     locations: classpath:db/migration
 
+springdoc:
+  # Só a API de negócio entra no contrato; chaves ordenadas deixam o docs/api/openapi.json estável.
+  paths-to-match: /api/**
+  writer-with-order-by-keys: true
+
 management:
   endpoints:
     web:
