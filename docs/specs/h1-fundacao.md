@@ -54,7 +54,7 @@ pausa-ativa/
 │           ├── br/com/pausaativa/…        # testes por módulo + ArquiteturaTest
 │           └── fixtures/arquitetura/…     # classes que violam regras de propósito (fora do pacote base)
 ├── frontend/
-│   ├── package.json, vite.config.ts, tsconfig*.json, eslint.config.js
+│   ├── package.json, vite.config.ts, vitest.config.ts, tsconfig*.json, eslint.config.ts
 │   ├── Dockerfile
 │   ├── nginx.conf
 │   └── src/ { main.ts, App.vue, api/, views/HomeView.vue }
@@ -92,7 +92,7 @@ Consultadas em 2026-10-01. A última estável de cada uma, salvo nota.
 | vue-tsc | 3.3.x |
 | Vitest + `@vitest/coverage-v8` | 5.0.x |
 | ESLint + eslint-plugin-vue | 10.x |
-| nginx | `nginx:1.29-alpine` |
+| nginx | `nginxinc/nginx-unprivileged:1.29-alpine` (sem root, escuta na 8080) |
 | Imagens Java | build `eclipse-temurin:25-jdk-alpine`, runtime `eclipse-temurin:25-jre-alpine` |
 
 ## 5. Backend
@@ -211,8 +211,12 @@ Sem router e sem gerenciador de estado nesta release. Entram quando houver mais 
 | `/` | Arquivos estáticos do build Vite, com fallback para `index.html` |
 | `/api/` | `http://backend:8080/api/` |
 | `/actuator/health` | `http://backend:8080/actuator/health` (só esse path do Actuator é exposto ao host) |
+| `/actuator/*` (resto) | 404. Sem essa regra, a rota cairia no fallback do SPA e responderia 200 com o `index.html`. |
+| `/assets/*` | Cache de 1 ano (`immutable`); o Vite põe hash no nome dos arquivos |
 
-`proxy_buffering off` e `proxy_read_timeout` alto em `/api/` já ficam configurados para o SSE da H2.
+- `proxy_buffering off` e `proxy_read_timeout` alto em `/api/` já ficam configurados para o SSE da H2.
+- O nome `backend` é resolvido pelo DNS do Docker (`resolver 127.0.0.11`) a cada requisição. Assim o nginx sobe mesmo com o backend fora, e a página mostra "Servidor indisponível" (502), em vez de o frontend cair junto. Também acompanha o backend se o IP dele mudar.
+- Imagem `nginx-unprivileged`: roda como o usuário `nginx` (uid 101) e escuta na 8080, porque a imagem `nginx` comum roda o processo mestre como root.
 
 ### 6.4 Qualidade
 
@@ -226,7 +230,7 @@ Sem router e sem gerenciador de estado nesta release. Entram quando houver mais 
 |---|---|---|---|---|
 | `postgres` | `postgres:18-alpine` | nenhuma | `pg_isready` | — |
 | `backend` | build `./backend` | nenhuma | `wget` em `/actuator/health/liveness` | `postgres` saudável |
-| `frontend` | build `./frontend` | `127.0.0.1:${FRONTEND_PORT:-80}:80` | `wget` em `/` | `backend` saudável |
+| `frontend` | build `./frontend` | `127.0.0.1:${FRONTEND_PORT:-80}:8080` | `wget` em `/` | `backend` saudável |
 
 - Todos com `restart: unless-stopped`.
 - `backend` com `mem_limit: 512m`. As opções da JVM (`-XX:MaxRAMPercentage=75 -Duser.timezone=UTC`) ficam no `ENTRYPOINT` do Dockerfile, e não em `JAVA_TOOL_OPTIONS`: essa variável faz a JVM imprimir "Picked up JAVA_TOOL_OPTIONS", uma linha fora do JSON, a cada start. Verificado na T5: heap máximo de 384 MB e cerca de 220 MiB em uso.
@@ -301,7 +305,7 @@ A execução para ao fim de cada etapa, e o usuário decide se continua. A próx
 | T3 | Backend: pacotes hexagonais, `Clock`, ArchUnit R1–R5 com teste da fixture | Cenário 2 provado em teste | ✅ 2026-10-01 |
 | T4 | Backend: `/api/v1/sistema/status`, springdoc, snapshot OpenAPI, Spotless, JaCoCo 80% | `verify` verde com cobertura ≥ 80% | ✅ 2026-10-01 |
 | T5 | Backend: teste do Cenário 3 (pause/unpause) e Dockerfile | Imagem builda e o container fica `healthy` | ✅ 2026-10-01 |
-| T6 | Frontend: Vite + Vue + TS, `HomeView`, cliente HTTP, ESLint, Vitest 80%, Dockerfile + nginx | `lint`, `typecheck` e `test` verdes; imagem builda | Pendente |
+| T6 | Frontend: Vite + Vue + TS, `HomeView`, cliente HTTP, ESLint, Vitest 80%, Dockerfile + nginx | `lint`, `typecheck` e `test` verdes; imagem builda | ✅ 2026-10-01 |
 | T7 | `docker-compose.yml` completo | Cenários 1 e 3 verificados manualmente na máquina local | Pendente |
 | T8 | CI e Dependabot | Os três jobs verdes no PR | Pendente |
 | T9 | README, C4, `openapi.json`, release notes | Documentação revisada; aceite do usuário; merge e tag `v0.1.0` | Pendente |
