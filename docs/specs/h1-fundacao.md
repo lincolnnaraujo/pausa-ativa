@@ -283,7 +283,7 @@ A execução para ao fim de cada etapa, e o usuário decide se continua. A próx
 | # | Etapa | Pronto quando | Status |
 |---|---|---|---|
 | T1 | `git init`, `.gitignore`, `.gitattributes`, `.env.example`, repositório no GitHub | Primeiro push com o épico e esta spec | ✅ 2026-10-01 |
-| T2 | Backend: Maven Wrapper, `pom.xml`, app Spring Boot, `application.yml`, Flyway `V1` | `./mvnw verify` verde com teste de contexto via Testcontainers | Pendente |
+| T2 | Backend: Maven Wrapper, `pom.xml`, app Spring Boot, `application.yml`, Flyway `V1` | `./mvnw verify` verde com teste de contexto via Testcontainers | ✅ 2026-10-01 |
 | T3 | Backend: pacotes hexagonais, `Clock`, ArchUnit R1–R5 com teste da fixture | Cenário 2 provado em teste | Pendente |
 | T4 | Backend: `/api/v1/sistema/status`, springdoc, snapshot OpenAPI, Spotless, JaCoCo 80% | `verify` verde com cobertura ≥ 80% | Pendente |
 | T5 | Backend: teste do Cenário 3 (pause/unpause) e Dockerfile | Imagem builda e o container fica `healthy` | Pendente |
