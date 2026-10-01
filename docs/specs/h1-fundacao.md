@@ -149,7 +149,7 @@ Verificado também no código real em 2026-10-01: uma classe temporária em `age
 | Fuso | JVM em UTC (`-Duser.timezone=UTC`); `spring.jpa.properties.hibernate.jdbc.time_zone=UTC` |
 | Logs | `logging.structured.format.console=ecs` (JSON em stdout). Perfil `test` usa texto. |
 | Actuator | Expostos `health` e `info`. `management.endpoint.health.probes.enabled=true`. Grupo `readiness` inclui `db`. `show-components: always`. O endpoint `prometheus` é habilitado mas só fica acessível na rede interna (uso na H5). |
-| Datasource | Hikari com `connection-timeout: 3s` e `validation-timeout: 2s`, para o health ficar `DOWN` rápido com o banco fora |
+| Datasource | Hikari com `connection-timeout: 3s` e `validation-timeout: 2s`, para o health ficar `DOWN` rápido com o banco fora. `socketTimeout: 10` (s) no driver: sem ele, um banco que não responde prende a thread para sempre, porque o health checa a conexão com `isValid(0)`, que o driver trata como "sem limite". |
 | JPA | `ddl-auto: validate`; `open-in-view: false` |
 | Versão | `spring-boot-maven-plugin` com o goal `build-info`; a versão vem de `BuildProperties` |
 
@@ -229,7 +229,7 @@ Sem router e sem gerenciador de estado nesta release. Entram quando houver mais 
 | `frontend` | build `./frontend` | `127.0.0.1:${FRONTEND_PORT:-80}:80` | `wget` em `/` | `backend` saudável |
 
 - Todos com `restart: unless-stopped`.
-- `backend` com `mem_limit: 512m` e `JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=75 -Duser.timezone=UTC`.
+- `backend` com `mem_limit: 512m`. As opções da JVM (`-XX:MaxRAMPercentage=75 -Duser.timezone=UTC`) ficam no `ENTRYPOINT` do Dockerfile, e não em `JAVA_TOOL_OPTIONS`: essa variável faz a JVM imprimir "Picked up JAVA_TOOL_OPTIONS", uma linha fora do JSON, a cada start. Verificado na T5: heap máximo de 384 MB e cerca de 220 MiB em uso.
 - Volume nomeado `pgdata` montado em `/var/lib/postgresql`. A partir do Postgres 18 a imagem guarda os dados em `/var/lib/postgresql/18/docker`, e montar em `/var/lib/postgresql/data` gera erro na subida.
 - O healthcheck do container do backend usa **liveness**, que não depende do banco. Assim o Postgres fora deixa o `/actuator/health` em `DOWN` sem o Docker considerar o container doente.
 - Imagens rodam com usuário não-root.
@@ -300,7 +300,7 @@ A execução para ao fim de cada etapa, e o usuário decide se continua. A próx
 | T2 | Backend: Maven Wrapper, `pom.xml`, app Spring Boot, `application.yml`, Flyway `V1` | `./mvnw verify` verde com teste de contexto via Testcontainers | ✅ 2026-10-01 |
 | T3 | Backend: pacotes hexagonais, `Clock`, ArchUnit R1–R5 com teste da fixture | Cenário 2 provado em teste | ✅ 2026-10-01 |
 | T4 | Backend: `/api/v1/sistema/status`, springdoc, snapshot OpenAPI, Spotless, JaCoCo 80% | `verify` verde com cobertura ≥ 80% | ✅ 2026-10-01 |
-| T5 | Backend: teste do Cenário 3 (pause/unpause) e Dockerfile | Imagem builda e o container fica `healthy` | Pendente |
+| T5 | Backend: teste do Cenário 3 (pause/unpause) e Dockerfile | Imagem builda e o container fica `healthy` | ✅ 2026-10-01 |
 | T6 | Frontend: Vite + Vue + TS, `HomeView`, cliente HTTP, ESLint, Vitest 80%, Dockerfile + nginx | `lint`, `typecheck` e `test` verdes; imagem builda | Pendente |
 | T7 | `docker-compose.yml` completo | Cenários 1 e 3 verificados manualmente na máquina local | Pendente |
 | T8 | CI e Dependabot | Os três jobs verdes no PR | Pendente |

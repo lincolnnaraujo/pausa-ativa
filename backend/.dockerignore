@@ -1,0 +1,7 @@
+# Só o necessário para o build entra no contexto do Docker.
+target/
+.idea/
+*.iml
+.vscode/
+Dockerfile
+.dockerignore

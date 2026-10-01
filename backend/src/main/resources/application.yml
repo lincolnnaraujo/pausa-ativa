@@ -10,6 +10,11 @@ spring:
       # Timeouts curtos para o /actuator/health ficar DOWN rápido com o banco fora.
       connection-timeout: 3000
       validation-timeout: 2000
+      data-source-properties:
+        # Limite de leitura no socket do driver, em segundos. Sem ele, um banco que não responde
+        # (rede caída, container congelado) prende a thread para sempre: o health checa a conexão
+        # com isValid(0), que o driver trata como "sem timeout". Nenhuma consulta legítima chega perto.
+        socketTimeout: 10
   jpa:
     open-in-view: false
     hibernate:
