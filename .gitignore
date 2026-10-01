@@ -1,0 +1,25 @@
+# Segredos locais (copie .env.example para .env)
+.env
+
+# Backend (Maven)
+backend/target/
+
+# Frontend (Node / Vite)
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+*.tsbuildinfo
+
+# Backups gerados pelos scripts de pg_dump (H5)
+backups/
+
+# IDEs e sistema operacional
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# Configuração local do Claude Code
+.claude/settings.local.json

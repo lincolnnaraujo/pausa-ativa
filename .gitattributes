@@ -1,0 +1,13 @@
+# Normaliza tudo para LF no repositório e no working tree.
+# Scripts com CRLF quebram dentro dos containers Linux (mvnw, entrypoints).
+* text=auto eol=lf
+
+# Scripts que só rodam no Windows
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binários
+*.jar binary
+*.png binary
+*.ico binary
