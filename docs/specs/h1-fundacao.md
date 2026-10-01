@@ -259,7 +259,11 @@ As três credenciais ficam num bloco único (`x-credenciais-banco`), usado pelo 
 | `frontend` | `setup-node` 24 com cache npm → `npm ci` → `lint` → `typecheck` → `test --coverage` |
 | `compose` | Depende dos dois anteriores. `cp .env.example .env` → `docker compose up -d --build --wait` → `curl` em `/` e `/actuator/health` → `docker compose down -v` |
 
-`.github/dependabot.yml`: atualizações semanais para `maven` (`/backend`), `npm` (`/frontend`), `docker` (os dois Dockerfiles) e `github-actions`.
+`.github/dependabot.yml`: atualizações semanais para `maven` (`/backend`), `npm` (`/frontend`), `docker` (os dois Dockerfiles), `docker-compose` (imagem do Postgres) e `github-actions`. Versões menores e correções vêm agrupadas num PR por ecossistema; versões maiores, em PRs separados. O TypeScript 7 fica ignorado até o `vue-tsc` suportá-lo (seção 4).
+
+O job `compose` lê a porta do `.env` gerado a partir do `.env.example`, para seguir o mesmo passo a passo do README. Os relatórios de cobertura do backend e do frontend ficam como artefatos de cada execução.
+
+Consumo: o GitHub Free dá 2.000 minutos de Actions por mês para repositórios privados.
 
 Fluxo: branch `feat/h1-fundacao` → PR → merge → tag `v0.1.0`. O merge só acontece com o CI verde.
 
@@ -315,7 +319,7 @@ A execução para ao fim de cada etapa, e o usuário decide se continua. A próx
 | T5 | Backend: teste do Cenário 3 (pause/unpause) e Dockerfile | Imagem builda e o container fica `healthy` | ✅ 2026-10-01 |
 | T6 | Frontend: Vite + Vue + TS, `HomeView`, cliente HTTP, ESLint, Vitest 80%, Dockerfile + nginx | `lint`, `typecheck` e `test` verdes; imagem builda | ✅ 2026-10-01 |
 | T7 | `docker-compose.yml` completo | Cenários 1 e 3 verificados manualmente na máquina local | ✅ 2026-10-01 |
-| T8 | CI e Dependabot | Os três jobs verdes no PR | Pendente |
+| T8 | CI e Dependabot | Os três jobs verdes no PR | ✅ 2026-10-01 (PR #1: backend 85 s, frontend 24 s, compose 98 s) |
 | T9 | README, C4, `openapi.json`, release notes | Documentação revisada; aceite do usuário; merge e tag `v0.1.0` | Pendente |
 
 ## 12. Riscos
