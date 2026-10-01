@@ -127,7 +127,19 @@ Arquivo `ArquiteturaTest`, importando `br.com.pausaativa` sem classes de teste.
 
 Enquanto os pacotes estão vazios, as regras usam `allowEmptyShould(true)`. Esse ajuste sai na H2, quando houver classes.
 
-**Prova do Cenário 2.** Um segundo teste importa `fixtures.arquitetura`, onde há `fixtures.arquitetura.agenda.domain.MarcoComSpring`, uma classe de domínio anotada com `@Component`. O teste verifica que a R1 **falha** contra ela. A fixture fica fora de `br.com.pausaativa` para o component scan do Spring nunca a carregar nos testes de integração.
+**Prova das regras (inclui o Cenário 2).** Com os pacotes vazios, as regras passariam sem verificar nada. Por isso cada uma tem uma fixture que a viola de propósito, em `fixtures.arquitetura.rN`. O `RegrasDeArquiteturaTest` confere que cada regra **falha** com a mensagem esperada:
+
+| Regra | Fixture |
+|---|---|
+| R1 (Cenário 2) | `r1.agenda.domain.MarcoComSpring`, anotada com `@Component` |
+| R2 | `r2.agenda.domain.MarcoQueConheceOAdapter`, com campo do tipo de um controller |
+| R3 | `r3.agenda.application.IniciarJornadaService`, usando a entidade de persistência |
+| R4 | `r4.historico.adapter.in.web.HistoricoController`, acessando `agenda.domain.Jornada` (violação) e `agenda.application.port.in.ConsultarJornadas` (permitido; o teste confere que não é apontado) |
+| R5 | `r5.agenda…IniciarJornada` ⇄ `r5.treino…MontarBloco`, ciclo entre portas de entrada |
+
+As regras ficam em `RegrasDeArquitetura`, parametrizadas pelo pacote base. O `ArquiteturaTest` as aplica a `br.com.pausaativa`, e o `RegrasDeArquiteturaTest` às fixtures. As fixtures ficam fora de `br.com.pausaativa` para o component scan do Spring nunca as carregar nos testes de integração.
+
+Verificado também no código real em 2026-10-01: uma classe temporária em `agenda.domain` com `@Component` fez `./mvnw verify` sair com código 1 apontando a R1.
 
 ### 5.3 Configuração
 
@@ -284,7 +296,7 @@ A execução para ao fim de cada etapa, e o usuário decide se continua. A próx
 |---|---|---|---|
 | T1 | `git init`, `.gitignore`, `.gitattributes`, `.env.example`, repositório no GitHub | Primeiro push com o épico e esta spec | ✅ 2026-10-01 |
 | T2 | Backend: Maven Wrapper, `pom.xml`, app Spring Boot, `application.yml`, Flyway `V1` | `./mvnw verify` verde com teste de contexto via Testcontainers | ✅ 2026-10-01 |
-| T3 | Backend: pacotes hexagonais, `Clock`, ArchUnit R1–R5 com teste da fixture | Cenário 2 provado em teste | Pendente |
+| T3 | Backend: pacotes hexagonais, `Clock`, ArchUnit R1–R5 com teste da fixture | Cenário 2 provado em teste | ✅ 2026-10-01 |
 | T4 | Backend: `/api/v1/sistema/status`, springdoc, snapshot OpenAPI, Spotless, JaCoCo 80% | `verify` verde com cobertura ≥ 80% | Pendente |
 | T5 | Backend: teste do Cenário 3 (pause/unpause) e Dockerfile | Imagem builda e o container fica `healthy` | Pendente |
 | T6 | Frontend: Vite + Vue + TS, `HomeView`, cliente HTTP, ESLint, Vitest 80%, Dockerfile + nginx | `lint`, `typecheck` e `test` verdes; imagem builda | Pendente |
