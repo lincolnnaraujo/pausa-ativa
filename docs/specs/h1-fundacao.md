@@ -274,6 +274,7 @@ O repositório é privado numa conta GitHub Free, que não oferece proteção de
 | Arquivo | Conteúdo |
 |---|---|
 | `README.md` | Pré-requisitos, subir em 3 passos, verificar se está no ar, parar e apagar dados, porta ocupada, comandos de desenvolvimento |
+| `docs/arquitetura/README.md` | Índice dos níveis C4 e resumo das decisões |
 | `docs/arquitetura/c4-1-contexto.md` | Nível 1, a partir do épico |
 | `docs/arquitetura/c4-2-containers.md` | Nível 2, refletindo o compose real (sem Prometheus e Grafana até a H5) |
 | `docs/arquitetura/c4-3-componentes.md` | Nível 3 do backend: módulos, ports e adapters, e as regras ArchUnit |
@@ -320,7 +321,7 @@ A execução para ao fim de cada etapa, e o usuário decide se continua. A próx
 | T6 | Frontend: Vite + Vue + TS, `HomeView`, cliente HTTP, ESLint, Vitest 80%, Dockerfile + nginx | `lint`, `typecheck` e `test` verdes; imagem builda | ✅ 2026-10-01 |
 | T7 | `docker-compose.yml` completo | Cenários 1 e 3 verificados manualmente na máquina local | ✅ 2026-10-01 |
 | T8 | CI e Dependabot | Os três jobs verdes no PR | ✅ 2026-10-01 (PR #1: backend 85 s, frontend 24 s, compose 98 s) |
-| T9 | README, C4, `openapi.json`, release notes | Documentação revisada; aceite do usuário; merge e tag `v0.1.0` | Pendente |
+| T9 | README, C4, `openapi.json`, release notes | Documentação revisada; aceite do usuário; merge e tag `v0.1.0` | Documentação pronta em 2026-10-01; **aguardando aceite** |
 
 ## 12. Riscos
 
