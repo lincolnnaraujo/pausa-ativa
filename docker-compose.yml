@@ -1,0 +1,53 @@
+# Pausa Ativa: sobe a aplicação inteira com `docker compose up -d --wait`.
+# Antes, copie o .env.example para .env. A aplicação abre em http://127.0.0.1:${FRONTEND_PORT}.
+#
+# Só o frontend tem porta no host, e só em 127.0.0.1. O nginx do frontend encaminha /api/ e
+# /actuator/health para o backend; o Postgres fica acessível apenas na rede interna.
+
+name: pausa-ativa
+
+# Credenciais do banco, lidas do .env. Um bloco só, usado pelo Postgres e pelo backend.
+x-credenciais-banco: &credenciais-banco
+  POSTGRES_DB: ${POSTGRES_DB:?defina POSTGRES_DB no .env (copie o .env.example)}
+  POSTGRES_USER: ${POSTGRES_USER:?defina POSTGRES_USER no .env (copie o .env.example)}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env (copie o .env.example)}
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment: *credenciais-banco
+    volumes:
+      # A partir do Postgres 18 o volume vai em /var/lib/postgresql (os dados ficam em 18/docker).
+      # Montar em /var/lib/postgresql/data, como nas versões anteriores, faz a subida falhar.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      <<: *credenciais-banco
+      DB_HOST: postgres
+    # A JVM usa 75% desse limite (Dockerfile).
+    mem_limit: 512m
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Healthcheck definido no Dockerfile: liveness, que não depende do banco.
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-38742}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  pgdata:

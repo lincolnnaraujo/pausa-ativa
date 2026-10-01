@@ -1,0 +1,5 @@
+-- Baseline do schema do Pausa Ativa (v0.1.0).
+--
+-- Esta migração não cria tabelas. Ela marca o ponto de partida do Flyway
+-- e prova que as migrações aplicam do zero em um Postgres limpo.
+-- As tabelas de domínio começam na V2, com a História 2 (Jornada e Marco).

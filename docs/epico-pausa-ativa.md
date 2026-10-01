@@ -180,7 +180,7 @@ Cada história é uma release. Ordem de entrega: 1 → 2 → 3 → 4 → 5.
 #### Cenário 1: subida do zero
 - **Dado** uma máquina com Docker e o repositório clonado
 - **Quando** executo `docker compose up -d` seguindo apenas o README
-- **Então** frontend, backend e Postgres ficam saudáveis e a página inicial abre em `http://127.0.0.1`
+- **Então** frontend, backend e Postgres ficam saudáveis e a página inicial abre em `http://127.0.0.1:38742` (porta configurável no `.env`)
 
 #### Cenário 2: regra de arquitetura protegida
 - **Dado** uma classe de domínio que importa Spring ou JPA
@@ -435,7 +435,7 @@ Estimativa em story points foi dispensada pelo usuário.
 
 - [ ] Docker Desktop no Windows
 - [ ] Repositório no GitHub com Actions habilitado
-- [ ] Chrome com permissão de notificação para `127.0.0.1`
+- [ ] Chrome com permissão de notificação para `http://127.0.0.1:38742` (a permissão vale por origem, e a porta faz parte dela)
 - [ ] Revisão do catálogo de exercícios pelo usuário
 
 ## Notas Adicionais

@@ -1,6 +1,6 @@
 # Spec H1 — Fundação do projeto (release v0.1.0)
 
-> **Status:** aprovada pelo usuário em 2026-10-01, com as decisões da seção 13. Em implementação; progresso na seção 11.
+> **Status:** entregue na release v0.1.0 em 2026-10-01 ([notas](../releases/v0.1.0.md)). Spec aprovada pelo usuário em 2026-10-01, com as decisões da seção 13.
 > **Origem:** História 1 de [`docs/epico-pausa-ativa.md`](../epico-pausa-ativa.md).
 > **Data:** 2026-10-01.
 
@@ -54,7 +54,7 @@ pausa-ativa/
 │           ├── br/com/pausaativa/…        # testes por módulo + ArquiteturaTest
 │           └── fixtures/arquitetura/…     # classes que violam regras de propósito (fora do pacote base)
 ├── frontend/
-│   ├── package.json, vite.config.ts, tsconfig*.json, eslint.config.js
+│   ├── package.json, vite.config.ts, vitest.config.ts, tsconfig*.json, eslint.config.ts
 │   ├── Dockerfile
 │   ├── nginx.conf
 │   └── src/ { main.ts, App.vue, api/, views/HomeView.vue }
@@ -79,11 +79,11 @@ Consultadas em 2026-10-01. A última estável de cada uma, salvo nota.
 | Java | 25 (Temurin) |
 | Spring Boot | 4.1.1 |
 | Maven | 3.9.x via Maven Wrapper 3.3.4 |
-| springdoc-openapi | 3.1.1 |
+| springdoc-openapi | 3.1.1 (`starter-webmvc-api`, sem a interface do Swagger) |
 | Testcontainers | 2.0.5 |
 | ArchUnit | 1.5.1 |
 | JaCoCo | 0.8.15 |
-| Spotless (palantir-java-format) | 3.10.3 |
+| Spotless (palantir-java-format) | 3.10.3 (palantir 2.101.0) |
 | PostgreSQL | `postgres:18-alpine` |
 | Node | 24 LTS (`node:24-alpine` no build) |
 | Vue | 3.5.x |
@@ -92,7 +92,7 @@ Consultadas em 2026-10-01. A última estável de cada uma, salvo nota.
 | vue-tsc | 3.3.x |
 | Vitest + `@vitest/coverage-v8` | 5.0.x |
 | ESLint + eslint-plugin-vue | 10.x |
-| nginx | `nginx:1.29-alpine` |
+| nginx | `nginxinc/nginx-unprivileged:1.29-alpine` (sem root, escuta na 8080) |
 | Imagens Java | build `eclipse-temurin:25-jdk-alpine`, runtime `eclipse-temurin:25-jre-alpine` |
 
 ## 5. Backend
@@ -127,7 +127,19 @@ Arquivo `ArquiteturaTest`, importando `br.com.pausaativa` sem classes de teste.
 
 Enquanto os pacotes estão vazios, as regras usam `allowEmptyShould(true)`. Esse ajuste sai na H2, quando houver classes.
 
-**Prova do Cenário 2.** Um segundo teste importa `fixtures.arquitetura`, onde há `fixtures.arquitetura.agenda.domain.MarcoComSpring`, uma classe de domínio anotada com `@Component`. O teste verifica que a R1 **falha** contra ela. A fixture fica fora de `br.com.pausaativa` para o component scan do Spring nunca a carregar nos testes de integração.
+**Prova das regras (inclui o Cenário 2).** Com os pacotes vazios, as regras passariam sem verificar nada. Por isso cada uma tem uma fixture que a viola de propósito, em `fixtures.arquitetura.rN`. O `RegrasDeArquiteturaTest` confere que cada regra **falha** com a mensagem esperada:
+
+| Regra | Fixture |
+|---|---|
+| R1 (Cenário 2) | `r1.agenda.domain.MarcoComSpring`, anotada com `@Component` |
+| R2 | `r2.agenda.domain.MarcoQueConheceOAdapter`, com campo do tipo de um controller |
+| R3 | `r3.agenda.application.IniciarJornadaService`, usando a entidade de persistência |
+| R4 | `r4.historico.adapter.in.web.HistoricoController`, acessando `agenda.domain.Jornada` (violação) e `agenda.application.port.in.ConsultarJornadas` (permitido; o teste confere que não é apontado) |
+| R5 | `r5.agenda…IniciarJornada` ⇄ `r5.treino…MontarBloco`, ciclo entre portas de entrada |
+
+As regras ficam em `RegrasDeArquitetura`, parametrizadas pelo pacote base. O `ArquiteturaTest` as aplica a `br.com.pausaativa`, e o `RegrasDeArquiteturaTest` às fixtures. As fixtures ficam fora de `br.com.pausaativa` para o component scan do Spring nunca as carregar nos testes de integração.
+
+Verificado também no código real em 2026-10-01: uma classe temporária em `agenda.domain` com `@Component` fez `./mvnw verify` sair com código 1 apontando a R1.
 
 ### 5.3 Configuração
 
@@ -137,7 +149,7 @@ Enquanto os pacotes estão vazios, as regras usam `allowEmptyShould(true)`. Esse
 | Fuso | JVM em UTC (`-Duser.timezone=UTC`); `spring.jpa.properties.hibernate.jdbc.time_zone=UTC` |
 | Logs | `logging.structured.format.console=ecs` (JSON em stdout). Perfil `test` usa texto. |
 | Actuator | Expostos `health` e `info`. `management.endpoint.health.probes.enabled=true`. Grupo `readiness` inclui `db`. `show-components: always`. O endpoint `prometheus` é habilitado mas só fica acessível na rede interna (uso na H5). |
-| Datasource | Hikari com `connection-timeout: 3s` e `validation-timeout: 2s`, para o health ficar `DOWN` rápido com o banco fora |
+| Datasource | Hikari com `connection-timeout: 3s` e `validation-timeout: 2s`, para o health ficar `DOWN` rápido com o banco fora. `socketTimeout: 10` (s) no driver: sem ele, um banco que não responde prende a thread para sempre, porque o health checa a conexão com `isValid(0)`, que o driver trata como "sem limite". |
 | JPA | `ddl-auto: validate`; `open-in-view: false` |
 | Versão | `spring-boot-maven-plugin` com o goal `build-info`; a versão vem de `BuildProperties` |
 
@@ -160,6 +172,8 @@ Content-Type: application/json
 
 - Não consulta o banco. Responde 200 mesmo com o Postgres fora; o estado do banco fica no `/actuator/health`.
 - Contrato documentado via springdoc (code-first). Um teste gera o OpenAPI e compara com `docs/api/openapi.json`. Se divergir, o teste falha com instrução para regenerar (`./mvnw verify -Dopenapi.atualizar=true`). Assim o contrato versionado nunca fica desatualizado.
+- O contrato declara `application/json` (via `produces`) e todos os campos como obrigatórios (`requiredProperties`). Sem isso, o springdoc publicava `*/*` e campos opcionais, e os tipos do frontend sairiam errados.
+- `springdoc.paths-to-match: /api/**` deixa o Actuator fora do contrato. `writer-with-order-by-keys` mantém o arquivo estável entre execuções.
 
 ### 5.5 Flyway
 
@@ -197,8 +211,12 @@ Sem router e sem gerenciador de estado nesta release. Entram quando houver mais 
 | `/` | Arquivos estáticos do build Vite, com fallback para `index.html` |
 | `/api/` | `http://backend:8080/api/` |
 | `/actuator/health` | `http://backend:8080/actuator/health` (só esse path do Actuator é exposto ao host) |
+| `/actuator/*` (resto) | 404. Sem essa regra, a rota cairia no fallback do SPA e responderia 200 com o `index.html`. |
+| `/assets/*` | Cache de 1 ano (`immutable`); o Vite põe hash no nome dos arquivos |
 
-`proxy_buffering off` e `proxy_read_timeout` alto em `/api/` já ficam configurados para o SSE da H2.
+- `proxy_buffering off` e `proxy_read_timeout` alto em `/api/` já ficam configurados para o SSE da H2.
+- O nome `backend` é resolvido pelo DNS do Docker (`resolver 127.0.0.11`) a cada requisição. Assim o nginx sobe mesmo com o backend fora, e a página mostra "Servidor indisponível" (502), em vez de o frontend cair junto. Também acompanha o backend se o IP dele mudar.
+- Imagem `nginx-unprivileged`: roda como o usuário `nginx` (uid 101) e escuta na 8080, porque a imagem `nginx` comum roda o processo mestre como root.
 
 ### 6.4 Qualidade
 
@@ -212,10 +230,10 @@ Sem router e sem gerenciador de estado nesta release. Entram quando houver mais 
 |---|---|---|---|---|
 | `postgres` | `postgres:18-alpine` | nenhuma | `pg_isready` | — |
 | `backend` | build `./backend` | nenhuma | `wget` em `/actuator/health/liveness` | `postgres` saudável |
-| `frontend` | build `./frontend` | `127.0.0.1:${FRONTEND_PORT:-80}:80` | `wget` em `/` | `backend` saudável |
+| `frontend` | build `./frontend` | `127.0.0.1:${FRONTEND_PORT:-38742}:8080` | `wget` em `/` | `backend` saudável |
 
 - Todos com `restart: unless-stopped`.
-- `backend` com `mem_limit: 512m` e `JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=75 -Duser.timezone=UTC`.
+- `backend` com `mem_limit: 512m`. As opções da JVM (`-XX:MaxRAMPercentage=75 -Duser.timezone=UTC`) ficam no `ENTRYPOINT` do Dockerfile, e não em `JAVA_TOOL_OPTIONS`: essa variável faz a JVM imprimir "Picked up JAVA_TOOL_OPTIONS", uma linha fora do JSON, a cada start. Verificado na T5: heap máximo de 384 MB e cerca de 220 MiB em uso.
 - Volume nomeado `pgdata` montado em `/var/lib/postgresql`. A partir do Postgres 18 a imagem guarda os dados em `/var/lib/postgresql/18/docker`, e montar em `/var/lib/postgresql/data` gera erro na subida.
 - O healthcheck do container do backend usa **liveness**, que não depende do banco. Assim o Postgres fora deixa o `/actuator/health` em `DOWN` sem o Docker considerar o container doente.
 - Imagens rodam com usuário não-root.
@@ -226,10 +244,10 @@ Sem router e sem gerenciador de estado nesta release. Entram quando houver mais 
 POSTGRES_DB=pausaativa
 POSTGRES_USER=pausaativa
 POSTGRES_PASSWORD=troque-esta-senha
-FRONTEND_PORT=80
+FRONTEND_PORT=38742
 ```
 
-O compose usa `${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}` para falhar com mensagem clara quando o `.env` não existir.
+As três credenciais ficam num bloco único (`x-credenciais-banco`), usado pelo Postgres e pelo backend, com `${VAR:?mensagem}`. Sem o `.env`, o `docker compose` termina com código 1 e diz qual variável falta e que é preciso copiar o `.env.example`.
 
 ## 8. CI e manutenção
 
@@ -241,7 +259,11 @@ O compose usa `${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}` para falh
 | `frontend` | `setup-node` 24 com cache npm → `npm ci` → `lint` → `typecheck` → `test --coverage` |
 | `compose` | Depende dos dois anteriores. `cp .env.example .env` → `docker compose up -d --build --wait` → `curl` em `/` e `/actuator/health` → `docker compose down -v` |
 
-`.github/dependabot.yml`: atualizações semanais para `maven` (`/backend`), `npm` (`/frontend`), `docker` (os dois Dockerfiles) e `github-actions`.
+`.github/dependabot.yml`: atualizações semanais para `maven` (`/backend`), `npm` (`/frontend`), `docker` (os dois Dockerfiles), `docker-compose` (imagem do Postgres) e `github-actions`. Versões menores e correções vêm agrupadas num PR por ecossistema; versões maiores, em PRs separados. O TypeScript 7 fica ignorado até o `vue-tsc` suportá-lo (seção 4).
+
+O job `compose` lê a porta do `.env` gerado a partir do `.env.example`, para seguir o mesmo passo a passo do README. Os relatórios de cobertura do backend e do frontend ficam como artefatos de cada execução.
+
+Consumo: o GitHub Free dá 2.000 minutos de Actions por mês para repositórios privados.
 
 Fluxo: branch `feat/h1-fundacao` → PR → merge → tag `v0.1.0`. O merge só acontece com o CI verde.
 
@@ -251,7 +273,8 @@ O repositório é privado numa conta GitHub Free, que não oferece proteção de
 
 | Arquivo | Conteúdo |
 |---|---|
-| `README.md` | Pré-requisitos, subir em 3 passos, verificar se está no ar, parar e apagar dados, porta 80 ocupada, comandos de desenvolvimento |
+| `README.md` | Pré-requisitos, subir em 3 passos, verificar se está no ar, parar e apagar dados, porta ocupada, comandos de desenvolvimento |
+| `docs/arquitetura/README.md` | Índice dos níveis C4 e resumo das decisões |
 | `docs/arquitetura/c4-1-contexto.md` | Nível 1, a partir do épico |
 | `docs/arquitetura/c4-2-containers.md` | Nível 2, refletindo o compose real (sem Prometheus e Grafana até a H5) |
 | `docs/arquitetura/c4-3-componentes.md` | Nível 3 do backend: módulos, ports e adapters, e as regras ArchUnit |
@@ -262,10 +285,18 @@ O repositório é privado numa conta GitHub Free, que não oferece proteção de
 
 | Cenário do épico | Verificação automática | Verificação manual (aceite) |
 |---|---|---|
-| 1. Subida do zero | Job `compose` do CI | Clonar, seguir o README, abrir `http://127.0.0.1` e ver "No ar" |
+| 1. Subida do zero | Job `compose` do CI | Clonar, seguir o README, abrir `http://127.0.0.1:38742` e ver "No ar" |
 | 2. Regra de arquitetura protegida | `ArquiteturaTest`: R1 a R5 verdes no código real; teste da fixture prova que R1 quebra com `@Component` no domínio | Adicionar um import de Spring numa classe de domínio, rodar `./mvnw verify` e ver a falha |
-| 3. Banco indisponível | Teste de integração: Postgres via Testcontainers; `docker pause` no container → `/actuator/health` = `DOWN` (503); `docker unpause` → volta a `UP` em até 10 s | `docker compose stop postgres` → `curl 127.0.0.1/actuator/health` retorna `DOWN`; `docker compose start postgres` → `UP` |
+| 3. Banco indisponível | Teste de integração: Postgres via Testcontainers; `docker pause` no container → `/actuator/health` = `DOWN` (503); `docker unpause` → volta a `UP` em até 10 s | `docker compose stop postgres` → `curl 127.0.0.1:38742/actuator/health` retorna `DOWN`; `docker compose start postgres` → `UP` |
 | 4. CI | O próprio workflow, com cobertura abaixo de 80% quebrando o job | Abrir o PR da H1 e ver os três jobs verdes |
+
+Verificação manual na máquina local (T7, 2026-10-01, Docker Desktop no Windows 11):
+
+| Cenário | Resultado |
+|---|---|
+| 1. Subida do zero | `docker compose up -d --build --wait` sem volumes prévios: os três serviços `healthy` em 32 s (com cache de build). Página, status e health respondem por `http://127.0.0.1:38742`. Postgres e backend sem porta no host; a aplicação não responde pelo IP da rede. Dados em `/var/lib/postgresql/18/docker`, `V1` aplicada. |
+| 3. Banco indisponível | `docker compose stop postgres`: health `DOWN` (503) em 3 s, liveness `UP`, backend segue `healthy` e sem reinício. `docker compose start postgres`: volta a `UP` sozinho. |
+| Extra: backend fora e recriado | Com o backend parado, a página abre e a API responde 502 (a página mostra "indisponível"). Recriado com outro IP (`.3` → `.5`), o nginx o encontra na hora, sem reiniciar. |
 
 Testes adicionais desta release:
 
@@ -283,22 +314,22 @@ A execução para ao fim de cada etapa, e o usuário decide se continua. A próx
 | # | Etapa | Pronto quando | Status |
 |---|---|---|---|
 | T1 | `git init`, `.gitignore`, `.gitattributes`, `.env.example`, repositório no GitHub | Primeiro push com o épico e esta spec | ✅ 2026-10-01 |
-| T2 | Backend: Maven Wrapper, `pom.xml`, app Spring Boot, `application.yml`, Flyway `V1` | `./mvnw verify` verde com teste de contexto via Testcontainers | Pendente |
-| T3 | Backend: pacotes hexagonais, `Clock`, ArchUnit R1–R5 com teste da fixture | Cenário 2 provado em teste | Pendente |
-| T4 | Backend: `/api/v1/sistema/status`, springdoc, snapshot OpenAPI, Spotless, JaCoCo 80% | `verify` verde com cobertura ≥ 80% | Pendente |
-| T5 | Backend: teste do Cenário 3 (pause/unpause) e Dockerfile | Imagem builda e o container fica `healthy` | Pendente |
-| T6 | Frontend: Vite + Vue + TS, `HomeView`, cliente HTTP, ESLint, Vitest 80%, Dockerfile + nginx | `lint`, `typecheck` e `test` verdes; imagem builda | Pendente |
-| T7 | `docker-compose.yml` completo | Cenários 1 e 3 verificados manualmente na máquina local | Pendente |
-| T8 | CI e Dependabot | Os três jobs verdes no PR | Pendente |
-| T9 | README, C4, `openapi.json`, release notes | Documentação revisada; aceite do usuário; merge e tag `v0.1.0` | Pendente |
+| T2 | Backend: Maven Wrapper, `pom.xml`, app Spring Boot, `application.yml`, Flyway `V1` | `./mvnw verify` verde com teste de contexto via Testcontainers | ✅ 2026-10-01 |
+| T3 | Backend: pacotes hexagonais, `Clock`, ArchUnit R1–R5 com teste da fixture | Cenário 2 provado em teste | ✅ 2026-10-01 |
+| T4 | Backend: `/api/v1/sistema/status`, springdoc, snapshot OpenAPI, Spotless, JaCoCo 80% | `verify` verde com cobertura ≥ 80% | ✅ 2026-10-01 |
+| T5 | Backend: teste do Cenário 3 (pause/unpause) e Dockerfile | Imagem builda e o container fica `healthy` | ✅ 2026-10-01 |
+| T6 | Frontend: Vite + Vue + TS, `HomeView`, cliente HTTP, ESLint, Vitest 80%, Dockerfile + nginx | `lint`, `typecheck` e `test` verdes; imagem builda | ✅ 2026-10-01 |
+| T7 | `docker-compose.yml` completo | Cenários 1 e 3 verificados manualmente na máquina local | ✅ 2026-10-01 |
+| T8 | CI e Dependabot | Os três jobs verdes no PR | ✅ 2026-10-01 (PR #1: backend 85 s, frontend 24 s, compose 98 s) |
+| T9 | README, C4, `openapi.json`, release notes | Documentação revisada; aceite do usuário; merge e tag `v0.1.0` | ✅ 2026-10-01 (aceite do usuário, merge do PR #1, tag `v0.1.0`) |
 
 ## 12. Riscos
 
 | Risco | Mitigação |
 |---|---|
-| Porta 80 ocupada no Windows (IIS, outro app) | `FRONTEND_PORT` no `.env`; README explica como trocar |
+| Porta ocupada ou reservada no Windows | Padrão 38742, abaixo de 49152: acima disso o Hyper-V/WSL reserva faixas que mudam a cada boot (verificado em 2026-10-01). `FRONTEND_PORT` no `.env`; README explica como trocar |
 | Docker Desktop parado na máquina (estava parado em 2026-10-01) | README lista iniciar o Docker Desktop como pré-requisito; testes de integração exigem Docker rodando |
-| Incompatibilidade entre springdoc 3.1 e Spring Boot 4.1 | Validar na T4; se falhar, documentar o contrato à mão em `docs/api/` e abrir pendência |
+| ~~Incompatibilidade entre springdoc 3.1 e Spring Boot 4.1~~ | Resolvido na T4: funciona (o start.spring.io já o lista para o Boot 4.1) |
 | Teste de pause/unpause instável no CI | Timeouts curtos do Hikari e espera com `Awaitility` em vez de `sleep` |
 | TypeScript 7 incompatível com `vue-tsc` | TS fixado em 6.0.x (seção 4) |
 | Sem proteção de branch (repositório privado no GitHub Free) | Merge só com CI verde, por disciplina (seção 8) |
@@ -307,7 +338,7 @@ A execução para ao fim de cada etapa, e o usuário decide se continua. A próx
 
 1. **Pacote base Java:** `br.com.pausaativa`.
 2. **Repositório no GitHub:** `lincolnnaraujo/pausa-ativa`, **privado**.
-3. **Porta padrão do frontend:** 80 (`http://127.0.0.1`), configurável.
+3. **Porta padrão do frontend:** ~~80~~ **38742** (`http://127.0.0.1:38742`), configurável. Alterada pelo usuário em 2026-10-01 para evitar conflito com a 80.
 4. **OpenAPI code-first** com snapshot versionado, em vez de escrever o contrato antes e gerar código.
 5. **Formatação Java** com palantir-java-format via Spotless.
 

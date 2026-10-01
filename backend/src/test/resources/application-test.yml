@@ -1,0 +1,5 @@
+# Perfil ativado pelo Surefire (pom.xml). Logs em texto para facilitar a leitura dos testes.
+logging:
+  structured:
+    format:
+      console: ""

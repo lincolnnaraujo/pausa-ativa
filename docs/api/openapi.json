@@ -1,0 +1,66 @@
+{
+  "openapi" : "3.1.0",
+  "info" : {
+    "description" : "Jornada de trabalho com marcos de hidratação e exercício.",
+    "title" : "Pausa Ativa API",
+    "version" : "0.1.0"
+  },
+  "servers" : [ {
+    "url" : "/",
+    "description" : "Mesma origem do frontend"
+  } ],
+  "tags" : [ {
+    "description" : "Informações sobre a própria aplicação",
+    "name" : "Sistema"
+  } ],
+  "paths" : {
+    "/api/v1/sistema/status" : {
+      "get" : {
+        "operationId" : "status",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StatusResposta"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Informa que o backend está no ar, com a versão e o horário do servidor",
+        "tags" : [ "Sistema" ]
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "StatusResposta" : {
+        "type" : "object",
+        "description" : "Situação do backend. Não consulta o banco; o estado do banco fica em /actuator/health.",
+        "properties" : {
+          "agora" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "Horário do servidor no fuso de negócio",
+            "example" : "2026-10-01T09:00:00-03:00"
+          },
+          "aplicacao" : {
+            "type" : "string",
+            "example" : "pausa-ativa"
+          },
+          "fuso" : {
+            "type" : "string",
+            "example" : "America/Sao_Paulo"
+          },
+          "versao" : {
+            "type" : "string",
+            "example" : "0.1.0"
+          }
+        },
+        "required" : [ "agora", "aplicacao", "fuso", "versao" ]
+      }
+    }
+  }
+}
