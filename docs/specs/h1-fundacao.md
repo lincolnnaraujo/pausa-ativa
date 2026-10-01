@@ -230,7 +230,7 @@ Sem router e sem gerenciador de estado nesta release. Entram quando houver mais 
 |---|---|---|---|---|
 | `postgres` | `postgres:18-alpine` | nenhuma | `pg_isready` | — |
 | `backend` | build `./backend` | nenhuma | `wget` em `/actuator/health/liveness` | `postgres` saudável |
-| `frontend` | build `./frontend` | `127.0.0.1:${FRONTEND_PORT:-80}:8080` | `wget` em `/` | `backend` saudável |
+| `frontend` | build `./frontend` | `127.0.0.1:${FRONTEND_PORT:-38742}:8080` | `wget` em `/` | `backend` saudável |
 
 - Todos com `restart: unless-stopped`.
 - `backend` com `mem_limit: 512m`. As opções da JVM (`-XX:MaxRAMPercentage=75 -Duser.timezone=UTC`) ficam no `ENTRYPOINT` do Dockerfile, e não em `JAVA_TOOL_OPTIONS`: essa variável faz a JVM imprimir "Picked up JAVA_TOOL_OPTIONS", uma linha fora do JSON, a cada start. Verificado na T5: heap máximo de 384 MB e cerca de 220 MiB em uso.
@@ -244,10 +244,10 @@ Sem router e sem gerenciador de estado nesta release. Entram quando houver mais 
 POSTGRES_DB=pausaativa
 POSTGRES_USER=pausaativa
 POSTGRES_PASSWORD=troque-esta-senha
-FRONTEND_PORT=80
+FRONTEND_PORT=38742
 ```
 
-O compose usa `${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}` para falhar com mensagem clara quando o `.env` não existir.
+As três credenciais ficam num bloco único (`x-credenciais-banco`), usado pelo Postgres e pelo backend, com `${VAR:?mensagem}`. Sem o `.env`, o `docker compose` termina com código 1 e diz qual variável falta e que é preciso copiar o `.env.example`.
 
 ## 8. CI e manutenção
 
@@ -269,7 +269,7 @@ O repositório é privado numa conta GitHub Free, que não oferece proteção de
 
 | Arquivo | Conteúdo |
 |---|---|
-| `README.md` | Pré-requisitos, subir em 3 passos, verificar se está no ar, parar e apagar dados, porta 80 ocupada, comandos de desenvolvimento |
+| `README.md` | Pré-requisitos, subir em 3 passos, verificar se está no ar, parar e apagar dados, porta ocupada, comandos de desenvolvimento |
 | `docs/arquitetura/c4-1-contexto.md` | Nível 1, a partir do épico |
 | `docs/arquitetura/c4-2-containers.md` | Nível 2, refletindo o compose real (sem Prometheus e Grafana até a H5) |
 | `docs/arquitetura/c4-3-componentes.md` | Nível 3 do backend: módulos, ports e adapters, e as regras ArchUnit |
@@ -280,10 +280,18 @@ O repositório é privado numa conta GitHub Free, que não oferece proteção de
 
 | Cenário do épico | Verificação automática | Verificação manual (aceite) |
 |---|---|---|
-| 1. Subida do zero | Job `compose` do CI | Clonar, seguir o README, abrir `http://127.0.0.1` e ver "No ar" |
+| 1. Subida do zero | Job `compose` do CI | Clonar, seguir o README, abrir `http://127.0.0.1:38742` e ver "No ar" |
 | 2. Regra de arquitetura protegida | `ArquiteturaTest`: R1 a R5 verdes no código real; teste da fixture prova que R1 quebra com `@Component` no domínio | Adicionar um import de Spring numa classe de domínio, rodar `./mvnw verify` e ver a falha |
-| 3. Banco indisponível | Teste de integração: Postgres via Testcontainers; `docker pause` no container → `/actuator/health` = `DOWN` (503); `docker unpause` → volta a `UP` em até 10 s | `docker compose stop postgres` → `curl 127.0.0.1/actuator/health` retorna `DOWN`; `docker compose start postgres` → `UP` |
+| 3. Banco indisponível | Teste de integração: Postgres via Testcontainers; `docker pause` no container → `/actuator/health` = `DOWN` (503); `docker unpause` → volta a `UP` em até 10 s | `docker compose stop postgres` → `curl 127.0.0.1:38742/actuator/health` retorna `DOWN`; `docker compose start postgres` → `UP` |
 | 4. CI | O próprio workflow, com cobertura abaixo de 80% quebrando o job | Abrir o PR da H1 e ver os três jobs verdes |
+
+Verificação manual na máquina local (T7, 2026-10-01, Docker Desktop no Windows 11):
+
+| Cenário | Resultado |
+|---|---|
+| 1. Subida do zero | `docker compose up -d --build --wait` sem volumes prévios: os três serviços `healthy` em 32 s (com cache de build). Página, status e health respondem por `http://127.0.0.1:38742`. Postgres e backend sem porta no host; a aplicação não responde pelo IP da rede. Dados em `/var/lib/postgresql/18/docker`, `V1` aplicada. |
+| 3. Banco indisponível | `docker compose stop postgres`: health `DOWN` (503) em 3 s, liveness `UP`, backend segue `healthy` e sem reinício. `docker compose start postgres`: volta a `UP` sozinho. |
+| Extra: backend fora e recriado | Com o backend parado, a página abre e a API responde 502 (a página mostra "indisponível"). Recriado com outro IP (`.3` → `.5`), o nginx o encontra na hora, sem reiniciar. |
 
 Testes adicionais desta release:
 
@@ -306,7 +314,7 @@ A execução para ao fim de cada etapa, e o usuário decide se continua. A próx
 | T4 | Backend: `/api/v1/sistema/status`, springdoc, snapshot OpenAPI, Spotless, JaCoCo 80% | `verify` verde com cobertura ≥ 80% | ✅ 2026-10-01 |
 | T5 | Backend: teste do Cenário 3 (pause/unpause) e Dockerfile | Imagem builda e o container fica `healthy` | ✅ 2026-10-01 |
 | T6 | Frontend: Vite + Vue + TS, `HomeView`, cliente HTTP, ESLint, Vitest 80%, Dockerfile + nginx | `lint`, `typecheck` e `test` verdes; imagem builda | ✅ 2026-10-01 |
-| T7 | `docker-compose.yml` completo | Cenários 1 e 3 verificados manualmente na máquina local | Pendente |
+| T7 | `docker-compose.yml` completo | Cenários 1 e 3 verificados manualmente na máquina local | ✅ 2026-10-01 |
 | T8 | CI e Dependabot | Os três jobs verdes no PR | Pendente |
 | T9 | README, C4, `openapi.json`, release notes | Documentação revisada; aceite do usuário; merge e tag `v0.1.0` | Pendente |
 
@@ -314,7 +322,7 @@ A execução para ao fim de cada etapa, e o usuário decide se continua. A próx
 
 | Risco | Mitigação |
 |---|---|
-| Porta 80 ocupada no Windows (IIS, outro app) | `FRONTEND_PORT` no `.env`; README explica como trocar |
+| Porta ocupada ou reservada no Windows | Padrão 38742, abaixo de 49152: acima disso o Hyper-V/WSL reserva faixas que mudam a cada boot (verificado em 2026-10-01). `FRONTEND_PORT` no `.env`; README explica como trocar |
 | Docker Desktop parado na máquina (estava parado em 2026-10-01) | README lista iniciar o Docker Desktop como pré-requisito; testes de integração exigem Docker rodando |
 | ~~Incompatibilidade entre springdoc 3.1 e Spring Boot 4.1~~ | Resolvido na T4: funciona (o start.spring.io já o lista para o Boot 4.1) |
 | Teste de pause/unpause instável no CI | Timeouts curtos do Hikari e espera com `Awaitility` em vez de `sleep` |
@@ -325,7 +333,7 @@ A execução para ao fim de cada etapa, e o usuário decide se continua. A próx
 
 1. **Pacote base Java:** `br.com.pausaativa`.
 2. **Repositório no GitHub:** `lincolnnaraujo/pausa-ativa`, **privado**.
-3. **Porta padrão do frontend:** 80 (`http://127.0.0.1`), configurável.
+3. **Porta padrão do frontend:** ~~80~~ **38742** (`http://127.0.0.1:38742`), configurável. Alterada pelo usuário em 2026-10-01 para evitar conflito com a 80.
 4. **OpenAPI code-first** com snapshot versionado, em vez de escrever o contrato antes e gerar código.
 5. **Formatação Java** com palantir-java-format via Spotless.
 
