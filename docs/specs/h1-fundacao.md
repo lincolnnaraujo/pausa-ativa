@@ -1,6 +1,6 @@
 # Spec H1 — Fundação do projeto (release v0.1.0)
 
-> **Status:** aprovada pelo usuário em 2026-10-01, com as decisões da seção 13. Em implementação; progresso na seção 11.
+> **Status:** entregue na release v0.1.0 em 2026-10-01 ([notas](../releases/v0.1.0.md)). Spec aprovada pelo usuário em 2026-10-01, com as decisões da seção 13.
 > **Origem:** História 1 de [`docs/epico-pausa-ativa.md`](../epico-pausa-ativa.md).
 > **Data:** 2026-10-01.
 
@@ -321,7 +321,7 @@ A execução para ao fim de cada etapa, e o usuário decide se continua. A próx
 | T6 | Frontend: Vite + Vue + TS, `HomeView`, cliente HTTP, ESLint, Vitest 80%, Dockerfile + nginx | `lint`, `typecheck` e `test` verdes; imagem builda | ✅ 2026-10-01 |
 | T7 | `docker-compose.yml` completo | Cenários 1 e 3 verificados manualmente na máquina local | ✅ 2026-10-01 |
 | T8 | CI e Dependabot | Os três jobs verdes no PR | ✅ 2026-10-01 (PR #1: backend 85 s, frontend 24 s, compose 98 s) |
-| T9 | README, C4, `openapi.json`, release notes | Documentação revisada; aceite do usuário; merge e tag `v0.1.0` | Documentação pronta em 2026-10-01; **aguardando aceite** |
+| T9 | README, C4, `openapi.json`, release notes | Documentação revisada; aceite do usuário; merge e tag `v0.1.0` | ✅ 2026-10-01 (aceite do usuário, merge do PR #1, tag `v0.1.0`) |
 
 ## 12. Riscos
 
