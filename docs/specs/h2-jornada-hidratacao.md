@@ -1,6 +1,6 @@
 # Spec H2 — Controlar a jornada e registrar hidratação (release v0.2.0)
 
-> **Status:** rascunho, aguardando revisão do usuário (item 1 da DoR). As decisões da seção 13 precisam de confirmação.
+> **Status:** aprovada pelo usuário em 2026-10-01, com as recomendações D1 a D8 da seção 13. Em implementação; progresso na seção 12.
 > **Origem:** História 2 de [`docs/epico-pausa-ativa.md`](../epico-pausa-ativa.md).
 > **Depende de:** H1 (v0.1.0), entregue em 2026-10-01.
 > **Data:** 2026-10-01.
@@ -134,9 +134,9 @@ Toda a funcionalidade fica no módulo **Agenda**. Treino e Histórico continuam 
 |---|---|---|
 | `jornada` | `id` (uuid), `data_referencia` (date, dia em São Paulo), `status`, `meta_agua_ml`, `iniciada_em`, `finalizada_em` | `unique (data_referencia)` (D3); índice único parcial que permite **uma** jornada com status `EM_ANDAMENTO` ou `PAUSADA` (barra a segunda jornada mesmo sob concorrência); `check (meta_agua_ml between 1 and 6000)` |
 | `pausa` | `id`, `jornada_id`, `inicio`, `fim` (nulo enquanto pausada) | FK para `jornada` |
-| `marco` | `id`, `jornada_id`, `categoria`, `sequencia`, `status`, `segundos_trabalhados_previstos`, `volume_ml` (numeric 6,1), `previsto_para`, `disparado_em`, `recebido_em`, `respondido_em` | `unique (jornada_id, categoria, sequencia)` (épico); FK para `jornada` |
+| `marco` | `id`, `jornada_id`, `categoria`, `sequencia`, `status`, `segundos_trabalhados_previstos`, `segundos_trabalhados_limite`, `volume_ml` (numeric 8,4), `previsto_para`, `disparado_em`, `recebido_em`, `respondido_em` | `unique (jornada_id, categoria, sequencia)` (épico); FK para `jornada` |
 
-Instantes em `timestamptz`, gravados em UTC. `previsto_para` é o instante em que o tempo trabalhado cruzou o limiar; `disparado_em - previsto_para` é o atraso de disparo, medido para a H5.
+Instantes em `timestamptz`, gravados em UTC. Cada marco guarda o próprio prazo (`segundos_trabalhados_limite`): na H3, exercício (60 min) e água (30 min) têm intervalos diferentes. O volume é exato (meta ÷ 16 tem no máximo 4 casas decimais); com uma casa só, metas como 1 ml seriam arredondadas, e a soma da água do dia sairia errada. `previsto_para` é o instante em que o tempo trabalhado cruzou o limiar; `disparado_em - previsto_para` é o atraso de disparo, medido para a H5.
 
 ## 6. Contrato REST
 
@@ -274,7 +274,7 @@ Branch `feat/h2-jornada-hidratacao`. A execução para ao fim de cada etapa, e a
 
 | # | Etapa | Pronto quando | Status |
 |---|---|---|---|
-| T1 | Domínio da Agenda em Java puro (seção 3) e regra R6 | Cenários 1 a 5, 7 e 8 cobertos por testes de domínio com relógio controlado | Pendente |
+| T1 | Domínio da Agenda em Java puro (seção 3) e regra R6 | Cenários 1 a 5, 7 e 8 cobertos por testes de domínio com relógio controlado | ✅ 2026-10-01 (32 testes; domínio com 95% das linhas e 91% dos ramos) |
 | T2 | Persistência: migração `V2`, adapters JPA, lock pessimista, reconciliação na subida | Testes de integração verdes, incluindo concorrência e jornada esquecida | Pendente |
 | T3 | API REST, Problem Details, contrato OpenAPI, tipos TypeScript gerados | Testes MockMvc de todos os endpoints; contrato atualizado | Pendente |
 | T4 | Agendador, SSE, recebimento, métricas, modo demonstração | Evento entregue e reconexão testados; métricas expostas | Pendente |
@@ -285,7 +285,7 @@ Branch `feat/h2-jornada-hidratacao`. A execução para ao fim de cada etapa, e a
 
 ## 13. Decisões para o usuário confirmar
 
-Lacunas que o épico não decidia. Cada uma tem uma recomendação.
+Lacunas que o épico não decidia. **O usuário aceitou todas as recomendações em 2026-10-01.**
 
 | # | Decisão | Recomendação | Alternativa |
 |---|---|---|---|

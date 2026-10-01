@@ -76,4 +76,16 @@ class RegrasDeArquiteturaTest {
                 .hasMessageContaining("IniciarJornada")
                 .hasMessageContaining("MontarBloco");
     }
+
+    @Test
+    void r6RecusaLeituraDoRelogioDoSistema() {
+        String base = FIXTURES + ".r6";
+
+        assertThatThrownBy(() -> RegrasDeArquitetura.tempoSoPeloClock(base).check(importar(base)))
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining("R6")
+                .hasMessageContaining("MarcoComRelogioDoSistema")
+                .hasMessageContaining("Instant.now()")
+                .hasMessageNotContaining("MarcoComClock");
+    }
 }
