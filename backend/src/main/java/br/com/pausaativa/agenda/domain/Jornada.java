@@ -59,6 +59,27 @@ public final class Jornada {
         this.finalizadaEm = finalizadaEm;
     }
 
+    /** Remonta uma jornada gravada. Uso exclusivo da persistência; marcos em ordem de categoria e sequência. */
+    public static Jornada reconstituir(
+            UUID id,
+            LocalDate dataReferencia,
+            MetaDeAgua meta,
+            Instant iniciadaEm,
+            StatusJornada status,
+            Instant finalizadaEm,
+            List<Pausa> pausas,
+            List<Marco> marcos) {
+        return new Jornada(
+                id,
+                dataReferencia,
+                meta,
+                iniciadaEm,
+                new ArrayList<>(pausas),
+                new ArrayList<>(marcos),
+                status,
+                finalizadaEm);
+    }
+
     /** Começa o dia e agenda todos os marcos do plano (decisão D1). */
     public static Jornada iniciar(UUID id, Instant agora, ZoneId fuso, MetaDeAgua meta, PlanoDeMarcos plano) {
         BigDecimal volume = meta.volumePorMarco(plano.quantidade());
@@ -139,9 +160,22 @@ public final class Jornada {
         return true;
     }
 
-    /** Jornada de um dia anterior que ficou aberta (spec H2, seção 3.5). */
-    public boolean esquecida(LocalDate hoje) {
-        return status.aberta() && dataReferencia.isBefore(hoje);
+    /**
+     * Jornada de um dia anterior que ficou aberta e já não está em uso (spec H2, seção 3.5): não tem
+     * mais marco por disparar nem por responder, ou está pausada desde um dia anterior. Uma jornada que
+     * atravessa a meia-noite com marcos pela frente continua valendo.
+     */
+    public boolean esquecida(Instant agora, ZoneId fuso) {
+        LocalDate hoje = LocalDate.ofInstant(agora, fuso);
+        if (!status.aberta() || !dataReferencia.isBefore(hoje)) {
+            return false;
+        }
+        boolean semMarcosEmAberto =
+                marcos.stream().allMatch(marco -> marco.status().encerrado());
+        boolean pausadaDesdeOutroDia = pausas.stream()
+                .filter(Pausa::emCurso)
+                .anyMatch(pausa -> LocalDate.ofInstant(pausa.inicio(), fuso).isBefore(hoje));
+        return semMarcosEmAberto || pausadaDesdeOutroDia;
     }
 
     /**
@@ -166,10 +200,11 @@ public final class Jornada {
     }
 
     /**
-     * Acerta a jornada depois de o backend ficar fora do ar: marcos cujo instante passou durante a
-     * queda viram {@code NAO_ENTREGUE} em vez de disparar atrasados, e prazos vencidos são resolvidos.
+     * Põe a jornada em dia sem disparar nada atrasado: prazos vencidos são resolvidos, e marcos cujo
+     * instante já passou viram {@code NAO_ENTREGUE}. Usado na subida do backend (que pode ter ficado
+     * fora do ar) e antes de decidir se uma jornada aberta ficou esquecida.
      */
-    public boolean reconciliarAposReinicio(Instant agora) {
+    public boolean reconciliar(Instant agora) {
         if (!status.aberta()) {
             return false;
         }

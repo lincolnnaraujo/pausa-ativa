@@ -48,6 +48,28 @@ public final class Marco {
         this.status = AGENDADO;
     }
 
+    /** Remonta um marco gravado. Uso exclusivo da persistência. */
+    public static Marco reconstituir(
+            UUID id,
+            Categoria categoria,
+            int sequencia,
+            Duration tempoTrabalhadoPrevisto,
+            Duration tempoTrabalhadoLimite,
+            BigDecimal volumeMl,
+            StatusMarco status,
+            Instant previstoPara,
+            Instant disparadoEm,
+            Instant recebidoEm,
+            Instant respondidoEm) {
+        Marco marco = new Marco(id, categoria, sequencia, tempoTrabalhadoPrevisto, tempoTrabalhadoLimite, volumeMl);
+        marco.status = status;
+        marco.previstoPara = previstoPara;
+        marco.disparadoEm = disparadoEm;
+        marco.recebidoEm = recebidoEm;
+        marco.respondidoEm = respondidoEm;
+        return marco;
+    }
+
     /** O prazo é um intervalo depois do disparo: o instante em que dispararia o marco seguinte. */
     static Marco agendado(PlanoDeMarcos plano, int sequencia, BigDecimal volumeMl) {
         Duration previsto = plano.intervalo().multipliedBy(sequencia);

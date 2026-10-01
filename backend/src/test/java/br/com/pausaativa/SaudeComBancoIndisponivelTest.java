@@ -7,8 +7,6 @@ import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.web.context.WebApplicationContext;
@@ -20,8 +18,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
  * <p>O container do Postgres é congelado com {@code docker pause}, que simula um banco que não
  * responde sem trocar a porta mapeada (um stop/start trocaria e quebraria a URL do datasource).
  */
-@SpringBootTest
-@Import(TestcontainersConfiguration.class)
+@TesteDeIntegracao
 class SaudeComBancoIndisponivelTest {
 
     @Autowired

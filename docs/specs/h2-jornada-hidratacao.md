@@ -99,9 +99,13 @@ stateDiagram-v2
 
 | Situação | Quando é verificada | O que acontece |
 |---|---|---|
-| Jornada esquecida aberta (começou num dia anterior) | Na subida do backend **e** ao clicar em Iniciar dia **(D5)** | Vira `ENCERRADA_AUTOMATICAMENTE`. Marcos `PENDENTE` seguem a regra do prazo vencido; os `AGENDADO` viram `NAO_ENTREGUE` (Cenário 8). |
+| Jornada esquecida: de um dia anterior **e** sem marco por disparar ou responder, ou pausada desde um dia anterior **(D5, refinada na T2)** | Na subida do backend, ao clicar em Iniciar dia e a cada tick do agendador (T4) | Vira `ENCERRADA_AUTOMATICAMENTE`. Marcos `PENDENTE` seguem a regra do prazo vencido; os `AGENDADO` viram `NAO_ENTREGUE` (Cenário 8). |
 | Backend fora do ar no instante de um marco | Na subida do backend | Marcos `AGENDADO` cujo instante já passou viram `NAO_ENTREGUE`, sem disparar atrasado. Evita uma rajada de notificações velhas. |
 | Prazo vencido durante a queda | Na subida do backend | Mesma regra do prazo vencido. |
+
+Antes de decidir se a jornada aberta ficou esquecida, ela é **posta em dia** (`Jornada.reconciliar`): prazos vencidos são resolvidos e marcos que passaram sem disparar viram `NAO_ENTREGUE`. Assim, uma jornada de ontem com lembretes parados no estado de ontem não bloqueia o dia de hoje.
+
+**Por que a regra foi refinada (T2).** A versão aprovada considerava esquecida qualquer jornada de um dia anterior. Com isso, quem começa às 22:00 teria a jornada encerrada logo depois da meia-noite, se o backend reiniciasse ou se clicasse em Iniciar dia, e o épico pede que jornadas pela meia-noite funcionem. Com a regra nova, uma jornada que ainda tem marcos pela frente continua valendo; e o agendador pode encerrar a esquecida sozinho, então na manhã seguinte a tela já mostra "Iniciar dia".
 
 ## 4. Arquitetura da H2
 
@@ -117,7 +121,7 @@ Toda a funcionalidade fica no módulo **Agenda**. Treino e Histórico continuam 
 | `agenda.adapter.out.persistence` | Entidades JPA, Spring Data, mapeadores para o domínio |
 | `agenda.adapter.out.sse` | `NotificadorDeMarco` via `SseEmitter`, com registro de conexões e heartbeat |
 
-**Concorrência.** O tick do agendador e os cliques do usuário podem alterar a mesma jornada ao mesmo tempo, por exemplo o prazo vencendo enquanto o usuário clica em Concluir. Todo caso de uso carrega a jornada com **lock pessimista** (`SELECT … FOR UPDATE`), e a operação seguinte espera a anterior terminar. Com um único usuário, o custo é desprezível.
+**Concorrência.** O tick do agendador e os cliques do usuário podem alterar a mesma jornada ao mesmo tempo, por exemplo o prazo vencendo enquanto o usuário clica em Concluir. Todo caso de uso que altera a jornada a carrega com **lock pessimista**, e a operação seguinte espera a anterior terminar. Com um único usuário, o custo é desprezível. No Postgres, o Hibernate emite `SELECT … FOR NO KEY UPDATE`: serializa as alterações na jornada sem travar inserções que apontam para ela. Dois "Iniciar dia" simultâneos não têm linha para travar; quem barra o segundo é a restrição do banco, traduzida para `JornadaJaIniciadaException`.
 
 **Relógio.** Os casos de uso leem o `Clock` injetado e passam o instante ao domínio. Nos testes, um relógio controlável avança o tempo sem `sleep`.
 
@@ -132,8 +136,8 @@ Toda a funcionalidade fica no módulo **Agenda**. Treino e Histórico continuam 
 
 | Tabela | Colunas principais | Restrições |
 |---|---|---|
-| `jornada` | `id` (uuid), `data_referencia` (date, dia em São Paulo), `status`, `meta_agua_ml`, `iniciada_em`, `finalizada_em` | `unique (data_referencia)` (D3); índice único parcial que permite **uma** jornada com status `EM_ANDAMENTO` ou `PAUSADA` (barra a segunda jornada mesmo sob concorrência); `check (meta_agua_ml between 1 and 6000)` |
-| `pausa` | `id`, `jornada_id`, `inicio`, `fim` (nulo enquanto pausada) | FK para `jornada` |
+| `jornada` | `id` (uuid), `versao` (controle otimista do JPA), `data_referencia` (date, dia em São Paulo), `status`, `meta_agua_ml`, `iniciada_em`, `finalizada_em` | `unique (data_referencia)` (D3); índice único parcial que permite **uma** jornada com status `EM_ANDAMENTO` ou `PAUSADA` (barra a segunda jornada mesmo sob concorrência); `check (meta_agua_ml between 1 and 6000)` |
+| `pausa` | `jornada_id`, `inicio`, `fim` (nulo enquanto pausada) | Chave `(jornada_id, inicio)`; FK para `jornada` |
 | `marco` | `id`, `jornada_id`, `categoria`, `sequencia`, `status`, `segundos_trabalhados_previstos`, `segundos_trabalhados_limite`, `volume_ml` (numeric 8,4), `previsto_para`, `disparado_em`, `recebido_em`, `respondido_em` | `unique (jornada_id, categoria, sequencia)` (épico); FK para `jornada` |
 
 Instantes em `timestamptz`, gravados em UTC. Cada marco guarda o próprio prazo (`segundos_trabalhados_limite`): na H3, exercício (60 min) e água (30 min) têm intervalos diferentes. O volume é exato (meta ÷ 16 tem no máximo 4 casas decimais); com uma casa só, metas como 1 ml seriam arredondadas, e a soma da água do dia sairia errada. `previsto_para` é o instante em que o tempo trabalhado cruzou o limiar; `disparado_em - previsto_para` é o atraso de disparo, medido para a H5.
@@ -275,7 +279,7 @@ Branch `feat/h2-jornada-hidratacao`. A execução para ao fim de cada etapa, e a
 | # | Etapa | Pronto quando | Status |
 |---|---|---|---|
 | T1 | Domínio da Agenda em Java puro (seção 3) e regra R6 | Cenários 1 a 5, 7 e 8 cobertos por testes de domínio com relógio controlado | ✅ 2026-10-01 (32 testes; domínio com 95% das linhas e 91% dos ramos) |
-| T2 | Persistência: migração `V2`, adapters JPA, lock pessimista, reconciliação na subida | Testes de integração verdes, incluindo concorrência e jornada esquecida | Pendente |
+| T2 | Persistência: migração `V2`, adapters JPA, lock pessimista, reconciliação na subida | Testes de integração verdes, incluindo concorrência e jornada esquecida | ✅ 2026-10-01 (15 testes de integração; 69 no backend) |
 | T3 | API REST, Problem Details, contrato OpenAPI, tipos TypeScript gerados | Testes MockMvc de todos os endpoints; contrato atualizado | Pendente |
 | T4 | Agendador, SSE, recebimento, métricas, modo demonstração | Evento entregue e reconexão testados; métricas expostas | Pendente |
 | T5 | Frontend: tela da jornada e respostas | Lint, tipos e testes verdes, cobertura ≥ 80% | Pendente |
@@ -293,7 +297,7 @@ Lacunas que o épico não decidia. **O usuário aceitou todas as recomendações
 | D2 | Prazo do 16º marco, que não tem "marco seguinte" | 30 min de tempo trabalhado, como os demais (vence às 8 h 30). Sem isso, o último lembrete nunca poderia virar falha. | Ficar `PENDENTE` até finalizar (vira `NAO_CONCLUIDO`) |
 | D3 | Iniciar outra jornada no mesmo dia depois de finalizar | **Não.** Uma jornada por dia, já que "finalizada não reabre". Evita contar o dia em dobro nos gráficos. | Permitir várias jornadas por dia |
 | D4 | Teto da meta de água | **6.000 ml** (750 ml/h em 8 h), abaixo do limite de 0,8 a 1,0 L/h dos rins citado no épico | Sem teto; ou outro valor |
-| D5 | Quando fechar a jornada esquecida | Na subida do backend **e** ao clicar em Iniciar dia. Com o Docker Desktop sempre aberto, o backend pode ficar dias sem reiniciar, e a jornada esquecida bloquearia o dia seguinte. | Só na subida do backend, como diz o épico |
+| D5 | Quando fechar a jornada esquecida | Na subida do backend **e** ao clicar em Iniciar dia. Com o Docker Desktop sempre aberto, o backend pode ficar dias sem reiniciar, e a jornada esquecida bloquearia o dia seguinte. **Refinada na T2** (seção 3.5): também a cada tick, e só quando a jornada não tem mais marcos pela frente ou está pausada desde outro dia. | Só na subida do backend, como diz o épico |
 | D6 | Onde ficam os botões Concluir e Falhar | Na página. Clicar na notificação traz a aba para a frente. Botões dentro da notificação exigem um service worker, que o épico deixou como melhoria futura. | Incluir o service worker já na H2 |
 | D7 | Como funciona o som | Tom gerado pelo navegador, liga/desliga salvo no navegador. Após recarregar a página, é preciso um clique para liberar o som (regra do Chrome). | Arquivo de áudio próprio |
 | D8 | Modo demonstração | Intervalo configurável e `docker-compose.demo.yml` com 1 min por lembrete | Testar só com testes automáticos e um dia real de uso |

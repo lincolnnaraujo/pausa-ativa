@@ -4,7 +4,7 @@ import java.util.UUID;
 
 public class MarcoNaoEncontradoException extends RegraDeNegocioException {
 
-    MarcoNaoEncontradoException(UUID marcoId) {
+    public MarcoNaoEncontradoException(UUID marcoId) {
         super("Lembrete não encontrado: " + marcoId);
     }
 }

@@ -416,14 +416,15 @@ class JornadaTest {
     class Reconciliacao {
 
         @Test
-        void cenario8JornadaEsquecidaEEncerradaAutomaticamente() {
+        void cenario8JornadaDeOntemComOBackendForaDoArEEncerradaNaSubida() {
             Jornada jornada = iniciadaAs("09:00");
             agendadorAte(jornada, as("09:00"), as("10:00"));
             jornada.confirmarRecebimento(marco(jornada, 2).id(), as("10:00:01"));
+            // Backend fora do ar das 10:00:01 até amanhã às 08:00. Na subida: reconcilia e encerra.
             Instant amanha = as("08:00").plus(Duration.ofDays(1));
 
-            assertThat(jornada.esquecida(DIA)).isFalse();
-            assertThat(jornada.esquecida(DIA.plusDays(1))).isTrue();
+            jornada.reconciliar(amanha);
+            assertThat(jornada.esquecida(amanha, SAO_PAULO)).isTrue();
             boolean mudou = jornada.encerrarAutomaticamente(amanha);
 
             assertThat(mudou).isTrue();
@@ -433,7 +434,41 @@ class JornadaTest {
             assertThat(jornada.marcos().subList(2, 16))
                     .extracting(Marco::status)
                     .containsOnly(NAO_ENTREGUE);
-            assertThat(jornada.esquecida(DIA.plusDays(1))).isFalse();
+            assertThat(jornada.esquecida(amanha, SAO_PAULO)).isFalse();
+        }
+
+        @Test
+        void jornadaSemMarcosPelaFrenteViraEsquecidaQuandoODiaVira() {
+            Jornada jornada = iniciadaAs("09:00");
+            agendadorAte(jornada, as("09:00"), as("17:30"));
+
+            assertThat(jornada.esquecida(as("23:59:59"), SAO_PAULO)).isFalse();
+            assertThat(jornada.esquecida(as("00:00").plus(Duration.ofDays(1)), SAO_PAULO))
+                    .isTrue();
+        }
+
+        @Test
+        void jornadaPausadaDesdeOntemEEsquecidaMesmoComMarcosPelaFrente() {
+            Jornada jornada = iniciadaAs("09:00");
+            jornada.pausar(as("12:00"));
+            Instant amanha = as("08:00").plus(Duration.ofDays(1));
+
+            assertThat(jornada.esquecida(amanha, SAO_PAULO)).isTrue();
+            jornada.encerrarAutomaticamente(amanha);
+
+            assertThat(marco(jornada, 16).status()).isEqualTo(NAO_ENTREGUE);
+            assertThat(jornada.pausas())
+                    .singleElement()
+                    .satisfies(pausa -> assertThat(pausa.fim()).contains(amanha));
+        }
+
+        @Test
+        void jornadaQueAtravessaAMeiaNoiteComMarcosPelaFrenteNaoEEsquecida() {
+            Jornada jornada = iniciadaAs("22:00");
+            Instant meiaNoiteEMeia = as("00:30").plus(Duration.ofDays(1));
+            agendadorAte(jornada, as("22:00"), meiaNoiteEMeia);
+
+            assertThat(jornada.esquecida(meiaNoiteEMeia, SAO_PAULO)).isFalse();
         }
 
         @Test
@@ -443,7 +478,7 @@ class JornadaTest {
             jornada.confirmarRecebimento(marco(jornada, 2).id(), as("10:00:01"));
             // Backend fora do ar das 10:10 às 11:05.
 
-            boolean mudou = jornada.reconciliarAposReinicio(as("11:05"));
+            boolean mudou = jornada.reconciliar(as("11:05"));
 
             assertThat(mudou).isTrue();
             assertThat(marco(jornada, 2).status()).isEqualTo(FALHA);
@@ -457,9 +492,9 @@ class JornadaTest {
         void reinicioSemNadaVencidoNaoMudaAJornada() {
             Jornada jornada = iniciadaAs("09:00");
 
-            assertThat(jornada.reconciliarAposReinicio(as("09:10"))).isFalse();
+            assertThat(jornada.reconciliar(as("09:10"))).isFalse();
             assertThat(jornada.encerrarAutomaticamente(as("09:10"))).isTrue();
-            assertThat(jornada.reconciliarAposReinicio(as("09:20"))).isFalse();
+            assertThat(jornada.reconciliar(as("09:20"))).isFalse();
         }
     }
 

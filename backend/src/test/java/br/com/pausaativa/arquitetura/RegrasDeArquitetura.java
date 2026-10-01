@@ -62,9 +62,7 @@ final class RegrasDeArquitetura {
                 .should()
                 .dependOnClassesThat()
                 .resideInAnyPackage(base + "..adapter..", "jakarta.persistence..")
-                .as("R3: application não depende de adapter nem de JPA")
-                // Até a T2 da H2 não há classes em application.
-                .allowEmptyShould(true);
+                .as("R3: application não depende de adapter nem de JPA");
     }
 
     /** R4: o {@code application.port.in} é a única API pública de cada módulo. */

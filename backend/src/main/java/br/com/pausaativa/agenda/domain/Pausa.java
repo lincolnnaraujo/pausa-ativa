@@ -15,6 +15,11 @@ public final class Pausa {
         this.fim = fim;
     }
 
+    /** Remonta uma pausa gravada. Uso exclusivo da persistência. */
+    public static Pausa reconstituir(Instant inicio, Instant fim) {
+        return new Pausa(inicio, fim);
+    }
+
     static Pausa iniciadaEm(Instant inicio) {
         return new Pausa(inicio, null);
     }
