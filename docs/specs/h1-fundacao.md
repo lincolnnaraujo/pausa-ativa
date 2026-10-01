@@ -243,7 +243,9 @@ O compose usa `${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}` para falh
 
 `.github/dependabot.yml`: atualizações semanais para `maven` (`/backend`), `npm` (`/frontend`), `docker` (os dois Dockerfiles) e `github-actions`.
 
-Branch `main` protegida com o CI como check obrigatório. Fluxo: branch `feat/h1-fundacao` → PR → merge → tag `v0.1.0`.
+Fluxo: branch `feat/h1-fundacao` → PR → merge → tag `v0.1.0`. O merge só acontece com o CI verde.
+
+O repositório é privado numa conta GitHub Free, que não oferece proteção de branch nem rulesets para repositórios privados (verificado em 2026-10-01: a API devolve 403). O GitHub não bloqueia o merge com CI vermelho; a regra vale por disciplina. Para ter o bloqueio automático, seria preciso tornar o repositório público ou assinar o GitHub Pro.
 
 ## 9. Documentação entregue
 
@@ -299,6 +301,7 @@ A execução para ao fim de cada etapa, e o usuário decide se continua. A próx
 | Incompatibilidade entre springdoc 3.1 e Spring Boot 4.1 | Validar na T4; se falhar, documentar o contrato à mão em `docs/api/` e abrir pendência |
 | Teste de pause/unpause instável no CI | Timeouts curtos do Hikari e espera com `Awaitility` em vez de `sleep` |
 | TypeScript 7 incompatível com `vue-tsc` | TS fixado em 6.0.x (seção 4) |
+| Sem proteção de branch (repositório privado no GitHub Free) | Merge só com CI verde, por disciplina (seção 8) |
 
 ## 13. Decisões para o usuário confirmar
 
