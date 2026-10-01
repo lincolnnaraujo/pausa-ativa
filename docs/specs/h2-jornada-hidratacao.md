@@ -192,7 +192,11 @@ Representação da jornada (resumida):
 
 O frontend usa `tempoTrabalhadoSegundos` e `calculadoEm` para manter o cronômetro andando entre as atualizações, sem depender do relógio do computador para o cálculo.
 
-**Tipos do frontend gerados do contrato.** O `openapi-typescript` gera `frontend/src/api/contrato.ts` a partir de `docs/api/openapi.json`. O CI regenera e falha se houver diferença. Assim, backend e frontend não divergem.
+**Tipos do frontend gerados do contrato.** O `openapi-typescript` gera `frontend/src/api/contrato.ts` a partir de `docs/api/openapi.json` (`npm run contrato`). O CI regenera e falha se houver diferença. Assim, backend e frontend não divergem.
+
+- O `openapi-typescript` 7.13 declara compatibilidade só com TypeScript 5. Um `overrides` no `package.json` o faz usar o TypeScript 6 do projeto, e a geração foi conferida: campos nulos saem como `string | null` e os status como união de literais. Rever quando sair uma versão que declare o TS 6.
+- Campos que podem vir nulos são declarados como `["string", "null"]` (OpenAPI 3.1) nos DTOs de resposta do adapter web (`JornadaResposta`, `MarcoResposta`), que também marcam todos os campos como obrigatórios. Os DTOs ficam no adapter para as anotações do contrato não subirem para a aplicação.
+- Limitação conhecida: o springdoc aplica os códigos de erro do `TratamentoDeErrosDaAgenda` (400, 404, 409) a todos os endpoints da Agenda, inclusive onde não ocorrem (como o 409 no `GET /jornadas/atual`). O frontend não depende dessa lista.
 
 ## 7. Eventos (SSE)
 
@@ -280,7 +284,7 @@ Branch `feat/h2-jornada-hidratacao`. A execução para ao fim de cada etapa, e a
 |---|---|---|---|
 | T1 | Domínio da Agenda em Java puro (seção 3) e regra R6 | Cenários 1 a 5, 7 e 8 cobertos por testes de domínio com relógio controlado | ✅ 2026-10-01 (32 testes; domínio com 95% das linhas e 91% dos ramos) |
 | T2 | Persistência: migração `V2`, adapters JPA, lock pessimista, reconciliação na subida | Testes de integração verdes, incluindo concorrência e jornada esquecida | ✅ 2026-10-01 (15 testes de integração; 69 no backend) |
-| T3 | API REST, Problem Details, contrato OpenAPI, tipos TypeScript gerados | Testes MockMvc de todos os endpoints; contrato atualizado | Pendente |
+| T3 | API REST, Problem Details, contrato OpenAPI, tipos TypeScript gerados | Testes MockMvc de todos os endpoints; contrato atualizado | ✅ 2026-10-01 (11 testes de API; 80 no backend) |
 | T4 | Agendador, SSE, recebimento, métricas, modo demonstração | Evento entregue e reconexão testados; métricas expostas | Pendente |
 | T5 | Frontend: tela da jornada e respostas | Lint, tipos e testes verdes, cobertura ≥ 80% | Pendente |
 | T6 | Frontend: eventos, notificações, som, aviso de permissão, reconexão | Idem, com `EventSource` e `Notification` simulados | Pendente |

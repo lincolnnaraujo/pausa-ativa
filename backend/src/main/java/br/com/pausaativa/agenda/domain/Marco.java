@@ -44,8 +44,14 @@ public final class Marco {
         this.sequencia = sequencia;
         this.tempoTrabalhadoPrevisto = tempoTrabalhadoPrevisto;
         this.tempoTrabalhadoLimite = tempoTrabalhadoLimite;
-        this.volumeMl = volumeMl;
+        this.volumeMl = semZerosNemExpoente(volumeMl);
         this.status = AGENDADO;
+    }
+
+    /** 187.5000 vira 187.5, e 125.0000 vira 125 (o {@code stripTrailingZeros} sozinho daria 1.25E+2). */
+    private static BigDecimal semZerosNemExpoente(BigDecimal valor) {
+        BigDecimal semZeros = valor.stripTrailingZeros();
+        return semZeros.scale() < 0 ? semZeros.setScale(0) : semZeros;
     }
 
     /** Remonta um marco gravado. Uso exclusivo da persistência. */

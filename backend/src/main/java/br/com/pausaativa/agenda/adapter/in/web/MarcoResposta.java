@@ -1,0 +1,77 @@
+package br.com.pausaativa.agenda.adapter.in.web;
+
+import br.com.pausaativa.agenda.application.port.in.SituacaoDoMarco;
+import br.com.pausaativa.agenda.domain.Categoria;
+import br.com.pausaativa.agenda.domain.StatusMarco;
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
+@Schema(
+        name = "Marco",
+        description = "Lembrete da jornada. Horários no fuso America/Sao_Paulo.",
+        requiredProperties = {
+            "id",
+            "categoria",
+            "sequencia",
+            "status",
+            "volumeMl",
+            "volumeAproximadoMl",
+            "segundosTrabalhadosPrevistos",
+            "disparadoEm",
+            "recebidoEm",
+            "respondidoEm",
+            "mensagem"
+        })
+record MarcoResposta(
+        UUID id,
+        Categoria categoria,
+
+        @Schema(description = "Ordem do marco na categoria, a partir de 1", example = "1")
+        int sequencia,
+
+        StatusMarco status,
+
+        @Schema(description = "Volume exato: meta ÷ 16", example = "187.5")
+        BigDecimal volumeMl,
+
+        @Schema(description = "Volume para exibir, arredondado para a dezena", example = "190")
+        int volumeAproximadoMl,
+
+        @Schema(description = "Tempo trabalhado em que o marco dispara", example = "1800")
+        long segundosTrabalhadosPrevistos,
+
+        @Schema(
+                types = {"string", "null"},
+                format = "date-time")
+        OffsetDateTime disparadoEm,
+
+        @Schema(
+                types = {"string", "null"},
+                format = "date-time")
+        OffsetDateTime recebidoEm,
+
+        @Schema(
+                types = {"string", "null"},
+                format = "date-time")
+        OffsetDateTime respondidoEm,
+
+        @Schema(example = "Beba ~190 ml. Levante-se para buscar a água.")
+        String mensagem) {
+
+    static MarcoResposta de(SituacaoDoMarco marco) {
+        return new MarcoResposta(
+                marco.id(),
+                marco.categoria(),
+                marco.sequencia(),
+                marco.status(),
+                marco.volumeMl(),
+                marco.volumeAproximadoMl(),
+                marco.segundosTrabalhadosPrevistos(),
+                marco.disparadoEm(),
+                marco.recebidoEm(),
+                marco.respondidoEm(),
+                marco.mensagem());
+    }
+}

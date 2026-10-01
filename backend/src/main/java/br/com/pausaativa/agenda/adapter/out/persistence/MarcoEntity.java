@@ -83,8 +83,7 @@ class MarcoEntity {
                 sequencia,
                 Duration.ofSeconds(segundosTrabalhadosPrevistos),
                 Duration.ofSeconds(segundosTrabalhadosLimite),
-                // O banco devolve 187.5000; o domínio e a API trabalham com 187.5.
-                volumeMl.stripTrailingZeros(),
+                volumeMl,
                 status,
                 previstoPara,
                 disparadoEm,

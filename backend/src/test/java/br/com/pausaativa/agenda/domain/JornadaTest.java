@@ -514,7 +514,8 @@ class JornadaTest {
     void metaDiferenteDistribuiOVolumeIgualmenteEntreOsMarcos() {
         Jornada jornada = Jornada.iniciar(UUID.randomUUID(), as("09:00"), SAO_PAULO, new MetaDeAgua(2_000), PLANO);
 
-        assertThat(marco(jornada, 1).volumeMl()).isEqualByComparingTo(new BigDecimal("125"));
+        assertThat(marco(jornada, 1).volumeMl()).isEqualTo(new BigDecimal("125"));
+        assertThat(marco(jornada, 1).volumeMl().toString()).isEqualTo("125");
         assertThat(marco(jornada, 1).volumeArredondado()).isEqualTo(130);
     }
 }

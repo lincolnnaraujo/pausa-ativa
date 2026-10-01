@@ -1,11 +1,7 @@
-/** Resposta de GET /api/v1/sistema/status (contrato em docs/api/openapi.json). */
-export interface StatusDoSistema {
-  aplicacao: string
-  versao: string
-  /** ISO-8601 com offset, no fuso de negócio. Ex.: 2026-10-01T09:00:00-03:00 */
-  agora: string
-  fuso: string
-}
+import type { components } from './contrato'
+
+/** Resposta de GET /api/v1/sistema/status. `agora` vem em ISO-8601 com offset, no fuso de negócio. */
+export type StatusDoSistema = components['schemas']['StatusResposta']
 
 export const TEMPO_LIMITE_MS = 5_000
 

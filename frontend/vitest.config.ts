@@ -15,7 +15,8 @@ export default mergeConfig(
         provider: 'v8',
         include: ['src/**/*.{ts,vue}'],
         // main.ts só monta a aplicação, como o PausaAtivaApplication no backend.
-        exclude: ['src/main.ts', 'src/**/__tests__/**'],
+        // contrato.ts só tem tipos gerados do OpenAPI.
+        exclude: ['src/main.ts', 'src/api/contrato.ts', 'src/**/__tests__/**'],
         reporter: ['text', 'html', 'lcov'],
         // DoD: abaixo de 80% de linhas o npm test falha.
         thresholds: { lines: 80 },

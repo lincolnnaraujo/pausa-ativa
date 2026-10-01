@@ -23,8 +23,6 @@ public record MetaDeAgua(int mililitros) {
 
     /** Volume de cada marco. Com 16 marcos a divisão é exata (187,5 ml para 3.000 ml). */
     BigDecimal volumePorMarco(int quantidadeDeMarcos) {
-        return BigDecimal.valueOf(mililitros)
-                .divide(BigDecimal.valueOf(quantidadeDeMarcos), 4, RoundingMode.HALF_EVEN)
-                .stripTrailingZeros();
+        return BigDecimal.valueOf(mililitros).divide(BigDecimal.valueOf(quantidadeDeMarcos), 4, RoundingMode.HALF_EVEN);
     }
 }
