@@ -446,8 +446,8 @@ Estimativa em story points foi dispensada pelo usuário.
 
 ## ⚠️ Perguntas Pendentes para Refinamento
 
-1. **Marco em aberto ao finalizar o dia:** a resposta foi "aceito" para uma pergunta de duas opções. Adotado `NAO_CONCLUIDO` (coerente com "finalizar cedo não é falha"). Confirmar, ou trocar para `FALHA`. Afeta a História 2.
-2. **Depois de 8 h trabalhadas:** adotado que os marcos param (16 + 8) e a jornada segue aberta até Finalizar dia. Confirmar, ou continuar disparando em hora extra. Afeta a História 2.
-3. **Frequência do exercício:** a evidência favorece pausas a cada 30 min; o usuário escolheu 60 min. Vale orientar no marco de hidratação intermediário que o usuário se levante para buscar a água? Afeta as Histórias 2 e 3.
+1. ✅ **Marco em aberto ao finalizar o dia:** vira `NAO_CONCLUIDO` e fica fora da taxa, coerente com "finalizar cedo não é falha". Confirmado pelo usuário em 2026-10-01.
+2. ✅ **Depois de 8 h trabalhadas:** os marcos param (16 + 8) e a jornada segue aberta até Finalizar dia. A meta de água está calibrada para 8 h. Confirmado pelo usuário em 2026-10-01.
+3. ✅ **Frequência do exercício:** o exercício fica a cada 60 min, e o lembrete de água da meia hora (marcos ímpares) orienta o usuário a se levantar para buscar a água. Assim há uma pausa a cada 30 min sem lembrete extra. Confirmado pelo usuário em 2026-10-01.
 4. **Meta de 3 L no expediente:** fica acima das referências para bebidas do dia inteiro. Mantida por decisão do usuário; rever após as primeiras semanas de uso.
 5. **Catálogo e restrições:** a tabela é rascunho e precisa da revisão do usuário antes da História 3.
