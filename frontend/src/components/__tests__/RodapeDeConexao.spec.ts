@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { buscarStatus, ServidorIndisponivelError, type StatusDoSistema } from '@/api/sistema'
 
-import HomeView from '../HomeView.vue'
+import RodapeDeConexao from '../RodapeDeConexao.vue'
 
 vi.mock('@/api/sistema', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api/sistema')>()),
@@ -12,19 +12,18 @@ vi.mock('@/api/sistema', async (importOriginal) => ({
 
 const buscarStatusFalso = vi.mocked(buscarStatus)
 
-/** 12:00 UTC é 09:00 em São Paulo. */
 const NO_AR: StatusDoSistema = {
   aplicacao: 'pausa-ativa',
-  versao: '0.1.0',
-  agora: '2026-10-01T12:00:00Z',
+  versao: '0.2.0',
+  agora: '2026-10-02T12:00:00Z',
   fuso: 'America/Sao_Paulo',
 }
 
-function cartao(wrapper: ReturnType<typeof mount>) {
+function rodape(wrapper: ReturnType<typeof mount>) {
   return wrapper.get('[data-testid="status-servidor"]')
 }
 
-describe('HomeView', () => {
+describe('RodapeDeConexao', () => {
   beforeEach(() => {
     buscarStatusFalso.mockReset()
   })
@@ -32,23 +31,21 @@ describe('HomeView', () => {
   it('mostra que está verificando enquanto o backend não responde', () => {
     buscarStatusFalso.mockReturnValue(new Promise(() => {}))
 
-    const wrapper = mount(HomeView)
+    const wrapper = mount(RodapeDeConexao)
 
-    expect(wrapper.get('h1').text()).toBe('Pausa Ativa')
-    expect(cartao(wrapper).attributes('data-estado')).toBe('carregando')
-    expect(cartao(wrapper).text()).toContain('Verificando o servidor…')
+    expect(rodape(wrapper).attributes('data-estado')).toBe('carregando')
+    expect(rodape(wrapper).text()).toContain('Verificando o servidor…')
   })
 
-  it('mostra a versão e o horário do servidor no fuso que ele informa', async () => {
+  it('mostra que o servidor está no ar, com a versão', async () => {
     buscarStatusFalso.mockResolvedValue(NO_AR)
 
-    const wrapper = mount(HomeView)
+    const wrapper = mount(RodapeDeConexao)
     await flushPromises()
 
-    expect(cartao(wrapper).attributes('data-estado')).toBe('no-ar')
-    expect(cartao(wrapper).text()).toContain('Servidor no ar')
-    expect(wrapper.get('[data-testid="versao"]').text()).toBe('0.1.0')
-    expect(wrapper.get('[data-testid="horario"]').text()).toBe('09:00')
+    expect(rodape(wrapper).attributes('data-estado')).toBe('no-ar')
+    expect(rodape(wrapper).text()).toContain('Servidor no ar')
+    expect(wrapper.get('[data-testid="versao"]').text()).toBe('0.2.0')
   })
 
   it('mostra indisponível e volta ao ar ao tentar novamente', async () => {
@@ -56,16 +53,16 @@ describe('HomeView', () => {
       .mockRejectedValueOnce(new ServidorIndisponivelError('O servidor não respondeu'))
       .mockResolvedValueOnce(NO_AR)
 
-    const wrapper = mount(HomeView)
+    const wrapper = mount(RodapeDeConexao)
     await flushPromises()
 
-    expect(cartao(wrapper).attributes('data-estado')).toBe('indisponivel')
-    expect(cartao(wrapper).text()).toContain('Servidor indisponível')
+    expect(rodape(wrapper).attributes('data-estado')).toBe('indisponivel')
+    expect(rodape(wrapper).text()).toContain('Servidor indisponível')
 
     await wrapper.get('button').trigger('click')
     await flushPromises()
 
     expect(buscarStatusFalso).toHaveBeenCalledTimes(2)
-    expect(cartao(wrapper).attributes('data-estado')).toBe('no-ar')
+    expect(rodape(wrapper).attributes('data-estado')).toBe('no-ar')
   })
 })

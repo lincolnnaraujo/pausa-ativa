@@ -174,6 +174,7 @@ Representação da jornada (resumida):
   "status": "EM_ANDAMENTO",
   "iniciadaEm": "2026-10-02T09:00:00-03:00",
   "finalizadaEm": null,
+  "pausadaDesde": null,
   "tempoTrabalhadoSegundos": 5400,
   "calculadoEm": "2026-10-02T10:30:00-03:00",
   "metaAguaMl": 3000,
@@ -196,6 +197,8 @@ Representação da jornada (resumida):
 ```
 
 O frontend usa `tempoTrabalhadoSegundos` e `calculadoEm` para manter o cronômetro andando entre as atualizações, sem depender do relógio do computador para o cálculo.
+
+`pausadaDesde` é o início da pausa em curso, nulo fora dela. Entrou na T5 para a tela mostrar "Pausado desde 12:00": sem ele, o frontend não tinha como saber quando a pausa começou.
 
 **Tipos do frontend gerados do contrato.** O `openapi-typescript` gera `frontend/src/api/contrato.ts` a partir de `docs/api/openapi.json` (`npm run contrato`). O CI regenera e falha se houver diferença. Assim, backend e frontend não divergem.
 
@@ -238,6 +241,14 @@ Uma tela só, a da jornada. A página de status da v0.1.0 vira um indicador disc
 - **Som:** liga/desliga na tela, salvo no navegador (`localStorage`); padrão ligado. Um tom curto gerado pelo próprio navegador (Web Audio), sem arquivo de áudio. Depois de recarregar a página, o Chrome só libera o som após um clique na página; a tela avisa quando o som estiver bloqueado **(D7)**.
 - **Estado:** composables do Vue (`useJornada`, `useEventos`, `useNotificacoes`), sem Pinia nem router, porque ainda é uma tela só.
 
+Detalhes decididos na T5:
+
+- **Cronômetro.** Entre uma atualização e outra, a tela soma ao `tempoTrabalhadoSegundos` o tempo medido por `performance.now()`, que não muda se alguém acertar o relógio do computador. A previsão de horário dos lembretes agendados parte do `calculadoEm` do servidor e só aparece em andamento. Na pausa, a tela não sabe quando o trabalho volta e mostra "—".
+- **Resposta atrasada.** Uma situação com `calculadoEm` mais antigo que a da tela, da mesma jornada, é descartada. Isso vale para respostas de comandos, recargas e, na T6, eventos SSE.
+- **Comando recusado.** A tela mostra o `detail` do Problem Details. Com 404 ou 409 (prazo venceu, outra aba respondeu), busca `GET /jornadas/atual` para mostrar a situação real. Com 400 (meta inválida), só mostra o motivo. Um segundo clique, enquanto o primeiro comando não volta, é ignorado.
+- **Meta de água.** É validada na tela antes de chamar o servidor (inteiro de 1 a 6.000 ml). A última meta usada fica no `localStorage` e preenche o campo no dia seguinte.
+- **Rodapé.** A antiga `HomeView` virou o `RodapeDeConexao`, que mostra "Servidor no ar · versão 0.2.0". Na T6, ele passa a refletir a conexão SSE.
+
 ## 9. Modo demonstração
 
 Para o aceite, esperar 30 min por lembrete inviabiliza testar os cenários. Proposta **(D8)**: a propriedade `pausa-ativa.agenda.intervalo` (padrão `30m`) define o intervalo entre os marcos. Um arquivo `docker-compose.demo.yml` a sobrescreve para `1m`:
@@ -246,7 +257,7 @@ Para o aceite, esperar 30 min por lembrete inviabiliza testar os cenários. Prop
 docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --wait
 ```
 
-Com isso, a jornada inteira de 16 lembretes dura 16 min. O arquivo define o nome de projeto `pausa-ativa-demo`, com banco e porta próprios (`127.0.0.1:38743`): uma jornada de teste não ocupa o dia de hoje na aplicação real, que tem uma jornada por dia (D3). O intervalo usado fica gravado em cada marco (`segundos_trabalhados_previstos`), então trocar a configuração no meio do dia não bagunça a jornada em curso. A tela mostra uma faixa "Modo demonstração" quando o intervalo não é o padrão.
+Com isso, a jornada inteira de 16 lembretes dura 16 min. O arquivo define o nome de projeto `pausa-ativa-demo`, com banco e porta próprios (`127.0.0.1:38743`): uma jornada de teste não ocupa o dia de hoje na aplicação real, que tem uma jornada por dia (D3). O intervalo usado fica gravado em cada marco (`segundos_trabalhados_previstos`), então trocar a configuração no meio do dia não bagunça a jornada em curso. A tela mostra uma faixa "Modo demonstração" quando o intervalo não é o padrão. Ela deduz o intervalo do primeiro marco da jornada (`segundosTrabalhadosPrevistos` do marco 1), sem endpoint novo, por isso a faixa só aparece depois de iniciar o dia. A porta diferente já distingue as duas aplicações antes disso.
 
 ## 10. Observabilidade
 
@@ -292,7 +303,7 @@ Branch `feat/h2-jornada-hidratacao`. A execução para ao fim de cada etapa, e a
 | T2 | Persistência: migração `V2`, adapters JPA, lock pessimista, reconciliação na subida | Testes de integração verdes, incluindo concorrência e jornada esquecida | ✅ 2026-10-01 (15 testes de integração; 69 no backend) |
 | T3 | API REST, Problem Details, contrato OpenAPI, tipos TypeScript gerados | Testes MockMvc de todos os endpoints; contrato atualizado | ✅ 2026-10-01 (11 testes de API; 80 no backend) |
 | T4 | Agendador, SSE, recebimento, métricas, modo demonstração | Evento entregue e reconexão testados; métricas expostas | ✅ 2026-10-01 (101 testes; conferido no modo demonstração: `marco-disparado` pelo nginx em ~60 s, atraso de 0,62 s, métricas e logs JSON) |
-| T5 | Frontend: tela da jornada e respostas | Lint, tipos e testes verdes, cobertura ≥ 80% | Pendente |
+| T5 | Frontend: tela da jornada e respostas | Lint, tipos e testes verdes, cobertura ≥ 80% | ✅ 2026-10-02 (73 testes no frontend, 99% das linhas; campo `pausadaDesde` na API, 102 testes no backend) |
 | T6 | Frontend: eventos, notificações, som, aviso de permissão, reconexão | Idem, com `EventSource` e `Notification` simulados | Pendente |
 | T7 | Verificação ponta a ponta no compose, em modo demonstração | Cenários 1 a 7 conferidos na máquina local | Pendente |
 | T8 | README (como usar), C4, release notes, PR e CI | Aceite do usuário; merge e tag `v0.2.0` | Pendente |
