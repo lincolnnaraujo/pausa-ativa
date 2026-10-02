@@ -12,7 +12,7 @@ COPY . .
 RUN npx vite build
 
 # ---- Runtime: nginx sem root ----
-FROM nginxinc/nginx-unprivileged:1.29-alpine
+FROM nginxinc/nginx-unprivileged:1.31-alpine
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /build/dist /usr/share/nginx/html
