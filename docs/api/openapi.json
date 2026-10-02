@@ -3,7 +3,7 @@
   "info" : {
     "description" : "Jornada de trabalho com marcos de hidratação e exercício.",
     "title" : "Pausa Ativa API",
-    "version" : "0.1.0"
+    "version" : "0.2.0"
   },
   "servers" : [ {
     "url" : "/",
@@ -695,7 +695,7 @@
           },
           "versao" : {
             "type" : "string",
-            "example" : "0.1.0"
+            "example" : "0.2.0"
           }
         },
         "required" : [ "agora", "aplicacao", "fuso", "versao" ]

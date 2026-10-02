@@ -298,7 +298,7 @@ export interface components {
             aplicacao: string;
             /** @example America/Sao_Paulo */
             fuso: string;
-            /** @example 0.1.0 */
+            /** @example 0.2.0 */
             versao: string;
         };
     };
