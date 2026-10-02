@@ -307,6 +307,30 @@ Também da seção "Cenários de Teste" do épico, nesta história:
 - Constraint única impede marco duplicado sob concorrência.
 - Stream SSE entrega o evento, e a reconexão recupera o marco pendente.
 
+### 11.1 Resultado da verificação ponta a ponta (T7, 2026-10-02)
+
+A verificação usou um Chrome real (headless, dirigido pelo Playwright) contra o compose em modo demonstração. O teste percorreu uma jornada só, com os cenários encadeados no tempo, e terminou com **35 de 35 verificações OK** em 7 min. O roteiro ficou fora do repositório. As APIs de notificação e de áudio eram as reais; o roteiro só gravava as chamadas.
+
+| Cenário | O que se viu |
+|---|---|
+| 1. Marco dispara | Disparo 0,26 s depois do previsto; notificação "Hora da água 💧" 0,02 s depois do disparo, com a `tag` do marco; som tocado; recebimento confirmado pela tela |
+| 2. Concluir | Água do dia 187,5 ml na API e na tela; o cartão some |
+| 3. Pausa | "Pausado desde 11:03" nas duas abas; tempo congelado em 183 s durante 30 s; o marco 4 disparou com 240,3 s trabalhados, descontada a pausa |
+| 4. Sem resposta | Marco 2 recebido e ignorado com a aba aberta → `FALHA` |
+| 5. Não entregue | Abas fechadas antes do marco 4 → `NAO_ENTREGUE`, sem recebimento |
+| 6. Duas abas | Concluir ao mesmo tempo em duas abas, uma delas com 400 px de largura: água contada uma vez (375 ml) nas duas |
+| 7. Finalizar | Pede confirmação; `FINALIZADA`, nada agendado nem pendente; recarregar mostra o resumo, sem "Iniciar dia" (D3) |
+
+Também conferido no navegador:
+
+- **Aviso de permissão:** aparece num perfil que ainda não decidiu. Com a permissão concedida, não aparece.
+- **Reabrir a página com lembrete pendente:** o cartão aparece e o recebimento é confirmado, sem notificação nova.
+- **Som bloqueado (D7):** depois de abrir a página, o aviso aparece e some com um clique.
+- **Backend fora por 70 s:** a faixa "Reconectando…" aparece e os botões ficam desabilitados. Na volta, o marco 5 virou `FALHA` (prazo vencido com o backend fora, depois de recebido) e o marco 6 virou `NAO_ENTREGUE`, sem disparo atrasado.
+- **Tempo de reconexão:** depois de reiniciar o backend, a tela reconectou 3,9 s depois de ele ficar saudável; com o container recriado, 2,9 s.
+
+**Observação.** Com o backend parado, uma tentativa de reconexão do navegador ficou cerca de 60 s esperando o nginx, até receber 504. O nginx ainda tinha guardado o IP do container parado (`valid=10s`) e esperou o `proxy_connect_timeout` padrão de 60 s. Isso não atrasou a volta em nenhum dos três casos medidos. Quando o container volta com o mesmo IP, a conexão pendente se completa. Só atrasaria se o backend voltasse com outro IP em menos de 60 s. Se isso aparecer no uso, a correção é `proxy_connect_timeout 5s` no `location /api/` do nginx.
+
 ## 12. Plano de entrega em etapas
 
 Branch `feat/h2-jornada-hidratacao`. A execução para ao fim de cada etapa, e a próxima sessão retoma pela primeira etapa sem ✅.
@@ -319,7 +343,7 @@ Branch `feat/h2-jornada-hidratacao`. A execução para ao fim de cada etapa, e a
 | T4 | Agendador, SSE, recebimento, métricas, modo demonstração | Evento entregue e reconexão testados; métricas expostas | ✅ 2026-10-01 (101 testes; conferido no modo demonstração: `marco-disparado` pelo nginx em ~60 s, atraso de 0,62 s, métricas e logs JSON) |
 | T5 | Frontend: tela da jornada e respostas | Lint, tipos e testes verdes, cobertura ≥ 80% | ✅ 2026-10-02 (73 testes no frontend, 99% das linhas; campo `pausadaDesde` na API, 102 testes no backend) |
 | T6 | Frontend: eventos, notificações, som, aviso de permissão, reconexão | Idem, com `EventSource` e `Notification` simulados | ✅ 2026-10-02 (125 testes no frontend, 99% das linhas; `EventSource`, `Notification` e `AudioContext` simulados) |
-| T7 | Verificação ponta a ponta no compose, em modo demonstração | Cenários 1 a 7 conferidos na máquina local | Pendente |
+| T7 | Verificação ponta a ponta no compose, em modo demonstração | Cenários 1 a 7 conferidos na máquina local | ✅ 2026-10-02 (Chrome headless, 35 de 35 verificações; seção 11.1) |
 | T8 | README (como usar), C4, release notes, PR e CI | Aceite do usuário; merge e tag `v0.2.0` | Pendente |
 
 ## 13. Decisões para o usuário confirmar
