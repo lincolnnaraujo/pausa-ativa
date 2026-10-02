@@ -22,7 +22,7 @@ class FlywayMigracaoTest {
 
         assertThat(historico)
                 .extracting(migracao -> migracao.get("script"))
-                .containsExactly("V1__baseline.sql", "V2__jornada_pausa_marco.sql");
+                .containsExactly("V1__baseline.sql", "V2__jornada_pausa_marco.sql", "V3__treino_catalogo_perfil.sql");
         assertThat(historico).allSatisfy(migracao -> assertThat(migracao).containsEntry("success", true));
     }
 }

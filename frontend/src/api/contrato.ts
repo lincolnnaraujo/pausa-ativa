@@ -163,6 +163,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/perfil": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Perfil físico atual */
+        get: operations["consultar"];
+        /** Cria ou substitui o perfil físico. Vale para os próximos blocos. */
+        put: operations["salvar"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sistema/status": {
         parameters: {
             query?: never;
@@ -273,6 +291,14 @@ export interface components {
              */
             volumeMl: number;
         };
+        /** @description Perfil físico do usuário. Vale para os blocos montados depois da última alteração. */
+        Perfil: {
+            aceitaChao: boolean;
+            articulacoesPoupadas: ("JOELHO" | "OMBRO" | "PUNHO" | "LOMBAR" | "CERVICAL")[];
+            equipamentos: ("APOIO_DE_FLEXAO" | "HALTERES_2KG")[];
+            /** @enum {string} */
+            nivel: "INICIANTE" | "INTERMEDIARIO";
+        };
         ProblemDetail: {
             detail?: string;
             /** Format: uri */
@@ -285,6 +311,16 @@ export interface components {
             title?: string;
             /** Format: uri */
             type?: string;
+        };
+        SalvarPerfil: {
+            /** @description Se exercícios deitado ou de quatro podem entrar no bloco */
+            aceitaChao: boolean;
+            /** @description Articulações a poupar. Vazio ou ausente: nenhuma. */
+            articulacoesPoupadas?: ("JOELHO" | "OMBRO" | "PUNHO" | "LOMBAR" | "CERVICAL")[];
+            /** @description Equipamentos disponíveis. Cadeira e mesa já contam como disponíveis. */
+            equipamentos?: ("APOIO_DE_FLEXAO" | "HALTERES_2KG")[];
+            /** @enum {string} */
+            nivel: "INICIANTE" | "INTERMEDIARIO";
         };
         /** @description Situação do backend. Não consulta o banco; o estado do banco fica em /actuator/health. */
         StatusResposta: {
@@ -718,6 +754,75 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    consultar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Perfil preenchido */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Perfil"];
+                };
+            };
+            /** @description Perfil ainda não preenchido */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    salvar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SalvarPerfil"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Perfil"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };

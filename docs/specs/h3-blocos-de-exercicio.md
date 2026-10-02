@@ -182,8 +182,12 @@ flowchart LR
 
 | Tabela | Colunas principais | Restrições |
 |---|---|---|
-| `exercicio` | `codigo` (pk), `nome`, `grupo`, `ordem`, `instrucao`, `forma` (`REPETICOES`, `POR_LADO`, `SEGUNDOS`, `SEGUNDOS_POR_LADO`), `quantidade_iniciante` (nulo = só intermediário), `quantidade_intermediario`, `equipamento` (nulo, `CADEIRA`, `MESA`, `APOIO_DE_FLEXAO`, `HALTERES_2KG`), `no_chao`, `restricoes` (array), `reserva` | Os 22 exercícios do catálogo, inseridos pela migração. Um exercício de reserva não tem restrição nem equipamento, não é no chão e tem quantidade para os dois níveis. |
-| `perfil_fisico` | `id` (sempre 1), `restricoes` (array), `nivel`, `equipamentos` (array), `aceita_chao`, `atualizado_em` | `check (id = 1)`: um perfil só |
+| `exercicio` | `codigo` (pk), `nome`, `grupo`, `ordem`, `instrucao`, `forma` (`REPETICOES`, `POR_LADO`, `SEGUNDOS`, `SEGUNDOS_POR_LADO`), `quantidade_iniciante` (nulo = só intermediário), `quantidade_intermediario`, `equipamento` (nulo, `CADEIRA`, `MESA`, `APOIO_DE_FLEXAO`, `HALTERES_2KG`), `no_chao`, `reserva` | Os 22 exercícios do catálogo, inseridos pela migração. Um exercício de reserva não tem restrição nem equipamento, não é no chão e tem quantidade para os dois níveis. |
+| `exercicio_restricao` | `exercicio_codigo`, `articulacao` | Chave composta; `check` nas articulações |
+| `perfil_fisico` | `id` (sempre 1), `nivel`, `aceita_chao`, `atualizado_em` | `check (id = 1)`: um perfil só |
+| `perfil_articulacao`, `perfil_equipamento` | `perfil_id` e o valor | O equipamento do perfil aceita só apoio de flexão e halteres |
+
+Restrições e equipamentos ficam em tabelas filhas, e não em arrays do Postgres (mudança da T2). O Hibernate valida o esquema na subida (`ddl-auto: validate`), e a validação de colunas de array costuma falhar. As tabelas filhas também deixam o banco conferir os valores com `check`.
 
 **`V4`: Agenda**
 
@@ -205,7 +209,7 @@ Prefixo `/api/v1`, erros em Problem Details, como na H2.
 | Método e caminho | Corpo | Sucesso | Erros |
 |---|---|---|---|
 | `GET /perfil` | — | 200 com o perfil; 204 se não preenchido | — |
-| `PUT /perfil` | `{ restricoes, nivel, equipamentos, aceitaChao }` | 200 (idempotente) | 400 valor inválido |
+| `PUT /perfil` | `{ articulacoesPoupadas, nivel, equipamentos, aceitaChao }`; `nivel` e `aceitaChao` obrigatórios, listas opcionais | 200 (idempotente), substitui o perfil inteiro | 400 campo ausente ou valor fora da lista (cadeira e mesa não são aceitas: já contam como disponíveis) |
 | `POST /jornadas` | `{ "metaAguaMl": 3000, "duracaoBlocoMin": 5 }` (ambos opcionais) | 201 | 400 duração diferente de 5 ou 10; **409 sem perfil** (D7) |
 | `POST /marcos/{id}/adiamento` | — | 200 (idempotente) | 404; 409 hidratação, último marco, segundo adiamento ou marco já encerrado |
 | Demais | Como na H2 | | Concluir ou Falhar um `ADIADO`: 409 |
@@ -298,7 +302,7 @@ Branch `feat/h3-blocos-de-exercicio`. A execução para ao fim de cada etapa, e 
 | # | Etapa | Pronto quando | Status |
 |---|---|---|---|
 | T1 | Treino, domínio: perfil, catálogo, quantidades e seleção (seção 3.3) | Cenários 1 e 7 e determinismo cobertos em Java puro | ✅ 2026-10-02 (26 testes; domínio do Treino com 97,6% das linhas e 95,7% dos ramos; 128 no backend). Os blocos da spec (278 s, 300 s e 597 s) foram calculados à mão e conferidos pelo código. |
-| T2 | Treino: migração `V3` com o catálogo, persistência, `GET`/`PUT /perfil`, porta `MontarBloco` | Testes de integração e MockMvc; contrato atualizado | Pendente |
+| T2 | Treino: migração `V3` com o catálogo, persistência, `GET`/`PUT /perfil`, porta `MontarBloco` | Testes de integração e MockMvc; contrato atualizado | ✅ 2026-10-02 (9 testes novos; 137 no backend; Treino com 99,7% das linhas). O catálogo do banco é igual ao do épico, campo a campo, e monta o exemplo de 278 s. Restrições e equipamentos foram para tabelas filhas (seção 5). |
 | T3 | Agenda, domínio: marcos de exercício, `ADIADO`, adiar e resolução, duração do bloco | Cenários 3 a 5 e jornada de 8 h cobertos em Java puro | Pendente |
 | T4 | Agenda: migração `V4`, ligação com o Treino, API (adiamento, bloco, duração, perfil obrigatório), SSE, métricas | Integração com Postgres; contrato e tipos TS atualizados | Pendente |
 | T5 | Frontend: perfil (formulário, edição, obrigatório) e duração do bloco ao iniciar | Lint, tipos e testes verdes, cobertura ≥ 80% | Pendente |

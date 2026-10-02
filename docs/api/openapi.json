@@ -13,6 +13,9 @@
     "description" : "Informações sobre a própria aplicação",
     "name" : "Sistema"
   }, {
+    "description" : "Perfil físico usado para montar os blocos de exercício",
+    "name" : "Perfil"
+  }, {
     "description" : "Respostas aos lembretes",
     "name" : "Marco"
   }, {
@@ -495,6 +498,75 @@
         "tags" : [ "Marco" ]
       }
     },
+    "/api/v1/perfil" : {
+      "get" : {
+        "operationId" : "consultar",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Perfil"
+                }
+              }
+            },
+            "description" : "Perfil preenchido"
+          },
+          "204" : {
+            "description" : "Perfil ainda não preenchido"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bad Request"
+          }
+        },
+        "summary" : "Perfil físico atual",
+        "tags" : [ "Perfil" ]
+      },
+      "put" : {
+        "operationId" : "salvar",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SalvarPerfil"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Perfil"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bad Request"
+          }
+        },
+        "summary" : "Cria ou substitui o perfil físico. Vale para os próximos blocos.",
+        "tags" : [ "Perfil" ]
+      }
+    },
     "/api/v1/sistema/status" : {
       "get" : {
         "operationId" : "status",
@@ -648,6 +720,34 @@
         },
         "required" : [ "categoria", "disparadoEm", "id", "mensagem", "recebidoEm", "respondidoEm", "segundosTrabalhadosPrevistos", "sequencia", "status", "volumeAproximadoMl", "volumeMl" ]
       },
+      "Perfil" : {
+        "type" : "object",
+        "description" : "Perfil físico do usuário. Vale para os blocos montados depois da última alteração.",
+        "properties" : {
+          "aceitaChao" : {
+            "type" : "boolean"
+          },
+          "articulacoesPoupadas" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "JOELHO", "OMBRO", "PUNHO", "LOMBAR", "CERVICAL" ]
+            }
+          },
+          "equipamentos" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "APOIO_DE_FLEXAO", "HALTERES_2KG" ]
+            }
+          },
+          "nivel" : {
+            "type" : "string",
+            "enum" : [ "INICIANTE", "INTERMEDIARIO" ]
+          }
+        },
+        "required" : [ "aceitaChao", "articulacoesPoupadas", "equipamentos", "nivel" ]
+      },
       "ProblemDetail" : {
         "type" : "object",
         "properties" : {
@@ -674,6 +774,36 @@
             "format" : "uri"
           }
         }
+      },
+      "SalvarPerfil" : {
+        "type" : "object",
+        "properties" : {
+          "aceitaChao" : {
+            "type" : "boolean",
+            "description" : "Se exercícios deitado ou de quatro podem entrar no bloco"
+          },
+          "articulacoesPoupadas" : {
+            "type" : "array",
+            "description" : "Articulações a poupar. Vazio ou ausente: nenhuma.",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "JOELHO", "OMBRO", "PUNHO", "LOMBAR", "CERVICAL" ]
+            }
+          },
+          "equipamentos" : {
+            "type" : "array",
+            "description" : "Equipamentos disponíveis. Cadeira e mesa já contam como disponíveis.",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "APOIO_DE_FLEXAO", "HALTERES_2KG" ]
+            }
+          },
+          "nivel" : {
+            "type" : "string",
+            "enum" : [ "INICIANTE", "INTERMEDIARIO" ]
+          }
+        },
+        "required" : [ "aceitaChao", "nivel" ]
       },
       "StatusResposta" : {
         "type" : "object",

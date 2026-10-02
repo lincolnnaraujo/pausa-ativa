@@ -27,10 +27,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-/** Os 22 exercícios do catálogo do épico (seção "Treino"), revisado pelo usuário em 2026-10-02. */
-final class CatalogoDeTeste {
+/**
+ * Os 22 exercícios do catálogo do épico (seção "Treino"), revisado pelo usuário em 2026-10-02. O
+ * {@code TreinoIntegracaoTest} confere que a migração {@code V3} grava o mesmo catálogo.
+ */
+public final class CatalogoDeTeste {
 
-    static final List<Exercicio> EXERCICIOS;
+    public static final List<Exercicio> EXERCICIOS;
 
     static {
         Construtor c = new Construtor();
