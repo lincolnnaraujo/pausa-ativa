@@ -148,15 +148,13 @@ class AgendaApiTest {
         UUID id = iniciarDia();
 
         relogioAs("12:00");
-        assertThat(post("/api/v1/jornadas/" + id + "/pausa"))
-                .bodyJson()
-                .extractingPath("$.status")
-                .isEqualTo("PAUSADA");
+        var pausada = assertThat(post("/api/v1/jornadas/" + id + "/pausa")).bodyJson();
+        pausada.extractingPath("$.status").isEqualTo("PAUSADA");
+        pausada.extractingPath("$.pausadaDesde").isEqualTo("2026-10-02T12:00:00-03:00");
         relogioAs("13:00");
-        assertThat(post("/api/v1/jornadas/" + id + "/retomada"))
-                .bodyJson()
-                .extractingPath("$.status")
-                .isEqualTo("EM_ANDAMENTO");
+        var retomada = assertThat(post("/api/v1/jornadas/" + id + "/retomada")).bodyJson();
+        retomada.extractingPath("$.status").isEqualTo("EM_ANDAMENTO");
+        retomada.extractingPath("$.pausadaDesde").isNull();
         relogioAs("15:00");
         var finalizada = assertThat(post("/api/v1/jornadas/" + id + "/finalizacao"))
                 .hasStatusOk()

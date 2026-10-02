@@ -219,6 +219,11 @@ export interface components {
              * @example 3000
              */
             metaAguaMl: number;
+            /**
+             * Format: date-time
+             * @description Início da pausa em curso; nulo fora da pausa
+             */
+            pausadaDesde: string | null;
             /** @enum {string} */
             status: "EM_ANDAMENTO" | "PAUSADA" | "FINALIZADA" | "ENCERRADA_AUTOMATICAMENTE";
             /**

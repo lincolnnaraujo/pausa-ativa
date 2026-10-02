@@ -18,6 +18,7 @@ import java.util.UUID;
             "status",
             "iniciadaEm",
             "finalizadaEm",
+            "pausadaDesde",
             "tempoTrabalhadoSegundos",
             "calculadoEm",
             "metaAguaMl",
@@ -37,6 +38,12 @@ record JornadaResposta(
                 types = {"string", "null"},
                 format = "date-time")
         OffsetDateTime finalizadaEm,
+
+        @Schema(
+                description = "Início da pausa em curso; nulo fora da pausa",
+                types = {"string", "null"},
+                format = "date-time")
+        OffsetDateTime pausadaDesde,
 
         @Schema(
                 description = "Tempo trabalhado até calculadoEm, sem as pausas. Enquanto a jornada"
@@ -59,6 +66,7 @@ record JornadaResposta(
                 jornada.status(),
                 jornada.iniciadaEm(),
                 jornada.finalizadaEm(),
+                jornada.pausadaDesde(),
                 jornada.tempoTrabalhadoSegundos(),
                 jornada.calculadoEm(),
                 jornada.metaAguaMl(),

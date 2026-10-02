@@ -572,6 +572,11 @@
             "format" : "int32",
             "example" : 3000
           },
+          "pausadaDesde" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time",
+            "description" : "Início da pausa em curso; nulo fora da pausa"
+          },
           "status" : {
             "type" : "string",
             "enum" : [ "EM_ANDAMENTO", "PAUSADA", "FINALIZADA", "ENCERRADA_AUTOMATICAMENTE" ]
@@ -583,7 +588,7 @@
             "example" : 5400
           }
         },
-        "required" : [ "aguaIngeridaMl", "calculadoEm", "dataReferencia", "finalizadaEm", "id", "iniciadaEm", "marcos", "metaAguaMl", "status", "tempoTrabalhadoSegundos" ]
+        "required" : [ "aguaIngeridaMl", "calculadoEm", "dataReferencia", "finalizadaEm", "id", "iniciadaEm", "marcos", "metaAguaMl", "pausadaDesde", "status", "tempoTrabalhadoSegundos" ]
       },
       "Marco" : {
         "type" : "object",

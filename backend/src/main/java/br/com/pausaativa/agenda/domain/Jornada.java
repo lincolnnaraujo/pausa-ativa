@@ -329,6 +329,11 @@ public final class Jornada {
         return Optional.ofNullable(finalizadaEm);
     }
 
+    /** Início da pausa em curso; vazio fora da pausa. */
+    public Optional<Instant> pausadaDesde() {
+        return pausas.stream().filter(Pausa::emCurso).map(Pausa::inicio).findFirst();
+    }
+
     public List<Pausa> pausas() {
         return Collections.unmodifiableList(pausas);
     }

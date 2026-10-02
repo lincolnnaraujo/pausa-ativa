@@ -171,6 +171,19 @@ class JornadaTest {
         }
 
         @Test
+        void pausadaDesdeInformaOInicioDaPausaEmCursoESoDela() {
+            Jornada jornada = iniciadaAs("09:00");
+            assertThat(jornada.pausadaDesde()).isEmpty();
+
+            jornada.pausar(as("10:00"));
+            jornada.retomar(as("10:15"));
+            assertThat(jornada.pausadaDesde()).isEmpty();
+
+            jornada.pausar(as("12:00"));
+            assertThat(jornada.pausadaDesde()).contains(as("12:00"));
+        }
+
+        @Test
         void jornadaQueAtravessaAMeiaNoiteContinuaDisparandoEPertenceAoDiaEmQueComecou() {
             Jornada jornada = iniciadaAs("22:00");
             Instant meiaNoiteEMeia = as("00:30").plus(Duration.ofDays(1));
