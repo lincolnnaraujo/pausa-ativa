@@ -1,4 +1,4 @@
-import type { StatusMarco } from '@/api/jornada'
+import type { Marco, StatusMarco } from '@/api/jornada'
 
 /** Fuso de negócio (spec H2, seção 3.4). Os horários da tela não dependem do fuso do computador. */
 export const FUSO = 'America/Sao_Paulo'
@@ -52,4 +52,13 @@ const ROTULOS: Record<StatusMarco, string> = {
 
 export function rotuloDoStatus(status: StatusMarco): string {
   return ROTULOS[status]
+}
+
+const TITULOS: Record<Marco['categoria'], string> = {
+  HIDRATACAO: 'Hora da água 💧',
+}
+
+/** Título do lembrete, no cartão e na notificação. */
+export function tituloDoMarco(categoria: Marco['categoria']): string {
+  return TITULOS[categoria]
 }

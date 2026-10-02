@@ -1,25 +1,28 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { ref, watch } from 'vue'
 
-import { buscarStatus, type StatusDoSistema } from '@/api/sistema'
+import { buscarStatus } from '@/api/sistema'
+import type { EstadoDaConexao } from '@/composables/useEventos'
 
-type Estado =
-  | { tipo: 'carregando' }
-  | { tipo: 'no-ar'; status: StatusDoSistema }
-  | { tipo: 'indisponivel' }
+const props = defineProps<{ conexao: EstadoDaConexao }>()
 
-const estado = ref<Estado>({ tipo: 'carregando' })
+/** Versão do backend, buscada a cada conexão: depois de uma queda, pode ter subido outra. */
+const versao = ref<string | null>(null)
 
-async function verificarServidor() {
-  estado.value = { tipo: 'carregando' }
-  try {
-    estado.value = { tipo: 'no-ar', status: await buscarStatus() }
-  } catch {
-    estado.value = { tipo: 'indisponivel' }
-  }
-}
-
-onMounted(verificarServidor)
+watch(
+  () => props.conexao,
+  async (conexao) => {
+    if (conexao !== 'conectada') {
+      return
+    }
+    try {
+      versao.value = (await buscarStatus()).versao
+    } catch {
+      versao.value = null
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -27,33 +30,23 @@ onMounted(verificarServidor)
     class="rodape"
     aria-live="polite"
     data-testid="status-servidor"
-    :data-estado="estado.tipo"
+    :data-estado="conexao"
   >
-    <template v-if="estado.tipo === 'carregando'">
-      Verificando o servidor…
+    <span
+      class="indicador"
+      :class="conexao"
+      aria-hidden="true"
+    />
+    <template v-if="conexao === 'conectando'">
+      Conectando ao servidor…
     </template>
-
-    <template v-else-if="estado.tipo === 'no-ar'">
-      <span
-        class="indicador no-ar"
-        aria-hidden="true"
-      />
-      Servidor no ar · versão <span data-testid="versao">{{ estado.status.versao }}</span>
+    <template v-else-if="conexao === 'conectada'">
+      Conectado ao servidor<template v-if="versao">
+        · versão <span data-testid="versao">{{ versao }}</span>
+      </template>
     </template>
-
     <template v-else>
-      <span
-        class="indicador indisponivel"
-        aria-hidden="true"
-      />
-      Servidor indisponível.
-      <button
-        type="button"
-        class="link"
-        @click="verificarServidor"
-      >
-        Tentar novamente
-      </button>
+      Sem conexão com o servidor. Reconectando…
     </template>
   </footer>
 </template>
@@ -63,7 +56,6 @@ onMounted(verificarServidor)
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  margin-top: 2rem;
   font-size: 0.8125rem;
   color: var(--texto-suave);
 }
@@ -72,23 +64,14 @@ onMounted(verificarServidor)
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 50%;
+  background: var(--texto-suave);
 }
 
-.indicador.no-ar {
+.indicador.conectada {
   background: var(--sucesso);
 }
 
-.indicador.indisponivel {
+.indicador.reconectando {
   background: var(--erro);
-}
-
-.link {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--destaque);
-  font: inherit;
-  text-decoration: underline;
-  cursor: pointer;
 }
 </style>

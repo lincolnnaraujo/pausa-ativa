@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { Marco } from '@/api/jornada'
-import { horario } from '@/formatacao'
+import { horario, tituloDoMarco } from '@/formatacao'
 
-defineProps<{ marco: Marco; total: number; ocupado: boolean }>()
+defineProps<{ marco: Marco; total: number; desabilitado: boolean }>()
 const emit = defineEmits<{ concluir: [marcoId: string]; falhar: [marcoId: string] }>()
 </script>
 
@@ -13,7 +13,7 @@ const emit = defineEmits<{ concluir: [marcoId: string]; falhar: [marcoId: string
     :aria-labelledby="`lembrete-${marco.id}`"
   >
     <h2 :id="`lembrete-${marco.id}`">
-      Hora da água 💧
+      {{ tituloDoMarco(marco.categoria) }}
     </h2>
     <p class="mensagem">
       {{ marco.mensagem }}
@@ -28,7 +28,7 @@ const emit = defineEmits<{ concluir: [marcoId: string]; falhar: [marcoId: string
       <button
         type="button"
         class="botao"
-        :disabled="ocupado"
+        :disabled="desabilitado"
         @click="emit('concluir', marco.id)"
       >
         Concluir
@@ -36,7 +36,7 @@ const emit = defineEmits<{ concluir: [marcoId: string]; falhar: [marcoId: string
       <button
         type="button"
         class="botao botao-secundario"
-        :disabled="ocupado"
+        :disabled="desabilitado"
         @click="emit('falhar', marco.id)"
       >
         Falhar

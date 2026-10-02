@@ -12,11 +12,8 @@ vi.mock('@/api/sistema', async (importOriginal) => ({
 
 const buscarStatusFalso = vi.mocked(buscarStatus)
 
-const NO_AR: StatusDoSistema = {
-  aplicacao: 'pausa-ativa',
-  versao: '0.2.0',
-  agora: '2026-10-02T12:00:00Z',
-  fuso: 'America/Sao_Paulo',
+function status(versao: string): StatusDoSistema {
+  return { aplicacao: 'pausa-ativa', versao, agora: '2026-10-02T12:00:00Z', fuso: 'America/Sao_Paulo' }
 }
 
 function rodape(wrapper: ReturnType<typeof mount>) {
@@ -28,41 +25,43 @@ describe('RodapeDeConexao', () => {
     buscarStatusFalso.mockReset()
   })
 
-  it('mostra que está verificando enquanto o backend não responde', () => {
-    buscarStatusFalso.mockReturnValue(new Promise(() => {}))
+  it('mostra que está conectando, sem buscar a versão ainda', () => {
+    const wrapper = mount(RodapeDeConexao, { props: { conexao: 'conectando' } })
 
-    const wrapper = mount(RodapeDeConexao)
-
-    expect(rodape(wrapper).attributes('data-estado')).toBe('carregando')
-    expect(rodape(wrapper).text()).toContain('Verificando o servidor…')
+    expect(rodape(wrapper).attributes('data-estado')).toBe('conectando')
+    expect(rodape(wrapper).text()).toBe('Conectando ao servidor…')
+    expect(buscarStatusFalso).not.toHaveBeenCalled()
   })
 
-  it('mostra que o servidor está no ar, com a versão', async () => {
-    buscarStatusFalso.mockResolvedValue(NO_AR)
+  it('conectado, mostra a versão do backend', async () => {
+    buscarStatusFalso.mockResolvedValue(status('0.2.0'))
 
-    const wrapper = mount(RodapeDeConexao)
+    const wrapper = mount(RodapeDeConexao, { props: { conexao: 'conectada' } })
     await flushPromises()
 
-    expect(rodape(wrapper).attributes('data-estado')).toBe('no-ar')
-    expect(rodape(wrapper).text()).toContain('Servidor no ar')
-    expect(wrapper.get('[data-testid="versao"]').text()).toBe('0.2.0')
+    expect(rodape(wrapper).text()).toBe('Conectado ao servidor · versão 0.2.0')
   })
 
-  it('mostra indisponível e volta ao ar ao tentar novamente', async () => {
-    buscarStatusFalso
-      .mockRejectedValueOnce(new ServidorIndisponivelError('O servidor não respondeu'))
-      .mockResolvedValueOnce(NO_AR)
+  it('conectado sem conseguir a versão, mostra só a conexão', async () => {
+    buscarStatusFalso.mockRejectedValue(new ServidorIndisponivelError('fora'))
 
-    const wrapper = mount(RodapeDeConexao)
+    const wrapper = mount(RodapeDeConexao, { props: { conexao: 'conectada' } })
     await flushPromises()
 
-    expect(rodape(wrapper).attributes('data-estado')).toBe('indisponivel')
-    expect(rodape(wrapper).text()).toContain('Servidor indisponível')
+    expect(rodape(wrapper).text()).toBe('Conectado ao servidor')
+  })
 
-    await wrapper.get('button').trigger('click')
+  it('na queda, avisa que está reconectando e, ao voltar, busca a versão de novo', async () => {
+    buscarStatusFalso.mockResolvedValueOnce(status('0.2.0')).mockResolvedValueOnce(status('0.2.1'))
+    const wrapper = mount(RodapeDeConexao, { props: { conexao: 'conectada' } })
     await flushPromises()
 
-    expect(buscarStatusFalso).toHaveBeenCalledTimes(2)
-    expect(rodape(wrapper).attributes('data-estado')).toBe('no-ar')
+    await wrapper.setProps({ conexao: 'reconectando' })
+    expect(rodape(wrapper).attributes('data-estado')).toBe('reconectando')
+    expect(rodape(wrapper).text()).toBe('Sem conexão com o servidor. Reconectando…')
+
+    await wrapper.setProps({ conexao: 'conectada' })
+    await flushPromises()
+    expect(wrapper.get('[data-testid="versao"]').text()).toBe('0.2.1')
   })
 })

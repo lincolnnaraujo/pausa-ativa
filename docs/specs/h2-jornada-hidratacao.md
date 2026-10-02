@@ -221,6 +221,14 @@ O frontend usa `tempoTrabalhadoSegundos` e `calculadoEm` para manter o cronômet
 - **Reconexão:** o `EventSource` reconecta sozinho. Ao reconectar, a página busca `GET /jornadas/atual` e mostra os marcos `PENDENTE`, confirmando o recebimento dos que ainda não tinham sido confirmados.
 - **nginx:** `proxy_buffering off` e `proxy_read_timeout 1h` já foram configurados na H1.
 
+Detalhes decididos na T6:
+
+- **Quando o navegador desiste.** O `EventSource` reconecta sozinho quando a conexão cai, mas desiste de vez se a resposta não for um stream. É o que acontece com o backend fora: o nginx responde 502. Nesse caso, `useEventos` abre uma conexão nova depois de 2 s, dobrando a espera a cada falha até 30 s. A espera volta a 2 s quando a conexão abre.
+- **Toda abertura sincroniza.** Cada vez que a conexão abre, a primeira inclusive, a tela busca `GET /jornadas/atual`. Isso cobre também a janela entre a carga inicial da página e a abertura do stream, em que um evento poderia se perder.
+- **Recebimento.** A tela confirma o recebimento de todo lembrete pendente que aparece nela: pelo evento, ao abrir a página ou depois da reconexão. Confirma uma vez por aba e não confirma o que já tem `recebidoEm`. Se a confirmação falhar, tenta de novo na próxima atualização.
+- **Notificação e som.** Tocam no `marco-disparado` e, depois de uma queda, para os pendentes que nenhuma aba recebeu. Uma vez por aba. Ao abrir a página, não tocam: a pessoa já está olhando o cartão. Com várias abas abertas, a notificação é uma só (mesma `tag`), mas cada aba toca o som.
+- **Limitação conhecida.** O `EventSource` não entrega ao JavaScript os comentários `: ping`. Por isso, a tela não percebe sozinha uma conexão que parou de responder sem fechar, por exemplo depois de o computador dormir, e depende de o navegador notar a queda. Se isso aparecer no uso, o backend pode enviar o ping como evento nomeado e a tela vigiar o intervalo.
+
 ## 8. Frontend
 
 Uma tela só, a da jornada. A página de status da v0.1.0 vira um indicador discreto de conexão no rodapé.
@@ -247,7 +255,13 @@ Detalhes decididos na T5:
 - **Resposta atrasada.** Uma situação com `calculadoEm` mais antigo que a da tela, da mesma jornada, é descartada. Isso vale para respostas de comandos, recargas e, na T6, eventos SSE.
 - **Comando recusado.** A tela mostra o `detail` do Problem Details. Com 404 ou 409 (prazo venceu, outra aba respondeu), busca `GET /jornadas/atual` para mostrar a situação real. Com 400 (meta inválida), só mostra o motivo. Um segundo clique, enquanto o primeiro comando não volta, é ignorado.
 - **Meta de água.** É validada na tela antes de chamar o servidor (inteiro de 1 a 6.000 ml). A última meta usada fica no `localStorage` e preenche o campo no dia seguinte.
-- **Rodapé.** A antiga `HomeView` virou o `RodapeDeConexao`, que mostra "Servidor no ar · versão 0.2.0". Na T6, ele passa a refletir a conexão SSE.
+- **Rodapé.** A antiga `HomeView` virou o `RodapeDeConexao`. Desde a T6, ele mostra a conexão SSE ("Conectado ao servidor · versão 0.2.0" ou "Reconectando…") e busca a versão a cada conexão, porque depois de uma queda pode ter subido outra.
+
+Detalhes decididos na T6:
+
+- **Som.** Fica num composable próprio, o `useSom`, porque a liberação do áudio e a permissão de notificação são regras diferentes do Chrome. O tom é de 880 Hz e dura 0,35 s. A tela sabe que o som está bloqueado por `navigator.userActivation.hasBeenActive` e o libera no primeiro `pointerdown` ou `keydown`. Enquanto estiver bloqueado, o lembrete não toca: o tom ficaria preso no áudio suspenso e tocaria atrasado no primeiro clique. O aviso de som bloqueado só aparece com a jornada aberta. Ligar o som toca uma amostra.
+- **Permissão.** O aviso fixo tem três versões. Ainda não decidida: um botão **Permitir notificações**. Negada: como liberar no Chrome. Navegador sem notificações: manter a aba à vista. A tela acompanha a API de permissões do Chrome, e o aviso some quando a pessoa libera nas configurações do site, sem recarregar.
+- **Conexão caída.** Faixa "Sem conexão com o servidor. Reconectando…" no topo. Todos os botões de comando ficam desabilitados até a conexão voltar.
 
 ## 9. Modo demonstração
 
@@ -304,7 +318,7 @@ Branch `feat/h2-jornada-hidratacao`. A execução para ao fim de cada etapa, e a
 | T3 | API REST, Problem Details, contrato OpenAPI, tipos TypeScript gerados | Testes MockMvc de todos os endpoints; contrato atualizado | ✅ 2026-10-01 (11 testes de API; 80 no backend) |
 | T4 | Agendador, SSE, recebimento, métricas, modo demonstração | Evento entregue e reconexão testados; métricas expostas | ✅ 2026-10-01 (101 testes; conferido no modo demonstração: `marco-disparado` pelo nginx em ~60 s, atraso de 0,62 s, métricas e logs JSON) |
 | T5 | Frontend: tela da jornada e respostas | Lint, tipos e testes verdes, cobertura ≥ 80% | ✅ 2026-10-02 (73 testes no frontend, 99% das linhas; campo `pausadaDesde` na API, 102 testes no backend) |
-| T6 | Frontend: eventos, notificações, som, aviso de permissão, reconexão | Idem, com `EventSource` e `Notification` simulados | Pendente |
+| T6 | Frontend: eventos, notificações, som, aviso de permissão, reconexão | Idem, com `EventSource` e `Notification` simulados | ✅ 2026-10-02 (125 testes no frontend, 99% das linhas; `EventSource`, `Notification` e `AudioContext` simulados) |
 | T7 | Verificação ponta a ponta no compose, em modo demonstração | Cenários 1 a 7 conferidos na máquina local | Pendente |
 | T8 | README (como usar), C4, release notes, PR e CI | Aceite do usuário; merge e tag `v0.2.0` | Pendente |
 

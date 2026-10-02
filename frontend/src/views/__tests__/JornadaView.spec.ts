@@ -2,10 +2,12 @@ import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/t
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { comMarco, umaJornada } from '@/__tests__/fabrica'
+import { instalarNavegadorFalso } from '@/__tests__/navegador'
 import { OperacaoRecusadaError, ServidorIndisponivelError } from '@/api/http'
 import {
   buscarJornadaAtual,
   concluirMarco,
+  confirmarRecebimento,
   falharMarco,
   finalizarJornada,
   iniciarJornada,
@@ -26,6 +28,7 @@ vi.mock('@/api/jornada', async (importOriginal) => ({
   finalizarJornada: vi.fn(),
   concluirMarco: vi.fn(),
   falharMarco: vi.fn(),
+  confirmarRecebimento: vi.fn(),
 }))
 
 vi.mock('@/api/sistema', async (importOriginal) => ({
@@ -79,9 +82,13 @@ function linhaDoMarco(wrapper: VueWrapper, sequencia: number) {
 describe('JornadaView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    instalarNavegadorFalso()
     vi.mocked(buscarStatus).mockReturnValue(new Promise(() => {}))
+    vi.mocked(confirmarRecebimento).mockResolvedValue()
     localStorage.clear()
   })
+
+  afterEach(() => vi.unstubAllGlobals())
 
   describe('carga', () => {
     it('mostra que está carregando até o servidor responder', () => {

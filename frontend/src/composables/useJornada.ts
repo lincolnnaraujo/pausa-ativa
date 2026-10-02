@@ -87,12 +87,16 @@ export function useJornada() {
     }
   }
 
-  /** Recarrega sem trocar a tela por "carregando"; uma falha aqui não apaga o que já está à vista. */
+  /**
+   * Recarrega sem trocar a tela por "carregando": depois de um comando recusado ou de uma reconexão.
+   * Uma falha aqui não apaga o que já está à vista.
+   */
   async function recarregar() {
     try {
       aplicar(await buscarJornadaAtual())
+      carga.value = 'pronta'
     } catch {
-      // A mensagem do comando que falhou já está na tela.
+      // Quem chamou já sinaliza o problema: a mensagem do comando ou o aviso de reconexão.
     }
   }
 
@@ -142,6 +146,7 @@ export function useJornada() {
     modoDemonstracao,
     aplicar,
     carregar,
+    recarregar,
     iniciar,
     pausar: () => naJornada(pausarJornada),
     retomar: () => naJornada(retomarJornada),

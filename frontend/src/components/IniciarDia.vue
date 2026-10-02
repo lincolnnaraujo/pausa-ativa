@@ -5,7 +5,7 @@ import { META_MAXIMA_ML } from '@/api/jornada'
 import { mililitros } from '@/formatacao'
 import { lerUltimaMeta, metaValida } from '@/preferencias'
 
-defineProps<{ ocupado: boolean }>()
+defineProps<{ desabilitado: boolean }>()
 const emit = defineEmits<{ iniciar: [metaAguaMl: number] }>()
 
 const meta = ref<number | ''>(lerUltimaMeta())
@@ -47,7 +47,7 @@ function enviar() {
       <button
         type="submit"
         class="botao"
-        :disabled="ocupado"
+        :disabled="desabilitado"
       >
         Iniciar dia
       </button>

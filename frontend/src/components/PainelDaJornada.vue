@@ -8,7 +8,7 @@ defineProps<{
   jornada: Jornada
   tempoTrabalhadoSegundos: number
   segundosAteOProximo: number | null
-  ocupado: boolean
+  desabilitado: boolean
 }>()
 
 const emit = defineEmits<{ pausar: []; retomar: []; finalizar: [] }>()
@@ -96,7 +96,7 @@ function finalizar() {
         <button
           type="button"
           class="botao botao-perigo"
-          :disabled="ocupado"
+          :disabled="desabilitado"
           @click="finalizar"
         >
           Sim, finalizar
@@ -119,7 +119,7 @@ function finalizar() {
         v-if="jornada.status === 'EM_ANDAMENTO'"
         type="button"
         class="botao"
-        :disabled="ocupado"
+        :disabled="desabilitado"
         @click="emit('pausar')"
       >
         Pausar
@@ -128,7 +128,7 @@ function finalizar() {
         v-else
         type="button"
         class="botao"
-        :disabled="ocupado"
+        :disabled="desabilitado"
         @click="emit('retomar')"
       >
         Retomar
@@ -136,7 +136,7 @@ function finalizar() {
       <button
         type="button"
         class="botao botao-secundario"
-        :disabled="ocupado"
+        :disabled="desabilitado"
         @click="confirmandoFinalizacao = true"
       >
         Finalizar dia
