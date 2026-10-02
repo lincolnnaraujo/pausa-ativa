@@ -7,8 +7,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.JsonNode;
@@ -20,8 +18,7 @@ import tools.jackson.databind.json.JsonMapper;
  * <p>Se uma mudança na API for intencional, regenere o arquivo e revise o diff:
  * {@code ./mvnw verify -Dopenapi.atualizar=true}
  */
-@SpringBootTest
-@Import(TestcontainersConfiguration.class)
+@TesteDeIntegracao
 class ContratoOpenApiTest {
 
     private static final Path CONTRATO = Path.of("..", "docs", "api", "openapi.json");

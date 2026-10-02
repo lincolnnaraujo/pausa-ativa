@@ -2,7 +2,7 @@
 
 Aplicação web que roda no seu computador e distribui hidratação e exercício curto ao longo da jornada de home office.
 
-> **Versão atual: v0.1.0 (fundação).** Esta versão sobe a aplicação inteira e mostra se o servidor está no ar. Jornada, lembretes de água, exercícios e gráficos chegam nas próximas versões. Veja o [plano completo](docs/epico-pausa-ativa.md).
+> **Versão atual: v0.2.0 (jornada e hidratação).** Você inicia o dia, e a cada 30 min de trabalho o Chrome lembra de beber água. Exercícios e gráficos chegam nas próximas versões. Veja o [plano completo](docs/epico-pausa-ativa.md) e [o que mudou](docs/releases/v0.2.0.md).
 
 ## O que você precisa
 
@@ -41,9 +41,45 @@ Na primeira vez leva alguns minutos, porque o Docker baixa e monta as imagens. O
 
 **Pronto.** Abra **http://127.0.0.1:38742** no Chrome.
 
+## Como usar
+
+1. **Comece o dia.** Confira a meta de água (padrão 3.000 ml) e clique em **Iniciar dia**. O Chrome pergunta se pode mostrar notificações: clique em **Permitir**.
+2. **Deixe a aba aberta.** Pode ficar em segundo plano, mas não feche: é por ela que os lembretes chegam.
+3. **A cada 30 min de trabalho**, chega um lembrete para beber ~190 ml de água (a meta dividida em 16), como notificação do Chrome e com um som curto. Nos lembretes da meia hora (0:30, 1:30…), aproveite para levantar e buscar a água.
+4. **Responda na página.** Clicar na notificação traz a aba para a frente. Lá, clique em **Concluir** se bebeu ou em **Falhar** se não deu.
+5. **No almoço, clique em Pausar.** O tempo trabalhado para, e os lembretes esperam. Na volta, clique em **Retomar**.
+6. **No fim do expediente, clique em Finalizar dia** e confirme. A tela mostra o resumo do dia.
+
+O que acontece com cada lembrete:
+
+| Situação | Quando |
+|---|---|
+| **Concluído** | Você clicou em Concluir. Entra na água do dia. |
+| **Falha** | Você clicou em Falhar, ou o lembrete chegou e ficou sem resposta até o seguinte. |
+| **Não entregue** | O lembrete não chegou: a aba estava fechada ou o servidor estava fora. Não conta contra você. |
+| **Não concluído** | O dia foi finalizado antes da hora do lembrete. |
+
+- **Uma jornada por dia.** Depois de finalizar, o próximo dia começa amanhã.
+- **Esqueceu o dia aberto?** A aplicação encerra sozinha a jornada que ficou de um dia para o outro, e a tela volta a mostrar **Iniciar dia**.
+- **Som:** a caixa **Tocar um som nos lembretes**, no rodapé, liga e desliga. A escolha fica salva no navegador.
+
+### Modo demonstração
+
+Para ver o dia inteiro em 16 min, um lembrete por minuto, sem mexer na aplicação de uso diário:
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build --wait
+```
+
+Abra **http://127.0.0.1:38743**. A demonstração tem banco próprio; para apagá-lo ao terminar:
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.demo.yml down -v
+```
+
 ## Conferir se está funcionando
 
-A página deve mostrar **Servidor no ar**, com a versão e o horário do servidor.
+A página mostra **Iniciar dia** (ou a jornada em andamento) e, no rodapé, **Conectado ao servidor**, com a versão.
 
 Se quiser conferir pelo terminal:
 
@@ -75,8 +111,19 @@ O Docker Desktop está fechado. Abra-o, espere ele terminar de iniciar e repita 
 **`port is already allocated`, `address already in use` ou `forbidden by its access permissions` ao subir**
 Outro programa usa a porta 38742. No `.env`, troque `FRONTEND_PORT` por outra porta **abaixo de 49152** (no Windows, as portas acima disso podem estar reservadas pelo sistema) e repita o passo 3. O endereço passa a ser `http://127.0.0.1:<nova porta>`.
 
-**A página mostra "Servidor indisponível"**
-O servidor ainda está iniciando ou parou. Veja o estado com `docker compose ps` e os erros com `docker compose logs backend`.
+**A página mostra "Reconectando…" ou "Não foi possível carregar a jornada"**
+O servidor ainda está iniciando ou parou. Veja o estado com `docker compose ps` e os erros com `docker compose logs backend`. Quando o servidor volta, a página se reconecta sozinha.
+
+**As notificações não aparecem**
+- Se a página mostra o aviso **As notificações estão bloqueadas**, siga o que ele diz: clique no ícone à esquerda do endereço, ative **Notificações** e, se o aviso continuar, recarregue a página.
+- No Windows, confira em **Configurações > Sistema > Notificações** que o Google Chrome está ativado e que o **Não perturbe** está desligado. No macOS, em **Ajustes do Sistema > Notificações > Google Chrome**.
+- Mesmo sem notificação, o lembrete aparece na página enquanto a aba estiver aberta.
+
+**O som não toca**
+Depois de recarregar a página, o Chrome só libera o som depois de um clique. A página avisa, e basta clicar em qualquer lugar dela. Confira também se a caixa **Tocar um som nos lembretes** está marcada.
+
+**Não aparece "Iniciar dia"**
+Já houve uma jornada hoje, e é uma por dia. A tela mostra o resumo dela.
 
 **Troquei a senha do `.env` (ou baixei o projeto de novo) e o `backend` não sobe**
 O banco guarda a senha usada na **primeira** subida e ignora mudanças depois disso. Volte a senha antiga no `.env` ou, se puder perder os dados, apague o banco com `docker compose down -v` e suba de novo.
@@ -112,6 +159,7 @@ Requisitos: **Java 25**, **Node 24.12+** e **Docker** (os testes do backend sobe
 | `npm run lint` | ESLint |
 | `npm run typecheck` | Checagem de tipos (`vue-tsc`) |
 | `npm test` | Testes com cobertura mínima de 80% |
+| `npm run contrato` | Regenera os tipos de `src/api/contrato.ts` a partir de `docs/api/openapi.json` (o CI confere) |
 
 O fluxo de trabalho é SDD (Spec-Driven Development): cada história ganha uma spec em `docs/specs/` antes do código e é entregue como uma release. Todo pull request passa pelo CI (backend, frontend e subida com `docker compose`).
 

@@ -63,6 +63,13 @@ jobs:
       - name: Instalar dependências
         run: npm ci --no-audit --no-fund
 
+      # Os tipos do frontend vêm do contrato do backend (docs/api/openapi.json).
+      - name: Conferir tipos gerados do contrato
+        run: |
+          npm run contrato
+          git diff --exit-code -- src/api/contrato.ts \
+            || { echo "::error::src/api/contrato.ts desatualizado. Rode 'npm run contrato' no frontend e commite."; exit 1; }
+
       - name: Lint
         run: npm run lint
 

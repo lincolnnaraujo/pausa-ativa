@@ -32,7 +32,10 @@ describe('buscarStatus', () => {
     await expect(buscarStatus()).resolves.toEqual(STATUS)
     expect(fetchFalso).toHaveBeenCalledWith(
       '/api/v1/sistema/status',
-      expect.objectContaining({ headers: { Accept: 'application/json' } }),
+      expect.objectContaining({
+        method: 'GET',
+        headers: { Accept: 'application/json, application/problem+json' },
+      }),
     )
   })
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import HomeView from './views/HomeView.vue'
+import JornadaView from './views/JornadaView.vue'
 </script>
 
 <template>
-  <HomeView />
+  <JornadaView />
 </template>

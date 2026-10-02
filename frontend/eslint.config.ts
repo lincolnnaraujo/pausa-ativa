@@ -9,7 +9,8 @@ export default defineConfigWithVueTs(
     files: ['**/*.{vue,ts,mts,tsx}'],
   },
 
-  globalIgnores(['**/dist/**', '**/coverage/**']),
+  // contrato.ts é gerado do OpenAPI (npm run contrato).
+  globalIgnores(['**/dist/**', '**/coverage/**', 'src/api/contrato.ts']),
 
   ...pluginVue.configs['flat/recommended'],
   vueTsConfigs.recommended,

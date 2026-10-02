@@ -8,7 +8,7 @@ import java.time.OffsetDateTime;
         requiredProperties = {"aplicacao", "versao", "agora", "fuso"})
 record StatusResposta(
         @Schema(example = "pausa-ativa") String aplicacao,
-        @Schema(example = "0.1.0") String versao,
+        @Schema(example = "0.2.0") String versao,
 
         @Schema(description = "Horário do servidor no fuso de negócio", example = "2026-10-01T09:00:00-03:00")
         OffsetDateTime agora,

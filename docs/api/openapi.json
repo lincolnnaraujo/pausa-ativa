@@ -3,7 +3,7 @@
   "info" : {
     "description" : "Jornada de trabalho com marcos de hidratação e exercício.",
     "title" : "Pausa Ativa API",
-    "version" : "0.1.0"
+    "version" : "0.2.0"
   },
   "servers" : [ {
     "url" : "/",
@@ -12,8 +12,489 @@
   "tags" : [ {
     "description" : "Informações sobre a própria aplicação",
     "name" : "Sistema"
+  }, {
+    "description" : "Respostas aos lembretes",
+    "name" : "Marco"
+  }, {
+    "description" : "Notificações do servidor para a tela, em tempo real",
+    "name" : "Eventos"
+  }, {
+    "description" : "Iniciar, pausar, retomar e finalizar o dia",
+    "name" : "Jornada"
   } ],
   "paths" : {
+    "/api/v1/eventos" : {
+      "get" : {
+        "description" : "Eventos: marco-disparado (dados no formato Marco) e jornada-atualizada (formato Jornada). Um comentário \"ping\" a cada 20 s mantém a conexão. Ao reconectar, busque GET /api/v1/jornadas/atual para recuperar os marcos pendentes.",
+        "operationId" : "conectar",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "text/event-stream" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "Conexão aberta"
+          }
+        },
+        "summary" : "Stream de eventos (Server-Sent Events)",
+        "tags" : [ "Eventos" ]
+      }
+    },
+    "/api/v1/jornadas" : {
+      "post" : {
+        "operationId" : "iniciar",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/IniciarJornada"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Jornada"
+                }
+              }
+            },
+            "description" : "Created"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bad Request"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Not Found"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Conflict"
+          }
+        },
+        "summary" : "Inicia o dia. Encerra antes a jornada esquecida de um dia anterior, se houver.",
+        "tags" : [ "Jornada" ]
+      }
+    },
+    "/api/v1/jornadas/atual" : {
+      "get" : {
+        "operationId" : "atual",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Jornada"
+                }
+              }
+            },
+            "description" : "Há jornada aberta ou de hoje"
+          },
+          "204" : {
+            "description" : "Nenhuma jornada hoje"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bad Request"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Not Found"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Conflict"
+          }
+        },
+        "summary" : "Jornada aberta ou, sem ela, a de hoje",
+        "tags" : [ "Jornada" ]
+      }
+    },
+    "/api/v1/jornadas/{id}/finalizacao" : {
+      "post" : {
+        "operationId" : "finalizar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Jornada"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bad Request"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Not Found"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Conflict"
+          }
+        },
+        "summary" : "Finaliza o dia. Repetir devolve a mesma situação.",
+        "tags" : [ "Jornada" ]
+      }
+    },
+    "/api/v1/jornadas/{id}/pausa" : {
+      "post" : {
+        "operationId" : "pausar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Jornada"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bad Request"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Not Found"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Conflict"
+          }
+        },
+        "summary" : "Pausa a jornada (almoço). O tempo trabalhado congela.",
+        "tags" : [ "Jornada" ]
+      }
+    },
+    "/api/v1/jornadas/{id}/retomada" : {
+      "post" : {
+        "operationId" : "retomar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Jornada"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bad Request"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Not Found"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Conflict"
+          }
+        },
+        "summary" : "Retoma a jornada pausada",
+        "tags" : [ "Jornada" ]
+      }
+    },
+    "/api/v1/marcos/{id}/conclusao" : {
+      "post" : {
+        "operationId" : "concluir",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Jornada"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bad Request"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Not Found"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Conflict"
+          }
+        },
+        "summary" : "Conclui o marco. Repetir devolve a mesma situação.",
+        "tags" : [ "Marco" ]
+      }
+    },
+    "/api/v1/marcos/{id}/falha" : {
+      "post" : {
+        "operationId" : "falhar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Jornada"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bad Request"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Not Found"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Conflict"
+          }
+        },
+        "summary" : "Marca falha no marco. Repetir devolve a mesma situação.",
+        "tags" : [ "Marco" ]
+      }
+    },
+    "/api/v1/marcos/{id}/recebimento" : {
+      "post" : {
+        "description" : "Sem a confirmação, o prazo vencido vira NAO_ENTREGUE em vez de FALHA.",
+        "operationId" : "confirmarRecebimento",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bad Request"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Not Found"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Conflict"
+          }
+        },
+        "summary" : "Confirma que o marco chegou à tela",
+        "tags" : [ "Marco" ]
+      }
+    },
     "/api/v1/sistema/status" : {
       "get" : {
         "operationId" : "status",
@@ -36,6 +517,164 @@
   },
   "components" : {
     "schemas" : {
+      "IniciarJornada" : {
+        "type" : "object",
+        "properties" : {
+          "metaAguaMl" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 3000,
+            "description" : "Meta de água do dia, em ml. Sem ela, 3.000 ml.",
+            "example" : 3000,
+            "maximum" : 6000,
+            "minimum" : 1
+          }
+        }
+      },
+      "Jornada" : {
+        "type" : "object",
+        "description" : "Situação da jornada no instante calculadoEm. Horários no fuso America/Sao_Paulo.",
+        "properties" : {
+          "aguaIngeridaMl" : {
+            "type" : "number",
+            "description" : "Soma dos marcos de hidratação concluídos",
+            "example" : 562.5
+          },
+          "calculadoEm" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "dataReferencia" : {
+            "type" : "string",
+            "format" : "date",
+            "description" : "Dia em que a jornada começou"
+          },
+          "finalizadaEm" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "iniciadaEm" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "marcos" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Marco"
+            }
+          },
+          "metaAguaMl" : {
+            "type" : "integer",
+            "format" : "int32",
+            "example" : 3000
+          },
+          "pausadaDesde" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time",
+            "description" : "Início da pausa em curso; nulo fora da pausa"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "EM_ANDAMENTO", "PAUSADA", "FINALIZADA", "ENCERRADA_AUTOMATICAMENTE" ]
+          },
+          "tempoTrabalhadoSegundos" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Tempo trabalhado até calculadoEm, sem as pausas. Enquanto a jornada estiver em andamento, a tela soma o tempo decorrido desde então.",
+            "example" : 5400
+          }
+        },
+        "required" : [ "aguaIngeridaMl", "calculadoEm", "dataReferencia", "finalizadaEm", "id", "iniciadaEm", "marcos", "metaAguaMl", "pausadaDesde", "status", "tempoTrabalhadoSegundos" ]
+      },
+      "Marco" : {
+        "type" : "object",
+        "description" : "Lembrete da jornada. Horários no fuso America/Sao_Paulo.",
+        "properties" : {
+          "categoria" : {
+            "type" : "string",
+            "enum" : [ "HIDRATACAO" ]
+          },
+          "disparadoEm" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "mensagem" : {
+            "type" : "string",
+            "example" : "Beba ~190 ml. Levante-se para buscar a água."
+          },
+          "recebidoEm" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "respondidoEm" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "segundosTrabalhadosPrevistos" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Tempo trabalhado em que o marco dispara",
+            "example" : 1800
+          },
+          "sequencia" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Ordem do marco na categoria, a partir de 1",
+            "example" : 1
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "AGENDADO", "PENDENTE", "CONCLUIDO", "FALHA", "NAO_ENTREGUE", "NAO_CONCLUIDO" ]
+          },
+          "volumeAproximadoMl" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Volume para exibir, arredondado para a dezena",
+            "example" : 190
+          },
+          "volumeMl" : {
+            "type" : "number",
+            "description" : "Volume exato: meta ÷ 16",
+            "example" : 187.5
+          }
+        },
+        "required" : [ "categoria", "disparadoEm", "id", "mensagem", "recebidoEm", "respondidoEm", "segundosTrabalhadosPrevistos", "sequencia", "status", "volumeAproximadoMl", "volumeMl" ]
+      },
+      "ProblemDetail" : {
+        "type" : "object",
+        "properties" : {
+          "detail" : {
+            "type" : "string"
+          },
+          "instance" : {
+            "type" : "string",
+            "format" : "uri"
+          },
+          "properties" : {
+            "type" : "object",
+            "additionalProperties" : { }
+          },
+          "status" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string",
+            "format" : "uri"
+          }
+        }
+      },
       "StatusResposta" : {
         "type" : "object",
         "description" : "Situação do backend. Não consulta o banco; o estado do banco fica em /actuator/health.",
@@ -56,7 +695,7 @@
           },
           "versao" : {
             "type" : "string",
-            "example" : "0.1.0"
+            "example" : "0.2.0"
           }
         },
         "required" : [ "agora", "aplicacao", "fuso", "versao" ]

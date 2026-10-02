@@ -25,4 +25,7 @@ class ArquiteturaTest {
 
     @ArchTest
     static final ArchRule r5 = RegrasDeArquitetura.modulosSemCiclos(BASE);
+
+    @ArchTest
+    static final ArchRule r6 = RegrasDeArquitetura.tempoSoPeloClock(BASE);
 }
