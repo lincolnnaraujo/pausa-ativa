@@ -1,6 +1,6 @@
 # Spec H2 — Controlar a jornada e registrar hidratação (release v0.2.0)
 
-> **Status:** aprovada pelo usuário em 2026-10-01, com as recomendações D1 a D8 da seção 13. Implementada e em aceite; progresso na seção 12.
+> **Status:** aprovada pelo usuário em 2026-10-01, com as recomendações D1 a D8 da seção 13. Entregue em 2026-10-02 como v0.2.0, com aceite do usuário; progresso na seção 12.
 > **Origem:** História 2 de [`docs/epico-pausa-ativa.md`](../epico-pausa-ativa.md).
 > **Depende de:** H1 (v0.1.0), entregue em 2026-10-01.
 > **Data:** 2026-10-01.
@@ -344,7 +344,7 @@ Branch `feat/h2-jornada-hidratacao`. A execução para ao fim de cada etapa, e a
 | T5 | Frontend: tela da jornada e respostas | Lint, tipos e testes verdes, cobertura ≥ 80% | ✅ 2026-10-02 (73 testes no frontend, 99% das linhas; campo `pausadaDesde` na API, 102 testes no backend) |
 | T6 | Frontend: eventos, notificações, som, aviso de permissão, reconexão | Idem, com `EventSource` e `Notification` simulados | ✅ 2026-10-02 (125 testes no frontend, 99% das linhas; `EventSource`, `Notification` e `AudioContext` simulados) |
 | T7 | Verificação ponta a ponta no compose, em modo demonstração | Cenários 1 a 7 conferidos na máquina local | ✅ 2026-10-02 (Chrome headless, 35 de 35 verificações; seção 11.1) |
-| T8 | README (como usar), C4, release notes, PR e CI | Aceite do usuário; merge e tag `v0.2.0` | Em aceite (2026-10-02): documentação, versão 0.2.0 e PR prontos; faltam o aceite, o merge e a tag |
+| T8 | README (como usar), C4, release notes, PR e CI | Aceite do usuário; merge e tag `v0.2.0` | ✅ 2026-10-02 (aceite do usuário, merge do PR #5, tag `v0.2.0`) |
 
 ## 13. Decisões para o usuário confirmar
 
