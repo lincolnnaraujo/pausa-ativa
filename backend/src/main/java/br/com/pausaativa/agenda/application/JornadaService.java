@@ -25,11 +25,17 @@ class JornadaService implements IniciarJornada, PausarJornada, RetomarJornada, F
 
     private final JornadaRepository repositorio;
     private final ConfiguracaoDaAgenda configuracao;
+    private final PublicadorDeAlteracoes publicador;
     private final Clock clock;
 
-    JornadaService(JornadaRepository repositorio, ConfiguracaoDaAgenda configuracao, Clock clock) {
+    JornadaService(
+            JornadaRepository repositorio,
+            ConfiguracaoDaAgenda configuracao,
+            PublicadorDeAlteracoes publicador,
+            Clock clock) {
         this.repositorio = repositorio;
         this.configuracao = configuracao;
+        this.publicador = publicador;
         this.clock = clock;
     }
 
@@ -50,6 +56,7 @@ class JornadaService implements IniciarJornada, PausarJornada, RetomarJornada, F
             }
             anterior.encerrarAutomaticamente(agora);
             repositorio.salvar(anterior);
+            publicador.publicar(anterior, agora);
         }
         if (repositorio.existeNoDia(hoje)) {
             throw new JornadaJaIniciadaException(hoje);
@@ -58,7 +65,7 @@ class JornadaService implements IniciarJornada, PausarJornada, RetomarJornada, F
         Jornada jornada =
                 Jornada.iniciar(UUID.randomUUID(), agora, clock.getZone(), meta, configuracao.planoDeHidratacao());
         repositorio.salvar(jornada);
-        return situacao(jornada, agora);
+        return publicador.publicar(jornada, agora);
     }
 
     @Override
@@ -86,20 +93,21 @@ class JornadaService implements IniciarJornada, PausarJornada, RetomarJornada, F
         return repositorio
                 .buscarAberta()
                 .or(() -> repositorio.buscarDoDia(LocalDate.ofInstant(agora, clock.getZone())))
-                .map(jornada -> situacao(jornada, agora));
+                .map(jornada -> SituacaoDaJornada.de(jornada, agora, clock.getZone()));
     }
 
+    /**
+     * Põe a jornada em dia antes da operação, como faria o próximo tick: um marco que venceu há menos
+     * de um segundo dispara (ou vence) antes de a jornada pausar ou finalizar.
+     */
     private SituacaoDaJornada alterar(UUID jornadaId, BiConsumer<Jornada, Instant> operacao) {
         Instant agora = clock.instant();
         Jornada jornada = repositorio
                 .buscarComBloqueio(jornadaId)
                 .orElseThrow(() -> new JornadaNaoEncontradaException(jornadaId));
+        jornada.avancar(agora);
         operacao.accept(jornada, agora);
         repositorio.salvar(jornada);
-        return situacao(jornada, agora);
-    }
-
-    private SituacaoDaJornada situacao(Jornada jornada, Instant agora) {
-        return SituacaoDaJornada.de(jornada, agora, clock.getZone());
+        return publicador.publicar(jornada, agora);
     }
 }

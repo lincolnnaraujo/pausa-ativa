@@ -9,55 +9,57 @@ import br.com.pausaativa.agenda.domain.MarcoNaoEncontradoException;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.function.BiPredicate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Respostas aos marcos e confirmação de recebimento. Só grava quando algo mudou. */
+/**
+ * Respostas aos marcos e confirmação de recebimento. A jornada é posta em dia antes: concluir um marco
+ * cujo prazo venceu há menos de um segundo, antes do tick, é recusado como deveria.
+ */
 @Service
 class MarcoService implements ResponderMarco, ConfirmarRecebimento {
 
     private final JornadaRepository repositorio;
+    private final PublicadorDeAlteracoes publicador;
     private final Clock clock;
 
-    MarcoService(JornadaRepository repositorio, Clock clock) {
+    MarcoService(JornadaRepository repositorio, PublicadorDeAlteracoes publicador, Clock clock) {
         this.repositorio = repositorio;
+        this.publicador = publicador;
         this.clock = clock;
     }
 
     @Override
     @Transactional
     public SituacaoDaJornada concluir(UUID marcoId) {
-        Instant agora = clock.instant();
-        Jornada jornada = jornadaDoMarco(marcoId);
-        if (jornada.concluirMarco(marcoId, agora)) {
-            repositorio.salvar(jornada);
-        }
-        return SituacaoDaJornada.de(jornada, agora, clock.getZone());
+        return alterar(marcoId, (jornada, agora) -> jornada.concluirMarco(marcoId, agora));
     }
 
     @Override
     @Transactional
     public SituacaoDaJornada falhar(UUID marcoId) {
-        Instant agora = clock.instant();
-        Jornada jornada = jornadaDoMarco(marcoId);
-        if (jornada.falharMarco(marcoId, agora)) {
-            repositorio.salvar(jornada);
-        }
-        return SituacaoDaJornada.de(jornada, agora, clock.getZone());
+        return alterar(marcoId, (jornada, agora) -> jornada.falharMarco(marcoId, agora));
     }
 
     @Override
     @Transactional
     public void confirmar(UUID marcoId) {
-        Jornada jornada = jornadaDoMarco(marcoId);
-        if (jornada.confirmarRecebimento(marcoId, clock.instant())) {
-            repositorio.salvar(jornada);
-        }
+        alterar(marcoId, (jornada, agora) -> jornada.confirmarRecebimento(marcoId, agora));
     }
 
-    private Jornada jornadaDoMarco(UUID marcoId) {
-        return repositorio
+    /** Só grava e anuncia quando algo mudou: repetir a mesma resposta não gera escrita nem evento. */
+    private SituacaoDaJornada alterar(UUID marcoId, BiPredicate<Jornada, Instant> operacao) {
+        Instant agora = clock.instant();
+        Jornada jornada = repositorio
                 .buscarPorMarcoComBloqueio(marcoId)
                 .orElseThrow(() -> new MarcoNaoEncontradoException(marcoId));
+        boolean emDia = jornada.avancar(agora).houveMudanca();
+        boolean respondeu = operacao.test(jornada, agora);
+        if (!emDia && !respondeu) {
+            return SituacaoDaJornada.de(jornada, agora, clock.getZone());
+        }
+        repositorio.salvar(jornada);
+        return publicador.publicar(jornada, agora);
     }
 }

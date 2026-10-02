@@ -16,10 +16,33 @@
     "description" : "Respostas aos lembretes",
     "name" : "Marco"
   }, {
+    "description" : "Notificações do servidor para a tela, em tempo real",
+    "name" : "Eventos"
+  }, {
     "description" : "Iniciar, pausar, retomar e finalizar o dia",
     "name" : "Jornada"
   } ],
   "paths" : {
+    "/api/v1/eventos" : {
+      "get" : {
+        "description" : "Eventos: marco-disparado (dados no formato Marco) e jornada-atualizada (formato Jornada). Um comentário \"ping\" a cada 20 s mantém a conexão. Ao reconectar, busque GET /api/v1/jornadas/atual para recuperar os marcos pendentes.",
+        "operationId" : "conectar",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "text/event-stream" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "Conexão aberta"
+          }
+        },
+        "summary" : "Stream de eventos (Server-Sent Events)",
+        "tags" : [ "Eventos" ]
+      }
+    },
     "/api/v1/jornadas" : {
       "post" : {
         "operationId" : "iniciar",

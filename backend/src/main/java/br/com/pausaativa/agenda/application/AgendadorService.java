@@ -1,6 +1,6 @@
 package br.com.pausaativa.agenda.application;
 
-import br.com.pausaativa.agenda.application.port.in.ReconciliarJornadas;
+import br.com.pausaativa.agenda.application.port.in.AvancarAgenda;
 import br.com.pausaativa.agenda.application.port.out.JornadaRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -10,30 +10,32 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-class ReconciliacaoService implements ReconciliarJornadas {
+class AgendadorService implements AvancarAgenda {
 
-    private static final Logger log = LoggerFactory.getLogger(ReconciliacaoService.class);
+    private static final Logger log = LoggerFactory.getLogger(AgendadorService.class);
 
     private final JornadaRepository repositorio;
     private final PublicadorDeAlteracoes publicador;
     private final Clock clock;
 
-    ReconciliacaoService(JornadaRepository repositorio, PublicadorDeAlteracoes publicador, Clock clock) {
+    AgendadorService(JornadaRepository repositorio, PublicadorDeAlteracoes publicador, Clock clock) {
         this.repositorio = repositorio;
         this.publicador = publicador;
         this.clock = clock;
     }
 
-    /** Primeiro acerta o que venceu com o backend fora; depois vê se a jornada ficou esquecida. */
+    /** Só grava e anuncia quando algo mudou; na maioria dos segundos, nada muda. */
     @Override
     @Transactional
-    public void reconciliar() {
+    public void avancar() {
         Instant agora = clock.instant();
         repositorio.buscarAbertaComBloqueio().ifPresent(jornada -> {
-            boolean mudou = jornada.reconciliar(agora);
+            boolean mudou;
             if (jornada.esquecida(agora, clock.getZone())) {
                 mudou = jornada.encerrarAutomaticamente(agora);
                 log.info("Jornada {} de {} encerrada automaticamente", jornada.id(), jornada.dataReferencia());
+            } else {
+                mudou = jornada.avancar(agora).houveMudanca();
             }
             if (mudou) {
                 repositorio.salvar(jornada);

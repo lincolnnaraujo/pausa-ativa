@@ -115,15 +115,20 @@ Toda a funcionalidade fica no módulo **Agenda**. Treino e Histórico continuam 
 |---|---|
 | `agenda.domain` | `Jornada` (raiz do agregado), `Pausa`, `Marco`, `Categoria`, `StatusJornada`, `StatusMarco`, `MetaDeAgua`, `PlanoDeMarcos` (intervalo e quantidade). Calcula tempo trabalhado, disparos, prazos, finalização e encerramento. Recebe o instante atual como parâmetro: o domínio não lê relógio. |
 | `agenda.application.port.in` | `IniciarJornada`, `PausarJornada`, `RetomarJornada`, `FinalizarJornada`, `ConsultarJornadaAtual`, `ResponderMarco` (concluir, falhar), `ConfirmarRecebimento`, `AvancarAgenda` (tick), `ReconciliarJornadas` |
-| `agenda.application.port.out` | `JornadaRepository`, `NotificadorDeMarco` |
+| `agenda.application.port.out` | `JornadaRepository`; `JornadaAlterada`, evento do Spring publicado depois de cada gravação com mudança (substitui o `NotificadorDeMarco` previsto, ver abaixo) |
 | `agenda.adapter.in.web` | `JornadaController`, `MarcoController`, `EventosController` (SSE) |
-| `agenda.adapter.in.agendador` | `@Scheduled` que chama `AvancarAgenda` a cada 1 s; listener de `ApplicationReadyEvent` que chama `ReconciliarJornadas` |
+| `agenda.adapter.in.agendador` | `AgendadorDaAgenda`: na subida, chama `ReconciliarJornadas` e **só depois** liga o tick de 1 s (`AvancarAgenda`). Com um `@Scheduled` comum, o tick podia rodar antes da reconciliação e disparar atrasados os marcos vencidos com o backend fora. |
 | `agenda.adapter.out.persistence` | Entidades JPA, Spring Data, mapeadores para o domínio |
-| `agenda.adapter.out.sse` | `NotificadorDeMarco` via `SseEmitter`, com registro de conexões e heartbeat |
+| `agenda.adapter.in.web` (SSE) | `EventosController` e `CanalDeEventos`: conexões `SseEmitter`, heartbeat e envio depois do commit |
+| `agenda.adapter.out.metricas` | `ObservabilidadeDaAgenda`: métricas e logs a partir dos eventos de domínio |
 
 **Concorrência.** O tick do agendador e os cliques do usuário podem alterar a mesma jornada ao mesmo tempo, por exemplo o prazo vencendo enquanto o usuário clica em Concluir. Todo caso de uso que altera a jornada a carrega com **lock pessimista**, e a operação seguinte espera a anterior terminar. Com um único usuário, o custo é desprezível. No Postgres, o Hibernate emite `SELECT … FOR NO KEY UPDATE`: serializa as alterações na jornada sem travar inserções que apontam para ela. Dois "Iniciar dia" simultâneos não têm linha para travar; quem barra o segundo é a restrição do banco, traduzida para `JornadaJaIniciadaException`.
 
-**Relógio.** Os casos de uso leem o `Clock` injetado e passam o instante ao domínio. Nos testes, um relógio controlável avança o tempo sem `sleep`.
+**Relógio.** Os casos de uso leem o `Clock` injetado e passam o instante ao domínio. Nos testes, um relógio controlável avança o tempo sem `sleep`. O relógio de produção tem precisão de milissegundos (`Clock.tickMillis`): o Postgres guarda microssegundos, e com nanossegundos a resposta de um comando e a consulta seguinte mostrariam horários diferentes para o mesmo instante (achado na T4).
+
+**Eventos de domínio (T4).** A `Jornada` registra `MarcoDisparado` e `MarcoEncerrado` a cada transição. Depois de gravar, a aplicação publica `JornadaAlterada` (situação + eventos); o SSE e as métricas a recebem com `@TransactionalEventListener`, só depois do commit, para nunca anunciar algo desfeito. Comandos que não mudam nada (resposta repetida) não publicam.
+
+**Comandos põem a jornada em dia.** Pausar, retomar, finalizar, responder e confirmar recebimento chamam `avancar(agora)` antes de agir, como o próximo tick faria. Assim, concluir um marco cujo prazo venceu há menos de um segundo, antes do tick, é recusado como deveria.
 
 **Threads virtuais** (`spring.threads.virtual.enabled=true`): as conexões SSE ficam abertas o dia todo e não devem prender threads de plataforma.
 
@@ -209,6 +214,7 @@ O frontend usa `tempoTrabalhadoSegundos` e `calculadoEm` para manter o cronômet
 | comentário `: ping` | A cada 20 s | Mantém a conexão viva através do nginx |
 
 - **Várias abas:** todas recebem os eventos. A notificação usa `tag` igual ao id do marco, e o Chrome mostra uma só.
+- **Envio:** depois do commit; um `SseEventBuilder` novo por conexão (o `build()` do Spring acrescenta o terminador a cada chamada e não pode ser reaproveitado).
 - **Reconexão:** o `EventSource` reconecta sozinho. Ao reconectar, a página busca `GET /jornadas/atual` e mostra os marcos `PENDENTE`, confirmando o recebimento dos que ainda não tinham sido confirmados.
 - **nginx:** `proxy_buffering off` e `proxy_read_timeout 1h` já foram configurados na H1.
 
@@ -240,7 +246,7 @@ Para o aceite, esperar 30 min por lembrete inviabiliza testar os cenários. Prop
 docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --wait
 ```
 
-Com isso, a jornada inteira de 16 lembretes dura 16 min. O intervalo usado fica gravado em cada marco (`segundos_trabalhados_previstos`), então trocar a configuração no meio do dia não bagunça a jornada em curso. A tela mostra uma faixa "Modo demonstração" quando o intervalo não é o padrão.
+Com isso, a jornada inteira de 16 lembretes dura 16 min. O arquivo define o nome de projeto `pausa-ativa-demo`, com banco e porta próprios (`127.0.0.1:38743`): uma jornada de teste não ocupa o dia de hoje na aplicação real, que tem uma jornada por dia (D3). O intervalo usado fica gravado em cada marco (`segundos_trabalhados_previstos`), então trocar a configuração no meio do dia não bagunça a jornada em curso. A tela mostra uma faixa "Modo demonstração" quando o intervalo não é o padrão.
 
 ## 10. Observabilidade
 
@@ -285,7 +291,7 @@ Branch `feat/h2-jornada-hidratacao`. A execução para ao fim de cada etapa, e a
 | T1 | Domínio da Agenda em Java puro (seção 3) e regra R6 | Cenários 1 a 5, 7 e 8 cobertos por testes de domínio com relógio controlado | ✅ 2026-10-01 (32 testes; domínio com 95% das linhas e 91% dos ramos) |
 | T2 | Persistência: migração `V2`, adapters JPA, lock pessimista, reconciliação na subida | Testes de integração verdes, incluindo concorrência e jornada esquecida | ✅ 2026-10-01 (15 testes de integração; 69 no backend) |
 | T3 | API REST, Problem Details, contrato OpenAPI, tipos TypeScript gerados | Testes MockMvc de todos os endpoints; contrato atualizado | ✅ 2026-10-01 (11 testes de API; 80 no backend) |
-| T4 | Agendador, SSE, recebimento, métricas, modo demonstração | Evento entregue e reconexão testados; métricas expostas | Pendente |
+| T4 | Agendador, SSE, recebimento, métricas, modo demonstração | Evento entregue e reconexão testados; métricas expostas | ✅ 2026-10-01 (101 testes; conferido no modo demonstração: `marco-disparado` pelo nginx em ~60 s, atraso de 0,62 s, métricas e logs JSON) |
 | T5 | Frontend: tela da jornada e respostas | Lint, tipos e testes verdes, cobertura ≥ 80% | Pendente |
 | T6 | Frontend: eventos, notificações, som, aviso de permissão, reconexão | Idem, com `EventSource` e `Notification` simulados | Pendente |
 | T7 | Verificação ponta a ponta no compose, em modo demonstração | Cenários 1 a 7 conferidos na máquina local | Pendente |

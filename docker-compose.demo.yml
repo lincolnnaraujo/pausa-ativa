@@ -1,0 +1,19 @@
+# Modo demonstração: um lembrete de água por minuto de tempo trabalhado, para testar o dia inteiro em
+# cerca de 16 min (spec H2, seção 9).
+#
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --wait
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml down -v
+#
+# Roda como outro projeto, com banco e porta próprios: uma jornada de teste não ocupa o dia de hoje na
+# aplicação real (é uma jornada por dia). Abre em http://127.0.0.1:38743.
+
+name: pausa-ativa-demo
+
+services:
+  backend:
+    environment:
+      PAUSA_ATIVA_INTERVALO: 1m
+
+  frontend:
+    ports: !override
+      - "127.0.0.1:${FRONTEND_PORT_DEMO:-38743}:8080"

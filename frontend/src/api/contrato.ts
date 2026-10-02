@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/v1/eventos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream de eventos (Server-Sent Events)
+         * @description Eventos: marco-disparado (dados no formato Marco) e jornada-atualizada (formato Jornada). Um comentário "ping" a cada 20 s mantém a conexão. Ao reconectar, busque GET /api/v1/jornadas/atual para recuperar os marcos pendentes.
+         */
+        get: operations["conectar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jornadas": {
         parameters: {
             query?: never;
@@ -285,6 +305,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    conectar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Conexão aberta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+        };
+    };
     iniciar: {
         parameters: {
             query?: never;

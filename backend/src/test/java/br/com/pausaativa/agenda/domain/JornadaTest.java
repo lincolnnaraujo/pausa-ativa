@@ -498,6 +498,78 @@ class JornadaTest {
         }
     }
 
+    @Nested
+    class Eventos {
+
+        @Test
+        void disparoRegistraOInstantePrevistoEOAtraso() {
+            Jornada jornada = iniciadaAs("09:00");
+
+            jornada.avancar(as("09:30:02"));
+
+            assertThat(jornada.extrairEventos())
+                    .singleElement()
+                    .isInstanceOfSatisfying(MarcoDisparado.class, evento -> {
+                        assertThat(evento.marcoId()).isEqualTo(marco(jornada, 1).id());
+                        assertThat(evento.sequencia()).isEqualTo(1);
+                        assertThat(evento.atraso()).isEqualTo(Duration.ofSeconds(2));
+                    });
+        }
+
+        @Test
+        void encerramentosRegistramOStatusFinalDeCadaMarco() {
+            Jornada jornada = iniciadaAs("09:00");
+            jornada.avancar(as("09:30"));
+            jornada.concluirMarco(marco(jornada, 1).id(), as("09:31"));
+            jornada.avancar(as("10:00"));
+            jornada.avancar(as("10:30"));
+            jornada.extrairEventos();
+
+            jornada.finalizar(as("10:40"));
+
+            assertThat(jornada.extrairEventos())
+                    .hasSize(14)
+                    .allSatisfy(evento -> assertThat(evento)
+                            .isInstanceOfSatisfying(
+                                    MarcoEncerrado.class,
+                                    encerrado -> assertThat(encerrado.status()).isEqualTo(NAO_CONCLUIDO)));
+        }
+
+        @Test
+        void respostaEPrazoVencidoGeramEncerramentoERepeticaoNaoGeraNada() {
+            Jornada jornada = iniciadaAs("09:00");
+            jornada.avancar(as("09:30"));
+            jornada.concluirMarco(marco(jornada, 1).id(), as("09:31"));
+            jornada.concluirMarco(marco(jornada, 1).id(), as("09:32"));
+            jornada.avancar(as("10:00"));
+            jornada.avancar(as("10:30"));
+
+            assertThat(jornada.extrairEventos())
+                    .extracting(evento -> evento.getClass().getSimpleName() + ":"
+                            + switch (evento) {
+                                case MarcoDisparado disparado -> disparado.sequencia();
+                                case MarcoEncerrado encerrado -> encerrado.sequencia() + ":" + encerrado.status();
+                            })
+                    .containsExactly(
+                            "MarcoDisparado:1",
+                            "MarcoEncerrado:1:CONCLUIDO",
+                            "MarcoDisparado:2",
+                            "MarcoEncerrado:2:NAO_ENTREGUE",
+                            "MarcoDisparado:3");
+            assertThat(jornada.extrairEventos()).isEmpty();
+        }
+
+        @Test
+        void reconciliacaoEEncerramentoAutomaticoRegistramOsNaoEntregues() {
+            Jornada jornada = iniciadaAs("09:00");
+
+            jornada.reconciliar(as("10:05"));
+            assertThat(jornada.extrairEventos()).hasSize(2);
+            jornada.encerrarAutomaticamente(as("08:00").plus(Duration.ofDays(1)));
+            assertThat(jornada.extrairEventos()).hasSize(14);
+        }
+    }
+
     @Test
     void intervaloZeroOuNegativoEQuantidadeNaoPositivaSaoRecusados() {
         assertThatThrownBy(() -> PlanoDeMarcos.hidratacao(Duration.ZERO))

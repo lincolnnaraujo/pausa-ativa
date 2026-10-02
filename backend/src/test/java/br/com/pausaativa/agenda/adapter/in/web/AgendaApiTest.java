@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import br.com.pausaativa.RelogioDeTeste;
 import br.com.pausaativa.TesteDeIntegracao;
-import br.com.pausaativa.agenda.application.port.out.JornadaRepository;
+import br.com.pausaativa.agenda.application.port.in.AvancarAgenda;
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -19,7 +19,6 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.WebApplicationContext;
 
 /** Contrato HTTP da Agenda (spec H2, seção 6) com a aplicação inteira e Postgres real. */
@@ -38,10 +37,7 @@ class AgendaApiTest {
     JdbcTemplate jdbc;
 
     @Autowired
-    JornadaRepository repositorio;
-
-    @Autowired
-    TransactionTemplate transacao;
+    AvancarAgenda avancarAgenda;
 
     MockMvcTester api;
 
@@ -56,15 +52,6 @@ class AgendaApiTest {
         relogio.ajustarPara(LocalDateTime.of(HOJE, LocalTime.parse(hora))
                 .atZone(RelogioDeTeste.SAO_PAULO)
                 .toInstant());
-    }
-
-    /** Faz o papel do agendador, que chega na T4. */
-    private void agendador(UUID jornadaId) {
-        transacao.executeWithoutResult(status -> {
-            var jornada = repositorio.buscarComBloqueio(jornadaId).orElseThrow();
-            jornada.avancar(relogio.instant());
-            repositorio.salvar(jornada);
-        });
     }
 
     private MvcTestResult post(String caminho) {
@@ -198,7 +185,7 @@ class AgendaApiTest {
     void concluirMarcoPorHttpEhIdempotenteEOutraRespostaResponde409() {
         UUID id = iniciarDia();
         relogioAs("09:30");
-        agendador(id);
+        avancarAgenda.avancar();
         UUID marco = primeiroMarco();
 
         assertThat(post("/api/v1/marcos/" + marco + "/recebimento")).hasStatus(HttpStatus.NO_CONTENT);
@@ -227,7 +214,7 @@ class AgendaApiTest {
     void falharMarcoPendente() {
         UUID id = iniciarDia();
         relogioAs("09:30");
-        agendador(id);
+        avancarAgenda.avancar();
 
         assertThat(post("/api/v1/marcos/" + primeiroMarco() + "/falha"))
                 .bodyJson()

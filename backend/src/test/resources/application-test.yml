@@ -3,3 +3,10 @@ logging:
   structured:
     format:
       console: ""
+
+# Os testes avançam a agenda chamando AvancarAgenda, com o RelogioDeTeste; um tick em segundo plano
+# competiria com eles.
+pausa-ativa:
+  agenda:
+    agendador:
+      habilitado: false

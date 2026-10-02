@@ -12,6 +12,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import br.com.pausaativa.RelogioDeTeste;
 import br.com.pausaativa.TesteDeIntegracao;
 import br.com.pausaativa.agenda.application.JornadaNaoEncontradaException;
+import br.com.pausaativa.agenda.application.port.in.AvancarAgenda;
 import br.com.pausaativa.agenda.application.port.in.ConfirmarRecebimento;
 import br.com.pausaativa.agenda.application.port.in.ConsultarJornadaAtual;
 import br.com.pausaativa.agenda.application.port.in.FinalizarJornada;
@@ -21,12 +22,16 @@ import br.com.pausaativa.agenda.application.port.in.ResponderMarco;
 import br.com.pausaativa.agenda.application.port.in.RetomarJornada;
 import br.com.pausaativa.agenda.application.port.in.SituacaoDaJornada;
 import br.com.pausaativa.agenda.application.port.in.SituacaoDoMarco;
+import br.com.pausaativa.agenda.application.port.out.JornadaAlterada;
 import br.com.pausaativa.agenda.application.port.out.JornadaRepository;
 import br.com.pausaativa.agenda.domain.JornadaJaIniciadaException;
+import br.com.pausaativa.agenda.domain.MarcoDisparado;
+import br.com.pausaativa.agenda.domain.MarcoEncerrado;
 import br.com.pausaativa.agenda.domain.MarcoNaoEncontradoException;
 import br.com.pausaativa.agenda.domain.MetaDeAguaInvalidaException;
 import br.com.pausaativa.agenda.domain.RespostaDeMarcoRecusadaException;
 import br.com.pausaativa.agenda.domain.StatusJornada;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -50,10 +55,13 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /** Casos de uso da Agenda com Postgres real e relógio controlado (spec H2, T2). */
 @TesteDeIntegracao
+@RecordApplicationEvents
 class AgendaIntegracaoTest {
 
     private static final LocalDate HOJE = LocalDate.of(2026, 10, 2);
@@ -83,6 +91,9 @@ class AgendaIntegracaoTest {
     ConfirmarRecebimento confirmarRecebimento;
 
     @Autowired
+    AvancarAgenda avancarAgenda;
+
+    @Autowired
     JornadaRepository repositorio;
 
     @Autowired
@@ -93,6 +104,12 @@ class AgendaIntegracaoTest {
 
     @Autowired
     ConfigurableApplicationContext contexto;
+
+    @Autowired
+    ApplicationEvents eventosPublicados;
+
+    @Autowired
+    MeterRegistry metricas;
 
     @BeforeEach
     void comecarDoZero() {
@@ -108,15 +125,6 @@ class AgendaIntegracaoTest {
 
     private void relogioAs(String hora) {
         relogio.ajustarPara(as(HOJE, hora));
-    }
-
-    /** Faz o papel do agendador, que chega na T4: avança a jornada e grava, numa transação. */
-    private void agendador(UUID jornadaId) {
-        transacao.executeWithoutResult(status -> {
-            var jornada = repositorio.buscarComBloqueio(jornadaId).orElseThrow();
-            jornada.avancar(relogio.instant());
-            repositorio.salvar(jornada);
-        });
     }
 
     private SituacaoDoMarco marco(SituacaoDaJornada situacao, int sequencia) {
@@ -168,7 +176,14 @@ class AgendaIntegracaoTest {
         assertThat(finalizada.finalizadaEm()).isEqualTo(OffsetDateTime.parse("2026-10-02T15:00:00-03:00"));
         assertThat(finalizada.tempoTrabalhadoSegundos())
                 .isEqualTo(Duration.ofHours(5).toSeconds());
-        assertThat(finalizada.marcos()).extracting(SituacaoDoMarco::status).containsOnly(NAO_CONCLUIDO);
+        // Sem tick neste teste, cada comando põe a jornada em dia: os marcos que já tinham vencido disparam e
+        // expiram sem recebimento; os que ainda viriam (a partir do 10º, das 15:00) ficam não concluídos.
+        assertThat(finalizada.marcos().subList(0, 9))
+                .extracting(SituacaoDoMarco::status)
+                .containsOnly(NAO_ENTREGUE);
+        assertThat(finalizada.marcos().subList(9, 16))
+                .extracting(SituacaoDoMarco::status)
+                .containsOnly(NAO_CONCLUIDO);
         assertThat(jdbc.queryForObject("select count(*) from pausa where fim is not null", Integer.class))
                 .isEqualTo(1);
     }
@@ -190,7 +205,7 @@ class AgendaIntegracaoTest {
     void marcoDisparadoRecebidoEConcluidoFicaGravado() {
         UUID id = iniciarJornada.iniciar(3_000).id();
         relogioAs("09:30");
-        agendador(id);
+        avancarAgenda.avancar();
         UUID marco1 = marco(atual(), 1).id();
         assertThat(marco(atual(), 1).status()).isEqualTo(PENDENTE);
 
@@ -211,7 +226,7 @@ class AgendaIntegracaoTest {
     void cenario6RespostaRepetidaNaoMudaNadaEOutraRespostaERecusada() {
         UUID id = iniciarJornada.iniciar(3_000).id();
         relogioAs("09:30");
-        agendador(id);
+        avancarAgenda.avancar();
         UUID marco1 = marco(atual(), 1).id();
         relogioAs("09:31");
         responderMarco.concluir(marco1);
@@ -269,7 +284,7 @@ class AgendaIntegracaoTest {
         relogio.ajustarPara(as(HOJE.minusDays(1), "09:00"));
         UUID id = iniciarJornada.iniciar(3_000).id();
         relogio.ajustarPara(as(HOJE.minusDays(1), "09:30"));
-        agendador(id);
+        avancarAgenda.avancar();
         confirmarRecebimento.confirmar(marco(atual(), 1).id());
 
         relogioAs("08:00");
@@ -294,7 +309,7 @@ class AgendaIntegracaoTest {
     void reinicioNoMesmoDiaMarcaComoNaoEntregueOQueVenceuComOBackendFora() {
         UUID id = iniciarJornada.iniciar(3_000).id();
         relogioAs("09:30");
-        agendador(id);
+        avancarAgenda.avancar();
         confirmarRecebimento.confirmar(marco(atual(), 1).id());
 
         relogioAs("10:45");
@@ -324,7 +339,7 @@ class AgendaIntegracaoTest {
     void duasConclusoesSimultaneasDoMesmoMarcoSaoSerializadasPeloBloqueio() throws Exception {
         UUID id = iniciarJornada.iniciar(3_000).id();
         relogioAs("09:30");
-        agendador(id);
+        avancarAgenda.avancar();
         UUID marco1 = marco(atual(), 1).id();
 
         List<Object> resultados = emParalelo(2, () -> responderMarco.concluir(marco1));
@@ -369,6 +384,120 @@ class AgendaIntegracaoTest {
         assertThatThrownBy(() -> responderMarco.concluir(UUID.randomUUID()))
                 .isInstanceOf(MarcoNaoEncontradoException.class);
         assertThat(consultarJornadaAtual.consultar()).isEmpty();
+    }
+
+    @Test
+    void tickEncerraSozinhoAJornadaEsquecidaQuandoODiaVira() {
+        relogio.ajustarPara(as(HOJE.minusDays(1), "09:00"));
+        UUID id = iniciarJornada.iniciar(3_000).id();
+        for (int meiaHora = 1; meiaHora <= 17; meiaHora++) {
+            relogio.avancar(Duration.ofMinutes(30));
+            avancarAgenda.avancar();
+        }
+        assertThat(atual().status()).isEqualTo(StatusJornada.EM_ANDAMENTO);
+
+        relogio.ajustarPara(as(HOJE, "00:00:01"));
+        avancarAgenda.avancar();
+
+        assertThat(consultarJornadaAtual.consultar()).isEmpty();
+        assertThat(jdbc.queryForObject("select status from jornada where id = ?", String.class, id))
+                .isEqualTo("ENCERRADA_AUTOMATICAMENTE");
+    }
+
+    @Test
+    void comandoPoeAJornadaEmDiaAntesDeAgir() {
+        iniciarJornada.iniciar(3_000);
+        relogioAs("09:30");
+        avancarAgenda.avancar();
+        UUID marco1 = marco(atual(), 1).id();
+
+        // Prazo venceu às 10:00, mas o tick ainda não rodou: concluir agora seria aceitar uma resposta atrasada.
+        relogioAs("10:00:00.4");
+
+        assertThatThrownBy(() -> responderMarco.concluir(marco1))
+                .isInstanceOf(RespostaDeMarcoRecusadaException.class)
+                .hasMessageContaining("NAO_ENTREGUE");
+    }
+
+    @Test
+    void tickPublicaOsEventosDosMarcosESemMudancaNaoPublicaNada() {
+        iniciarJornada.iniciar(3_000);
+        relogioAs("09:30");
+        eventosPublicados.clear();
+
+        avancarAgenda.avancar();
+        relogioAs("09:30:01");
+        avancarAgenda.avancar();
+
+        assertThat(eventosPublicados.stream(JornadaAlterada.class))
+                .singleElement()
+                .satisfies(alteracao -> {
+                    assertThat(alteracao.situacao().marcos().getFirst().status())
+                            .isEqualTo(PENDENTE);
+                    assertThat(alteracao.eventos())
+                            .singleElement()
+                            .isInstanceOfSatisfying(
+                                    MarcoDisparado.class,
+                                    disparado ->
+                                            assertThat(disparado.sequencia()).isEqualTo(1));
+                });
+    }
+
+    @Test
+    void respostaRepetidaNaoPublicaNovaAlteracao() {
+        iniciarJornada.iniciar(3_000);
+        relogioAs("09:30");
+        avancarAgenda.avancar();
+        UUID marco1 = marco(atual(), 1).id();
+        responderMarco.concluir(marco1);
+        eventosPublicados.clear();
+
+        responderMarco.concluir(marco1);
+
+        assertThat(eventosPublicados.stream(JornadaAlterada.class)).isEmpty();
+    }
+
+    @Test
+    void metricasContamDisparosEncerramentosEAtraso() {
+        double disparadosAntes = contador("pausaativa.marcos.disparados");
+        double falhasAntes = contador("pausaativa.marcos.encerrados", "status", "FALHA");
+        long atrasosAntes = atrasosRegistrados();
+        iniciarJornada.iniciar(3_000);
+        relogioAs("09:30:02");
+        avancarAgenda.avancar();
+        confirmarRecebimento.confirmar(marco(atual(), 1).id());
+
+        relogioAs("10:00");
+        avancarAgenda.avancar();
+
+        assertThat(contador("pausaativa.marcos.disparados")).isEqualTo(disparadosAntes + 2);
+        assertThat(contador("pausaativa.marcos.encerrados", "status", "FALHA")).isEqualTo(falhasAntes + 1);
+        assertThat(atrasosRegistrados()).isEqualTo(atrasosAntes + 2);
+    }
+
+    private long atrasosRegistrados() {
+        return metricas.find("pausaativa.marcos.atraso.disparo").timers().stream()
+                .mapToLong(timer -> timer.count())
+                .sum();
+    }
+
+    private double contador(String nome, String... tags) {
+        var busca = metricas.find(nome).tags(tags).counters();
+        return busca.stream().mapToDouble(contador -> contador.count()).sum();
+    }
+
+    @Test
+    void encerramentosDoFinalizarSaoPublicadosComoEventos() {
+        UUID id = iniciarJornada.iniciar(3_000).id();
+        eventosPublicados.clear();
+
+        finalizarJornada.finalizar(id);
+
+        assertThat(eventosPublicados.stream(JornadaAlterada.class))
+                .singleElement()
+                .satisfies(alteracao -> assertThat(alteracao.eventos())
+                        .hasSize(16)
+                        .allSatisfy(evento -> assertThat(evento).isInstanceOf(MarcoEncerrado.class)));
     }
 
     /** Dispara a mesma tarefa em várias threads ao mesmo tempo; exceções viram resultado. */

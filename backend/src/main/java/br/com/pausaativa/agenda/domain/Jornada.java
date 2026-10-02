@@ -37,6 +37,7 @@ public final class Jornada {
     private final Instant iniciadaEm;
     private final List<Pausa> pausas;
     private final List<Marco> marcos;
+    private final List<EventoDaJornada> eventos = new ArrayList<>();
     private StatusJornada status;
     private Instant finalizadaEm;
 
@@ -117,8 +118,10 @@ public final class Jornada {
         List<Marco> disparados = new ArrayList<>();
         for (Marco marco : marcos) {
             if (marco.devidoEm(trabalhado)) {
-                marco.disparar(instanteEmQueOTempoTrabalhadoChegaA(marco.tempoTrabalhadoPrevisto()), agora);
+                Instant previstoPara = instanteEmQueOTempoTrabalhadoChegaA(marco.tempoTrabalhadoPrevisto());
+                marco.disparar(previstoPara, agora);
                 disparados.add(marco);
+                eventos.add(new MarcoDisparado(marco.id(), marco.categoria(), marco.sequencia(), previstoPara, agora));
             }
         }
         return new Avanco(List.copyOf(disparados), venceuPrazo || !disparados.isEmpty());
@@ -152,9 +155,10 @@ public final class Jornada {
         }
         encerrarPausaEmCurso(agora);
         vencerPrazos(tempoTrabalhado(agora));
-        marcos.stream()
-                .filter(marco -> !marco.status().encerrado())
-                .forEach(marco -> marco.encerrarSemResposta(NAO_CONCLUIDO));
+        marcos.stream().filter(marco -> !marco.status().encerrado()).forEach(marco -> {
+            marco.encerrarSemResposta(NAO_CONCLUIDO);
+            registrarEncerramento(marco);
+        });
         status = FINALIZADA;
         finalizadaEm = agora;
         return true;
@@ -190,8 +194,10 @@ public final class Jornada {
         for (Marco marco : marcos) {
             if (marco.status() == PENDENTE) {
                 marco.vencerPrazo();
+                registrarEncerramento(marco);
             } else if (marco.status() == AGENDADO) {
                 marco.encerrarSemResposta(NAO_ENTREGUE);
+                registrarEncerramento(marco);
             }
         }
         status = ENCERRADA_AUTOMATICAMENTE;
@@ -213,6 +219,7 @@ public final class Jornada {
         for (Marco marco : marcos) {
             if (marco.devidoEm(trabalhado)) {
                 marco.encerrarSemResposta(NAO_ENTREGUE);
+                registrarEncerramento(marco);
                 mudou = true;
             }
         }
@@ -220,11 +227,27 @@ public final class Jornada {
     }
 
     public boolean concluirMarco(UUID marcoId, Instant agora) {
-        return marco(marcoId).responder(CONCLUIDO, agora);
+        return responder(marcoId, CONCLUIDO, agora);
     }
 
     public boolean falharMarco(UUID marcoId, Instant agora) {
-        return marco(marcoId).responder(FALHA, agora);
+        return responder(marcoId, FALHA, agora);
+    }
+
+    private boolean responder(UUID marcoId, StatusMarco resposta, Instant agora) {
+        Marco marco = marco(marcoId);
+        boolean mudou = marco.responder(resposta, agora);
+        if (mudou) {
+            registrarEncerramento(marco);
+        }
+        return mudou;
+    }
+
+    /** Devolve os eventos acumulados desde a última extração e esvazia a lista. */
+    public List<EventoDaJornada> extrairEventos() {
+        List<EventoDaJornada> extraidos = List.copyOf(eventos);
+        eventos.clear();
+        return extraidos;
     }
 
     public boolean confirmarRecebimento(UUID marcoId, Instant agora) {
@@ -244,10 +267,15 @@ public final class Jornada {
         for (Marco marco : marcos) {
             if (marco.prazoVencidoEm(trabalhado)) {
                 marco.vencerPrazo();
+                registrarEncerramento(marco);
                 venceu = true;
             }
         }
         return venceu;
+    }
+
+    private void registrarEncerramento(Marco marco) {
+        eventos.add(new MarcoEncerrado(marco.id(), marco.categoria(), marco.sequencia(), marco.status()));
     }
 
     private void encerrarPausaEmCurso(Instant agora) {

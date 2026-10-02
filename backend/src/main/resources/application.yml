@@ -1,6 +1,10 @@
 spring:
   application:
     name: pausa-ativa
+  threads:
+    virtual:
+      # As conexões SSE ficam abertas o dia todo; com threads virtuais, não prendem threads do sistema.
+      enabled: true
   datasource:
     # Credenciais vêm do .env (as mesmas do container do Postgres). DB_HOST=postgres no compose.
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${POSTGRES_DB:pausaativa}
@@ -34,6 +38,14 @@ springdoc:
   # Só a API de negócio entra no contrato; chaves ordenadas deixam o docs/api/openapi.json estável.
   paths-to-match: /api/**
   writer-with-order-by-keys: true
+
+pausa-ativa:
+  agenda:
+    # Tempo trabalhado entre os lembretes de água. O modo demonstração (docker-compose.demo.yml) usa 1m.
+    intervalo: ${PAUSA_ATIVA_INTERVALO:30m}
+    agendador:
+      # Tick de 1 s e heartbeat do SSE. Desligado nos testes, que avançam a agenda à mão.
+      habilitado: true
 
 management:
   endpoints:
