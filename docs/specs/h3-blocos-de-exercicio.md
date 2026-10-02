@@ -1,6 +1,6 @@
 # Spec H3: Montar e executar blocos de exercício (release v0.3.0)
 
-> **Status:** rascunho para revisão do usuário (DoR). As decisões em aberto estão na seção 13.
+> **Status:** aprovada pelo usuário em 2026-10-02, com as recomendações D1 a D9 da seção 13 e as instruções do apêndice A. Em implementação; progresso na seção 12.
 > **Origem:** História 3 de [`docs/epico-pausa-ativa.md`](../epico-pausa-ativa.md). O catálogo foi revisado com o usuário em 2026-10-02.
 > **Depende de:** H2 (v0.2.0), entregue em 2026-10-02.
 > **Data:** 2026-10-02.
@@ -86,7 +86,7 @@ Os exercícios de reserva (marcha estacionária, mobilidade torácica e os dois 
 - O bloco do marco *n* começa pelo grupo da posição (*n* − 1), contada em ciclo. Assim, cada hora começa por um grupo diferente: alternância entre marcos.
 - A montagem percorre os grupos em rodízio, pondo no máximo um exercício por grupo a cada volta. Em cada grupo, os candidatos vão do usado há mais tempo no dia para o mais recente. Os nunca usados vêm primeiro, na ordem do catálogo. Assim, os exercícios variam de um bloco para o outro.
 
-**4. Preenchimento.** Em cada grupo, entra o primeiro candidato cuja estimativa ainda cabe na duração do bloco; se nenhum cabe, a montagem passa ao próximo grupo. Um exercício que já está no bloco só se repete quando todos os elegíveis já entraram (segunda volta). A montagem termina quando uma volta inteira pelos grupos não acrescenta nada.
+**4. Preenchimento.** Em cada grupo, entra o primeiro candidato cuja estimativa ainda cabe na duração do bloco; se nenhum cabe, a montagem passa ao próximo grupo. Nenhum exercício se repete enquanto houver elegível de fora. Quando todos os elegíveis já entraram e ainda sobra tempo, o resto do bloco é preenchido repetindo os exercícios de **reserva** (Cenário 7). A montagem termina quando uma volta inteira pelos grupos não acrescenta nada.
 
 | Exemplo | Bloco montado (estimativa) |
 |---|---|
@@ -182,7 +182,7 @@ flowchart LR
 
 | Tabela | Colunas principais | Restrições |
 |---|---|---|
-| `exercicio` | `codigo` (pk), `nome`, `grupo`, `ordem`, `instrucao`, `forma` (`REPETICOES`, `POR_LADO`, `SEGUNDOS`, `SEGUNDOS_POR_LADO`), `quantidade_iniciante` (nulo = só intermediário), `quantidade_intermediario`, `equipamento` (nulo, `CADEIRA`, `MESA`, `APOIO_DE_FLEXAO`, `HALTERES_2KG`), `no_chao`, `restricoes` (array) | Os 22 exercícios do catálogo, inseridos pela migração |
+| `exercicio` | `codigo` (pk), `nome`, `grupo`, `ordem`, `instrucao`, `forma` (`REPETICOES`, `POR_LADO`, `SEGUNDOS`, `SEGUNDOS_POR_LADO`), `quantidade_iniciante` (nulo = só intermediário), `quantidade_intermediario`, `equipamento` (nulo, `CADEIRA`, `MESA`, `APOIO_DE_FLEXAO`, `HALTERES_2KG`), `no_chao`, `restricoes` (array), `reserva` | Os 22 exercícios do catálogo, inseridos pela migração. Um exercício de reserva não tem restrição nem equipamento, não é no chão e tem quantidade para os dois níveis. |
 | `perfil_fisico` | `id` (sempre 1), `restricoes` (array), `nivel`, `equipamentos` (array), `aceita_chao`, `atualizado_em` | `check (id = 1)`: um perfil só |
 
 **`V4`: Agenda**
@@ -282,7 +282,7 @@ Logs JSON com `jornadaId`, `marcoId` e os códigos dos exercícios do bloco mont
 | 4. Adiado e concluído | Domínio: concluir o seguinte deixa os dois `CONCLUIDO` | Concluir o bloco seguinte |
 | 5. Segundo adiamento | Domínio e API: 409 com a mensagem; `podeAdiar` falso | O botão Adiar não aparece |
 | 6. Perfil ausente | API: 409 ao iniciar sem perfil. Frontend: formulário antes do Iniciar dia | Banco limpo: a tela pede o perfil |
-| 7. Restrições eliminam o catálogo | Domínio: perfil que poupa tudo, sem equipamento e sem chão recebe só a reserva, em segunda volta se preciso | Perfil assim; conferir o bloco |
+| 7. Restrições eliminam o catálogo | Domínio: perfil que poupa todas as articulações, sem equipamento e sem chão recebe só exercícios sem restrição, e o bloco de 10 min termina com a reserva repetida | Perfil assim; conferir o bloco |
 
 Também da seção "Cenários de Teste" do épico, nesta história:
 
@@ -297,7 +297,7 @@ Branch `feat/h3-blocos-de-exercicio`. A execução para ao fim de cada etapa, e 
 
 | # | Etapa | Pronto quando | Status |
 |---|---|---|---|
-| T1 | Treino, domínio: perfil, catálogo, quantidades e seleção (seção 3.3) | Cenários 1 e 7 e determinismo cobertos em Java puro | Pendente |
+| T1 | Treino, domínio: perfil, catálogo, quantidades e seleção (seção 3.3) | Cenários 1 e 7 e determinismo cobertos em Java puro | ✅ 2026-10-02 (26 testes; domínio do Treino com 97,6% das linhas e 95,7% dos ramos; 128 no backend). Os blocos da spec (278 s, 300 s e 597 s) foram calculados à mão e conferidos pelo código. |
 | T2 | Treino: migração `V3` com o catálogo, persistência, `GET`/`PUT /perfil`, porta `MontarBloco` | Testes de integração e MockMvc; contrato atualizado | Pendente |
 | T3 | Agenda, domínio: marcos de exercício, `ADIADO`, adiar e resolução, duração do bloco | Cenários 3 a 5 e jornada de 8 h cobertos em Java puro | Pendente |
 | T4 | Agenda: migração `V4`, ligação com o Treino, API (adiamento, bloco, duração, perfil obrigatório), SSE, métricas | Integração com Postgres; contrato e tipos TS atualizados | Pendente |
@@ -307,6 +307,8 @@ Branch `feat/h3-blocos-de-exercicio`. A execução para ao fim de cada etapa, e 
 | T8 | README, C4 (incluindo o nginx 1.31 que entrou depois da v0.2.0), release notes, PR e CI | Aceite do usuário; merge e tag `v0.3.0` | Pendente |
 
 ## 13. Decisões para o usuário confirmar
+
+Lacunas que o épico não decidia. **O usuário aceitou todas as recomendações em 2026-10-02.**
 
 | # | Decisão | Recomendação | Alternativa |
 |---|---|---|---|
