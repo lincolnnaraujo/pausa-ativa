@@ -254,7 +254,7 @@ export interface components {
         /** @description Lembrete da jornada. Horários no fuso America/Sao_Paulo. */
         Marco: {
             /** @enum {string} */
-            categoria: "HIDRATACAO";
+            categoria: "HIDRATACAO" | "EXERCICIO";
             /** Format: date-time */
             disparadoEm: string | null;
             /** Format: uuid */
@@ -278,7 +278,7 @@ export interface components {
              */
             sequencia: number;
             /** @enum {string} */
-            status: "AGENDADO" | "PENDENTE" | "CONCLUIDO" | "FALHA" | "NAO_ENTREGUE" | "NAO_CONCLUIDO";
+            status: "AGENDADO" | "PENDENTE" | "CONCLUIDO" | "FALHA" | "NAO_ENTREGUE" | "NAO_CONCLUIDO" | "ADIADO";
             /**
              * Format: int32
              * @description Volume para exibir, arredondado para a dezena

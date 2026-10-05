@@ -7,12 +7,14 @@ import br.com.pausaativa.agenda.application.port.in.PausarJornada;
 import br.com.pausaativa.agenda.application.port.in.RetomarJornada;
 import br.com.pausaativa.agenda.application.port.in.SituacaoDaJornada;
 import br.com.pausaativa.agenda.application.port.out.JornadaRepository;
+import br.com.pausaativa.agenda.domain.DuracaoDoBloco;
 import br.com.pausaativa.agenda.domain.Jornada;
 import br.com.pausaativa.agenda.domain.JornadaJaIniciadaException;
 import br.com.pausaativa.agenda.domain.MetaDeAgua;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiConsumer;
@@ -62,8 +64,13 @@ class JornadaService implements IniciarJornada, PausarJornada, RetomarJornada, F
             throw new JornadaJaIniciadaException(hoje);
         }
 
-        Jornada jornada =
-                Jornada.iniciar(UUID.randomUUID(), agora, clock.getZone(), meta, configuracao.planoDeHidratacao());
+        Jornada jornada = Jornada.iniciar(
+                UUID.randomUUID(),
+                agora,
+                clock.getZone(),
+                meta,
+                DuracaoDoBloco.PADRAO,
+                List.of(configuracao.planoDeHidratacao()));
         repositorio.salvar(jornada);
         return publicador.publicar(jornada, agora);
     }

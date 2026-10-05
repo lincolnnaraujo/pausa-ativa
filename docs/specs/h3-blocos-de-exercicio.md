@@ -170,13 +170,24 @@ flowchart LR
 | `treino.application.port.out` | `PerfilRepository`, `CatalogoRepository` |
 | `treino.adapter.in.web` | `PerfilController` |
 | `treino.adapter.out.persistence` | Entidades JPA do perfil e do catálogo |
-| `agenda.domain` | `Categoria.EXERCICIO`, `StatusMarco.ADIADO`, `PlanoDeMarcos.exercicio`, duração do bloco na jornada, regras de adiar e de resolução do adiado |
+| `agenda.domain` | `Categoria.EXERCICIO`, `StatusMarco.ADIADO`, `PlanoDeMarcos.exercicio`, `DuracaoDoBloco`, `BlocoDoMarco`, `ExercicioProposto`, regras de adiar e de resolução do adiado |
 | `agenda.application.port.out` | `MontadorDeBlocos`: `perfilPreenchido()` e `montar(pedido)` |
 | `agenda.adapter.out.treino` | `MontadorDeBlocosDoTreino`: implementa a porta da Agenda chamando o `MontarBloco` e o `ConsultarPerfil` do Treino. É a única peça da Agenda que conhece o Treino. |
 
 **O domínio continua puro.** `Jornada.avancar` dispara os marcos como na H2. Para cada marco de exercício disparado, a aplicação pede o bloco ao `MontadorDeBlocos` e o entrega à jornada (`atribuirBloco`), na mesma transação e antes de gravar. Assim, nenhum marco de exercício `PENDENTE` fica sem bloco, e o domínio não faz I/O. O evento `JornadaAlterada` sai depois do commit, como na H2, já com o bloco.
 
 **Dependência entre módulos.** A Agenda depende do Treino, e o Treino não conhece a Agenda: sem ciclos (R5). O pedido de bloco leva os códigos dos exercícios já usados no dia, que a Agenda conhece pelos blocos gravados. Assim, o Treino não precisa consultar a Agenda.
+
+Detalhes decididos na T3:
+
+- **Bloco em dois passos.** No disparo, a jornada cria o `BlocoDoMarco` com a duração e o `compensaAdiamento`, ainda sem exercícios. Depois, `atribuirBloco(marcoId, exercicios)` recebe a lista do Treino. Ele recusa lista vazia, bloco já preenchido e estimativa maior que a duração. O pedido ao Treino usa `bloco.duracao()`, `sequencia()` e `jornada.exerciciosPropostosNoDia()`, com os códigos do bloco mais antigo para o mais recente.
+- **Planos.** `Jornada.iniciar` recebe a duração do bloco e a lista de planos. O de água é obrigatório, e há no máximo um por categoria. Até a T4, o `JornadaService` passa só o plano de água, porque o banco só aceita marcos de exercício com a `V4`.
+- **`podeAdiar(marco)`** fica na jornada, porque depende do marco seguinte (D5).
+- **Adiar conta como resposta.** O marco guarda `recebidoEm` e `respondidoEm` do adiamento. Na resolução, só o status muda.
+- **Mensagem do exercício:** "Bloco de 5 min: 6 exercícios.", com "Inclui o bloco adiado." quando compensa. Antes do disparo, "Bloco de exercício.".
+- **Mensagens de recusa (409):** "Só o bloco de exercício pode ser adiado.", "Este bloco já compensa um adiamento: conclua ou marque falha.", "O último bloco do dia não pode ser adiado: não há bloco seguinte para compensar." e, ao responder um adiado, "Este bloco foi adiado: ele é resolvido pelo bloco seguinte.".
+- **Evento `MarcoAdiado`:** fica para a T4, junto com a métrica `pausaativa.marcos.adiados`, que é quem o usa.
+- **Contrato:** os enums `EXERCICIO` e `ADIADO` já entram no `openapi.json` e no `contrato.ts`. O frontend ganhou só os rótulos "Adiado" e "Hora do exercício 🏃", para o `vue-tsc` aceitar os enums novos.
 
 ## 5. Modelo de dados
 
@@ -346,7 +357,7 @@ Branch `feat/h3-blocos-de-exercicio`. A execução para ao fim de cada etapa, e 
 |---|---|---|---|
 | T1 | Treino, domínio: perfil, catálogo, quantidades e seleção (seção 3.3) | Cenários 1 e 7 e determinismo cobertos em Java puro | ✅ 2026-10-02 (26 testes; domínio do Treino com 97,6% das linhas e 95,7% dos ramos; 128 no backend). Os blocos da spec (278 s, 300 s e 597 s) foram calculados à mão e conferidos pelo código. |
 | T2 | Treino: migração `V3` com o catálogo, persistência, `GET`/`PUT /perfil`, porta `MontarBloco` | Testes de integração e MockMvc; contrato atualizado | ✅ 2026-10-02 (9 testes novos; 137 no backend; Treino com 99,7% das linhas). O catálogo do banco é igual ao do épico, campo a campo, e monta o exemplo de 278 s. Restrições e equipamentos foram para tabelas filhas (seção 5). |
-| T3 | Agenda, domínio: marcos de exercício, `ADIADO`, adiar e resolução, duração do bloco | Cenários 3 a 5 e jornada de 8 h cobertos em Java puro | Pendente |
+| T3 | Agenda, domínio: marcos de exercício, `ADIADO`, adiar e resolução, duração do bloco | Cenários 3 a 5 e jornada de 8 h cobertos em Java puro | ✅ 2026-10-05 (28 testes novos no `JornadaTest`; 165 no backend; domínio da Agenda com 99,2% das linhas e 96,9% dos ramos). Cenários 2 a 5 e D3 a D6 no domínio; detalhes na seção 4. |
 | T4 | Agenda: migração `V4`, ligação com o Treino, API (adiamento, bloco, duração, perfil obrigatório), SSE, métricas | Integração com Postgres; contrato e tipos TS atualizados | Pendente |
 | T5 | Frontend: identidade visual Sereno & Balanceado nas telas da H2 (seção 8.1): tokens, tema escuro, botões, cores por categoria | Teste de contraste dos tokens; lint, tipos e testes verdes | Pendente |
 | T6 | Frontend: perfil (formulário, edição, obrigatório) e duração do bloco ao iniciar | Lint, tipos e testes verdes, cobertura ≥ 80% | Pendente |

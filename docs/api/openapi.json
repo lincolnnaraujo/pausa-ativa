@@ -668,7 +668,7 @@
         "properties" : {
           "categoria" : {
             "type" : "string",
-            "enum" : [ "HIDRATACAO" ]
+            "enum" : [ "HIDRATACAO", "EXERCICIO" ]
           },
           "disparadoEm" : {
             "type" : [ "string", "null" ],
@@ -704,7 +704,7 @@
           },
           "status" : {
             "type" : "string",
-            "enum" : [ "AGENDADO", "PENDENTE", "CONCLUIDO", "FALHA", "NAO_ENTREGUE", "NAO_CONCLUIDO" ]
+            "enum" : [ "AGENDADO", "PENDENTE", "CONCLUIDO", "FALHA", "NAO_ENTREGUE", "NAO_CONCLUIDO", "ADIADO" ]
           },
           "volumeAproximadoMl" : {
             "type" : "integer",

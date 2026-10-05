@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { duracao, horario, intervalo, mililitros, rotuloDoStatus, tempoAte } from '@/formatacao'
+import {
+  duracao,
+  horario,
+  intervalo,
+  mililitros,
+  rotuloDoStatus,
+  tempoAte,
+  tituloDoMarco,
+} from '@/formatacao'
 
 describe('formatação', () => {
   it('mostra o horário no fuso de São Paulo, qualquer que seja o offset recebido', () => {
@@ -41,5 +49,11 @@ describe('formatação', () => {
     expect(rotuloDoStatus('CONCLUIDO')).toBe('Concluído')
     expect(rotuloDoStatus('NAO_ENTREGUE')).toBe('Não entregue')
     expect(rotuloDoStatus('NAO_CONCLUIDO')).toBe('Não concluído')
+    expect(rotuloDoStatus('ADIADO')).toBe('Adiado')
+  })
+
+  it('dá a cada categoria o título do lembrete', () => {
+    expect(tituloDoMarco('HIDRATACAO')).toBe('Hora da água 💧')
+    expect(tituloDoMarco('EXERCICIO')).toBe('Hora do exercício 🏃')
   })
 })

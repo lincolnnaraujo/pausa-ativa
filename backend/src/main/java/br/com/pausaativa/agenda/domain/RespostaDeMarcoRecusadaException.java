@@ -5,9 +5,12 @@ public class RespostaDeMarcoRecusadaException extends RegraDeNegocioException {
 
     RespostaDeMarcoRecusadaException(StatusMarco status) {
         super(
-                status == StatusMarco.AGENDADO
-                        ? "O lembrete ainda não disparou."
-                        : "O lembrete já foi encerrado como %s. A edição de registros do mesmo dia chega na v0.4.0."
-                                .formatted(status));
+                switch (status) {
+                    case AGENDADO -> "O lembrete ainda não disparou.";
+                    case ADIADO -> "Este bloco foi adiado: ele é resolvido pelo bloco seguinte.";
+                    default ->
+                        "O lembrete já foi encerrado como %s. A edição de registros do mesmo dia chega na v0.4.0."
+                                .formatted(status);
+                });
     }
 }

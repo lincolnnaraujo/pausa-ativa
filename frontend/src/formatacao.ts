@@ -48,6 +48,7 @@ const ROTULOS: Record<StatusMarco, string> = {
   FALHA: 'Falha',
   NAO_ENTREGUE: 'Não entregue',
   NAO_CONCLUIDO: 'Não concluído',
+  ADIADO: 'Adiado',
 }
 
 export function rotuloDoStatus(status: StatusMarco): string {
@@ -56,6 +57,7 @@ export function rotuloDoStatus(status: StatusMarco): string {
 
 const TITULOS: Record<Marco['categoria'], string> = {
   HIDRATACAO: 'Hora da água 💧',
+  EXERCICIO: 'Hora do exercício 🏃',
 }
 
 /** Título do lembrete, no cartão e na notificação. */

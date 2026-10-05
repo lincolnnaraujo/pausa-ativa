@@ -88,7 +88,8 @@ class MarcoEntity {
                 previstoPara,
                 disparadoEm,
                 recebidoEm,
-                respondidoEm);
+                respondidoEm,
+                null);
     }
 
     UUID id() {

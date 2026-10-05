@@ -1,5 +1,6 @@
 package br.com.pausaativa.agenda.adapter.out.persistence;
 
+import br.com.pausaativa.agenda.domain.DuracaoDoBloco;
 import br.com.pausaativa.agenda.domain.Jornada;
 import br.com.pausaativa.agenda.domain.Marco;
 import br.com.pausaativa.agenda.domain.MetaDeAgua;
@@ -91,6 +92,7 @@ class JornadaEntity {
                 id,
                 dataReferencia,
                 new MetaDeAgua(metaAguaMl),
+                DuracaoDoBloco.PADRAO,
                 iniciadaEm,
                 status,
                 finalizadaEm,
