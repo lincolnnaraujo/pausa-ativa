@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { confirmarRecebimento, type DuracaoDoBlocoMin, type Marco } from '@/api/jornada'
 import type { Perfil } from '@/api/perfil'
@@ -37,6 +37,7 @@ const {
   finalizar,
   concluir,
   falhar,
+  adiar,
 } = useJornada()
 const {
   perfil,
@@ -70,29 +71,56 @@ function confirmar(marco: Marco) {
   confirmarRecebimento(marco.id).catch(() => confirmados.delete(marco.id))
 }
 
+/**
+ * Marcos disparados na mesma alteração da jornada, esperando para virar uma notificação só (spec H3,
+ * seção 3.7). O backend manda os `marco-disparado` e, logo depois, o `jornada-atualizada` que fecha o
+ * lote. Se ele se perder, o lote é anunciado depois de uma espera curta.
+ */
+const ESPERA_DO_LOTE_MS = 1_000
+let lote: Marco[] = []
+let esperaDoLote: ReturnType<typeof setTimeout> | undefined
+
 function avisar(marco: Marco) {
   if (avisados.has(marco.id)) {
     return
   }
   avisados.add(marco.id)
-  notificar(marco)
-  tocar()
+  lote.push(marco)
+  clearTimeout(esperaDoLote)
+  esperaDoLote = setTimeout(anunciarLote, ESPERA_DO_LOTE_MS)
 }
+
+/** Uma notificação e um som para o lote inteiro. */
+function anunciarLote() {
+  clearTimeout(esperaDoLote)
+  if (lote.length === 0) {
+    return
+  }
+  notificar(lote)
+  tocar()
+  lote = []
+}
+
+onUnmounted(() => clearTimeout(esperaDoLote))
 
 const { estado: conexao } = useEventos({
   aoDispararMarco(marco) {
     confirmar(marco)
     avisar(marco)
   },
-  aoAtualizarJornada: aplicar,
+  aoAtualizarJornada(atualizada) {
+    aplicar(atualizada)
+    anunciarLote()
+  },
   /**
    * Eventos podem ter se perdido antes da conexão abrir ou durante a queda: busca a situação real.
-   * Depois de uma queda, anuncia os pendentes que nenhuma aba recebeu.
+   * Depois de uma queda, anuncia os pendentes que nenhuma aba recebeu, juntos.
    */
   async aoConectar({ reconexao }) {
     await recarregar()
     if (reconexao) {
       pendentes.value.filter((marco) => marco.recebidoEm === null).forEach(avisar)
+      anunciarLote()
     }
   },
 })
@@ -179,7 +207,8 @@ onMounted(carregarTudo)
       class="faixa-demonstracao"
       data-testid="modo-demonstracao"
     >
-      Modo demonstração: um lembrete a cada {{ intervalo(intervaloSegundos) }} de tempo trabalhado.
+      Modo demonstração: água a cada {{ intervalo(intervaloSegundos) }} e exercício a cada
+      {{ intervalo(intervaloSegundos * 2) }} de tempo trabalhado.
     </p>
 
     <p
@@ -244,6 +273,7 @@ onMounted(carregarTudo)
           :total="totalDaCategoria(marco.categoria)"
           :desabilitado="desabilitado"
           @concluir="concluir"
+          @adiar="adiar"
           @falhar="falhar"
         />
         <PainelDaJornada

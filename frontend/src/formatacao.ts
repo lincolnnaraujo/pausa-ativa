@@ -49,7 +49,7 @@ const ROTULOS: Record<StatusMarco, string> = {
   FALHA: 'Falha',
   NAO_ENTREGUE: 'Não entregue',
   NAO_CONCLUIDO: 'Não concluído',
-  ADIADO: 'Adiado',
+  ADIADO: 'Adiado: resolvido pelo próximo bloco',
 }
 
 export function rotuloDoStatus(status: StatusMarco): string {
@@ -64,6 +64,38 @@ const TITULOS: Record<Marco['categoria'], string> = {
 /** Título do lembrete, no cartão e na notificação. */
 export function tituloDoMarco(categoria: Marco['categoria']): string {
   return TITULOS[categoria]
+}
+
+/**
+ * Título da notificação de um lote de marcos: o da categoria, ou o combinado quando água e exercício
+ * chegam juntos na hora cheia (spec H3, seção 3.7).
+ */
+export function tituloDoLembrete(marcos: Marco[]): string {
+  const categorias = new Set(marcos.map((marco) => marco.categoria))
+  const [categoria] = categorias
+  return categorias.size === 1 && categoria !== undefined
+    ? tituloDoMarco(categoria)
+    : 'Hora da água e do exercício 💧🏃'
+}
+
+const CATEGORIAS: Record<Marco['categoria'], string> = {
+  HIDRATACAO: '💧 Água',
+  EXERCICIO: '🏃 Exercício',
+}
+
+/** Categoria com ícone, para listas e tabelas: a cor nunca é o único sinal. */
+export function rotuloDaCategoria(categoria: Marco['categoria']): string {
+  return CATEGORIAS[categoria]
+}
+
+/** Duração estimada do bloco: 278 → "4 min 38 s"; 300 → "5 min"; 45 → "45 s". */
+export function duracaoCurta(segundos: number): string {
+  const minutos = Math.floor(segundos / 60)
+  const resto = segundos % 60
+  if (minutos === 0) {
+    return `${resto} s`
+  }
+  return resto === 0 ? `${minutos} min` : `${minutos} min ${resto} s`
 }
 
 export const ROTULOS_DE_ARTICULACAO: Record<Articulacao, string> = {

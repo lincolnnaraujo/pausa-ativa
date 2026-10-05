@@ -292,6 +292,14 @@ Detalhes decididos na T6:
 - **Editar durante o dia.** Um link "Editar perfil físico" no rodapé, enquanto há jornada (seção 3.1: o perfil muda a qualquer momento). O formulário ocupa o lugar da jornada até salvar ou cancelar; as notificações continuam chegando.
 - **409 por falta de perfil.** Se o backend recusar o início, a tela mostra o motivo e busca o perfil de novo; sem ele, aparece o formulário (Cenário 6).
 
+Detalhes decididos na T7:
+
+- **Notificação combinada.** Os `marco-disparado` entram num lote, fechado pelo `jornada-atualizada` seguinte. Se ele se perder, o lote é anunciado depois de 1 s. O lote vira uma notificação e um som. Com água e exercício, o título é "Hora da água e do exercício 💧🏃", o corpo junta as mensagens com a água primeiro e a `tag` junta os ids com "+". Na reconexão, os pendentes que ninguém recebeu também saem num lote só.
+- **Cartão do exercício.** Mostra os exercícios do bloco (nome, quantidade em teal e instrução) e "Cerca de 4 min 38 s, contando as trocas de exercício". O Adiar é um botão secundário, entre Concluir e Falhar, e só aparece com `podeAdiar`. O bloco que compensa um adiado avisa: "concluir ou marcar falha vale para os dois".
+- **Lista do dia.** Colunas Horário, Lembrete ("💧 Água 2", "🏃 Exercício 1"), Detalhe ("~190 ml" na água; "5 min · 6 exercícios" no exercício disparado, "Bloco de exercício" antes) e Situação. O adiado aparece como "Adiado: resolvido pelo próximo bloco". Uma borda azul céu ou teal marca a categoria, sem ser o único sinal.
+- **Resumo.** Tabela de situações por categoria; a coluna do exercício só aparece se a jornada tem exercício (as da v0.2.0 não têm).
+- **Modo demonstração.** A faixa diz "água a cada 1 min e exercício a cada 2 min".
+
 ### 8.1 Identidade visual: Sereno & Balanceado
 
 O usuário entregou a definição em 2026-10-05, na pasta [`identidadevisual/`](../../identidadevisual/): o texto com a paleta e uma imagem de referência (mockup de desktop e celular). A paleta usa azuis e ciano análogos, em tema escuro e com contraste suave, para transmitir calma e destacar a hidratação.
@@ -395,7 +403,7 @@ Branch `feat/h3-blocos-de-exercicio`. A execução para ao fim de cada etapa, e 
 | T4 | Agenda: migração `V4`, ligação com o Treino, API (adiamento, bloco, duração, perfil obrigatório), SSE, métricas | Integração com Postgres; contrato e tipos TS atualizados | ✅ 2026-10-05 (13 testes novos; 178 no backend; Agenda com 98,9% das linhas). Cenários 1 a 6 cobertos com Postgres; o bloco do marco 1 bate com o exemplo de 278 s da seção 3.3. Detalhes na seção 6. |
 | T5 | Frontend: identidade visual Sereno & Balanceado nas telas da H2 (seção 8.1): tokens, tema escuro, botões, cores por categoria | Teste de contraste dos tokens; lint, tipos e testes verdes | ✅ 2026-10-05 (21 testes novos; 147 no frontend, 99,4% das linhas). Detalhes no fim da seção 8.1. |
 | T6 | Frontend: perfil (formulário, edição, obrigatório) e duração do bloco ao iniciar | Lint, tipos e testes verdes, cobertura ≥ 80% | ✅ 2026-10-05 (17 testes novos; 164 no frontend, 99% das linhas). Cenário 6 no frontend; detalhes na seção 8. |
-| T7 | Frontend: cartão do exercício, Adiar, notificação combinada, lista e resumo por categoria | Idem | Pendente |
+| T7 | Frontend: cartão do exercício, Adiar, notificação combinada, lista e resumo por categoria | Idem | ✅ 2026-10-05 (11 testes novos; 175 no frontend, 99,1% das linhas). Cenários 2 a 5 no frontend; detalhes na seção 8. |
 | T8 | Verificação ponta a ponta no Chrome, em modo demonstração | Cenários 1 a 8 conferidos | Pendente |
 | T9 | README, C4 (incluindo o nginx 1.31 que entrou depois da v0.2.0), release notes, PR e CI | Aceite do usuário; merge e tag `v0.3.0` | Pendente |
 

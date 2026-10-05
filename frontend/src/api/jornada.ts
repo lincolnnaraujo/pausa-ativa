@@ -4,6 +4,7 @@ import { requisitar } from './http'
 /** Situação da jornada no instante `calculadoEm`. Horários em ISO-8601 no fuso de negócio. */
 export type Jornada = components['schemas']['Jornada']
 export type Marco = components['schemas']['Marco']
+export type Bloco = components['schemas']['Bloco']
 export type StatusJornada = Jornada['status']
 export type StatusMarco = Marco['status']
 
@@ -41,6 +42,8 @@ export const finalizarJornada = (id: string) =>
 
 export const concluirMarco = (id: string) => comando(`/api/v1/marcos/${encodeURIComponent(id)}/conclusao`)
 export const falharMarco = (id: string) => comando(`/api/v1/marcos/${encodeURIComponent(id)}/falha`)
+/** Só o exercício pendente com `podeAdiar`; o bloco seguinte passa a ter 10 min (spec H3, seção 3.5). */
+export const adiarMarco = (id: string) => comando(`/api/v1/marcos/${encodeURIComponent(id)}/adiamento`)
 
 /** Avisa que o lembrete chegou à tela. Sem isso, o prazo vencido vira NAO_ENTREGUE em vez de FALHA. */
 export async function confirmarRecebimento(id: string): Promise<void> {

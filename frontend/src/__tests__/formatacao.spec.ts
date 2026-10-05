@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import {
   duracao,
+  duracaoCurta,
   horario,
   intervalo,
   mililitros,
   resumoDoPerfil,
+  rotuloDaCategoria,
   rotuloDoStatus,
   tempoAte,
   tituloDoMarco,
@@ -50,7 +52,18 @@ describe('formatação', () => {
     expect(rotuloDoStatus('CONCLUIDO')).toBe('Concluído')
     expect(rotuloDoStatus('NAO_ENTREGUE')).toBe('Não entregue')
     expect(rotuloDoStatus('NAO_CONCLUIDO')).toBe('Não concluído')
-    expect(rotuloDoStatus('ADIADO')).toBe('Adiado')
+    expect(rotuloDoStatus('ADIADO')).toBe('Adiado: resolvido pelo próximo bloco')
+  })
+
+  it('mostra a duração estimada do bloco em minutos e segundos', () => {
+    expect(duracaoCurta(278)).toBe('4 min 38 s')
+    expect(duracaoCurta(300)).toBe('5 min')
+    expect(duracaoCurta(45)).toBe('45 s')
+  })
+
+  it('dá à categoria um ícone e um nome, para a cor não ser o único sinal', () => {
+    expect(rotuloDaCategoria('HIDRATACAO')).toBe('💧 Água')
+    expect(rotuloDaCategoria('EXERCICIO')).toBe('🏃 Exercício')
   })
 
   it('resume o perfil numa linha', () => {

@@ -41,7 +41,7 @@ describe('useNotificacoes', () => {
 
     expect(permissao.value).toBe('indisponivel')
     await pedirPermissao()
-    notificar(MARCO)
+    notificar([MARCO])
   })
 
   it('pede a permissão só quando ainda não foi decidida', async () => {
@@ -68,7 +68,7 @@ describe('useNotificacoes', () => {
   })
 
   it('notifica com o título do lembrete, a mensagem e o id do marco como tag', () => {
-    criar().notificar(MARCO)
+    criar().notificar([MARCO])
 
     expect(NotificationFalsa.criadas).toHaveLength(1)
     const [notificacao] = NotificationFalsa.criadas
@@ -79,9 +79,34 @@ describe('useNotificacoes', () => {
     })
   })
 
+  it('na hora cheia, água e exercício viram uma notificação só, com a água primeiro (Cenário 2 da H3)', () => {
+    const exercicio = umMarco(1, {
+      id: 'exercicio-1',
+      categoria: 'EXERCICIO',
+      mensagem: 'Bloco de 5 min: 6 exercícios.',
+    })
+    const agua = umMarco(2, { status: 'PENDENTE' })
+
+    criar().notificar([exercicio, agua])
+
+    expect(NotificationFalsa.criadas).toHaveLength(1)
+    const [notificacao] = NotificationFalsa.criadas
+    expect(notificacao!.title).toBe('Hora da água e do exercício 💧🏃')
+    expect(notificacao!.options).toEqual({
+      body: 'Beba ~190 ml. Bloco de 5 min: 6 exercícios.',
+      tag: 'marco-2+exercicio-1',
+    })
+  })
+
+  it('sem marcos, não notifica', () => {
+    criar().notificar([])
+
+    expect(NotificationFalsa.criadas).toHaveLength(0)
+  })
+
   it('clicar na notificação traz a aba para a frente e fecha a notificação', () => {
     const focar = vi.spyOn(window, 'focus').mockImplementation(() => {})
-    criar().notificar(MARCO)
+    criar().notificar([MARCO])
 
     NotificationFalsa.criadas[0]!.onclick?.()
 
@@ -93,7 +118,7 @@ describe('useNotificacoes', () => {
   it.each<NotificationPermission>(['denied', 'default'])('sem permissão (%s), não notifica', (permissao) => {
     NotificationFalsa.permission = permissao
 
-    criar().notificar(MARCO)
+    criar().notificar([MARCO])
 
     expect(NotificationFalsa.criadas).toHaveLength(0)
   })
@@ -109,7 +134,7 @@ describe('useNotificacoes', () => {
       ),
     )
 
-    expect(() => criar().notificar(MARCO)).not.toThrow()
+    expect(() => criar().notificar([MARCO])).not.toThrow()
   })
 
   it('acompanha a mudança de permissão feita nas configurações do site', async () => {

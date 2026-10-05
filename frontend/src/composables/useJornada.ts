@@ -2,6 +2,7 @@ import { computed, onScopeDispose, ref, shallowRef } from 'vue'
 
 import { OperacaoRecusadaError, ServidorIndisponivelError } from '@/api/http'
 import {
+  adiarMarco,
   buscarJornadaAtual,
   concluirMarco,
   type DuracaoDoBlocoMin,
@@ -158,6 +159,7 @@ export function useJornada() {
     finalizar: () => naJornada(finalizarJornada),
     concluir: (marcoId: string) => executar(() => concluirMarco(marcoId)),
     falhar: (marcoId: string) => executar(() => falharMarco(marcoId)),
+    adiar: (marcoId: string) => executar(() => adiarMarco(marcoId)),
   }
 }
 

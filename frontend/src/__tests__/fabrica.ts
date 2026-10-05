@@ -1,4 +1,4 @@
-import type { Jornada, Marco } from '@/api/jornada'
+import type { Bloco, Jornada, Marco } from '@/api/jornada'
 
 /** 09:00 em São Paulo, no dia dos testes. */
 export const INICIO = '2026-10-02T09:00:00-03:00'
@@ -44,12 +44,76 @@ export function umaJornada(campos: Partial<Jornada> = {}, intervaloSegundos = 1_
   }
 }
 
-/** A mesma jornada com o marco `sequencia` alterado. */
+/** A mesma jornada com o marco de água `sequencia` alterado. */
 export function comMarco(jornada: Jornada, sequencia: number, campos: Partial<Marco>): Jornada {
+  return comMarcoDa(jornada, 'HIDRATACAO', sequencia, campos)
+}
+
+/** A mesma jornada com o marco de exercício `sequencia` alterado. */
+export function comExercicio(jornada: Jornada, sequencia: number, campos: Partial<Marco>): Jornada {
+  return comMarcoDa(jornada, 'EXERCICIO', sequencia, campos)
+}
+
+function comMarcoDa(
+  jornada: Jornada,
+  categoria: Marco['categoria'],
+  sequencia: number,
+  campos: Partial<Marco>,
+): Jornada {
   return {
     ...jornada,
     marcos: jornada.marcos.map((marco) =>
-      marco.sequencia === sequencia ? { ...marco, ...campos } : marco,
+      marco.categoria === categoria && marco.sequencia === sequencia ? { ...marco, ...campos } : marco,
+    ),
+  }
+}
+
+/** Bloco de 5 min como o backend devolve, com dois exercícios. */
+export function umBloco(campos: Partial<Bloco> = {}): Bloco {
+  return {
+    duracaoMin: 5,
+    segundosEstimados: 278,
+    compensaAdiamento: false,
+    itens: [
+      {
+        exercicio: 'Sentar e levantar da cadeira',
+        grupo: 'Pernas',
+        quantidade: '10 repetições',
+        instrucao: 'Sente e levante da cadeira sem usar as mãos.',
+      },
+      {
+        exercicio: 'Prancha',
+        grupo: 'Core',
+        quantidade: '20 s',
+        instrucao: 'Antebraços no chão, corpo reto da cabeça aos pés.',
+      },
+    ],
+    ...campos,
+  }
+}
+
+/** Marco de exercício agendado: a cada 60 min, sem volume e sem bloco até disparar. */
+export function umExercicio(sequencia: number, campos: Partial<Marco> = {}): Marco {
+  return umMarco(sequencia, {
+    id: `exercicio-${sequencia}`,
+    categoria: 'EXERCICIO',
+    volumeMl: null,
+    volumeAproximadoMl: null,
+    segundosTrabalhadosPrevistos: sequencia * 3_600,
+    mensagem: 'Bloco de exercício.',
+    ...campos,
+  })
+}
+
+/** A jornada com os 8 exercícios, em ordem de horário como o backend devolve: na hora cheia, água antes. */
+export function comExercicios(jornada: Jornada): Jornada {
+  const exercicios = Array.from({ length: 8 }, (_, i) => umExercicio(i + 1))
+  return {
+    ...jornada,
+    marcos: [...jornada.marcos, ...exercicios].sort(
+      (a, b) =>
+        a.segundosTrabalhadosPrevistos - b.segundosTrabalhadosPrevistos ||
+        Number(a.categoria === 'EXERCICIO') - Number(b.categoria === 'EXERCICIO'),
     ),
   }
 }
