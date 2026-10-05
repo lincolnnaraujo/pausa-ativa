@@ -107,12 +107,15 @@ tbody tr:last-child td {
   font-size: 0.875rem;
 }
 
-.agendado {
+/* Coral só na falha. Não entregue e não concluído ficam fora da taxa: não são falha. */
+.agendado,
+.nao_entregue,
+.nao_concluido,
+.adiado {
   color: var(--texto-suave);
 }
 
 .pendente {
-  color: var(--destaque);
   font-weight: 600;
 }
 
@@ -120,9 +123,7 @@ tbody tr:last-child td {
   color: var(--sucesso);
 }
 
-.falha,
-.nao_entregue,
-.nao_concluido {
+.falha {
   color: var(--erro);
 }
 </style>

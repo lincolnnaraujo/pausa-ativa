@@ -1,41 +1,49 @@
+/*
+ * Identidade visual "Sereno & Balanceado" (pasta identidadevisual/, spec H3, seção 8.1). Só tema escuro
+ * (decisão D10). Os componentes usam as cores só por estes tokens; o teste identidadeVisual.spec.ts
+ * confere a paleta e o contraste.
+ */
 :root {
-  --fundo: #f6f8fa;
-  --fundo-cartao: #fff;
-  --texto: #1f2328;
-  --texto-suave: #59636e;
-  --borda: #d1d9e0;
-  --destaque: #0969da;
-  --sucesso: #1a7f37;
-  --erro: #cf222e;
-  --aviso: #9a6700;
-  --fundo-aviso: #fff8c5;
-  --fundo-erro: #ffebe9;
+  /* Da definição */
+  --fundo: #1a2238;
+  --texto: #f0f8ff;
+  --destaque: #20b2aa;
+  --texto-sobre-destaque: #1a2238;
+  --agua: #87ceeb;
+  --alerta: #ff8c69;
 
-  color-scheme: light dark;
+  /* Derivados do mockup, escolhidos pelo contraste */
+  --fundo-cartao: #243156;
+  --borda: #3a4a78;
+  --texto-suave: #a8b5cc;
+  --destaque-realce: #3bbbb4;
+  /* Coral a 12% sobre o fundo, em cor sólida */
+  --fundo-alerta: #352f3e;
+
+  /* Papéis */
+  --exercicio: var(--destaque);
+  --sucesso: var(--destaque);
+  --erro: var(--alerta);
+  --aviso: var(--alerta);
+  --fundo-erro: var(--fundo-alerta);
+  --fundo-aviso: var(--fundo-alerta);
+  --borda-campo: var(--texto-suave);
+
+  color-scheme: dark;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
   color: var(--texto);
   background: var(--fundo);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --fundo: #0d1117;
-    --fundo-cartao: #151b23;
-    --texto: #f0f6fc;
-    --texto-suave: #9198a1;
-    --borda: #3d444d;
-    --destaque: #1f6feb;
-    --sucesso: #3fb950;
-    --erro: #f85149;
-    --aviso: #d29922;
-    --fundo-aviso: #2e2511;
-    --fundo-erro: #2d1214;
-  }
+  accent-color: var(--destaque);
 }
 
 body {
   margin: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--destaque);
+  outline-offset: 2px;
 }
 
 .cartao {
@@ -45,24 +53,50 @@ body {
   background: var(--fundo-cartao);
 }
 
+/* Títulos de cartão em caixa alta, como no mockup. */
+.cartao h2 {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Botão em pílula; texto azul-escuro sobre o teal, porque o gelo daria só 2,44:1. */
 .botao {
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 1.25rem;
   border: 1px solid transparent;
-  border-radius: 0.5rem;
+  border-radius: 999px;
   background: var(--destaque);
-  color: #fff;
+  color: var(--texto-sobre-destaque);
   font: inherit;
+  font-weight: 600;
   cursor: pointer;
 }
 
-.botao-secundario {
+.botao:hover:not(:disabled) {
+  background: var(--destaque-realce);
+}
+
+.botao-secundario,
+.botao-secundario:hover:not(:disabled) {
   border-color: var(--borda);
   background: transparent;
   color: var(--texto);
 }
 
-.botao-perigo {
-  background: var(--erro);
+.botao-secundario:hover:not(:disabled) {
+  border-color: var(--texto-suave);
+}
+
+/* Coral com moderação: contorno, nunca bloco cheio. */
+.botao-perigo,
+.botao-perigo:hover:not(:disabled) {
+  border-color: var(--alerta);
+  background: transparent;
+  color: var(--alerta);
+}
+
+.botao-perigo:hover:not(:disabled) {
+  background: var(--fundo-alerta);
 }
 
 .botao:disabled {

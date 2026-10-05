@@ -1,7 +1,7 @@
 import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { comMarco, umaJornada } from '@/__tests__/fabrica'
+import { comMarco, umaJornada, umMarco } from '@/__tests__/fabrica'
 import { instalarNavegadorFalso } from '@/__tests__/navegador'
 import { OperacaoRecusadaError, ServidorIndisponivelError } from '@/api/http'
 import {
@@ -257,6 +257,35 @@ describe('JornadaView', () => {
     const PENDENTE = comMarco(emAndamento({ tempoTrabalhadoSegundos: 7_200 }), 4, {
       status: 'PENDENTE',
       disparadoEm: '2026-10-02T11:00:00-03:00',
+    })
+
+    it('conta os lembretes de cada categoria em separado e marca a categoria no cartão', async () => {
+      const exercicios = Array.from({ length: 8 }, (_, i) =>
+        umMarco(i + 1, {
+          id: `exercicio-${i + 1}`,
+          categoria: 'EXERCICIO',
+          volumeMl: null,
+          volumeAproximadoMl: null,
+          segundosTrabalhadosPrevistos: (i + 1) * 3_600,
+          mensagem: 'Bloco de exercício.',
+        }),
+      )
+      exercicios[0] = {
+        ...exercicios[0]!,
+        status: 'PENDENTE',
+        disparadoEm: '2026-10-02T10:00:00-03:00',
+        mensagem: 'Bloco de 5 min: 6 exercícios.',
+      }
+      const jornada = { ...PENDENTE, marcos: [...PENDENTE.marcos, ...exercicios] }
+
+      const wrapper = await montar(jornada)
+
+      const [agua, exercicio] = wrapper.findAll('[data-testid="marco-pendente"]')
+      expect(agua!.text()).toContain('Lembrete 4 de 16')
+      expect(agua!.attributes('data-categoria')).toBe('HIDRATACAO')
+      expect(exercicio!.text()).toContain('Hora do exercício 🏃')
+      expect(exercicio!.text()).toContain('Lembrete 1 de 8, às 10:00')
+      expect(exercicio!.attributes('data-categoria')).toBe('EXERCICIO')
     })
 
     it('mostra o cartão com a mensagem e conclui (Cenário 2)', async () => {

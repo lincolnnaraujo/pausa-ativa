@@ -85,10 +85,11 @@ label {
   gap: 0.5rem;
 }
 
+/* A borda do campo precisa de 3:1 com o cartão para o campo ser visto (WCAG 1.4.11). */
 input {
   width: 8rem;
   padding: 0.5rem;
-  border: 1px solid var(--borda);
+  border: 1px solid var(--borda-campo);
   border-radius: 0.5rem;
   background: var(--fundo);
   color: var(--texto);

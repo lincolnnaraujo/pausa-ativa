@@ -10,6 +10,7 @@ const emit = defineEmits<{ concluir: [marcoId: string]; falhar: [marcoId: string
   <section
     class="cartao lembrete"
     data-testid="marco-pendente"
+    :data-categoria="marco.categoria"
     :aria-labelledby="`lembrete-${marco.id}`"
   >
     <h2 :id="`lembrete-${marco.id}`">
@@ -35,7 +36,7 @@ const emit = defineEmits<{ concluir: [marcoId: string]; falhar: [marcoId: string
       </button>
       <button
         type="button"
-        class="botao botao-secundario"
+        class="botao botao-perigo"
         :disabled="desabilitado"
         @click="emit('falhar', marco.id)"
       >
@@ -46,8 +47,13 @@ const emit = defineEmits<{ concluir: [marcoId: string]; falhar: [marcoId: string
 </template>
 
 <style scoped>
+/* A cor da borda diz a categoria; o título com 💧 ou 🏃 diz o mesmo em texto. */
 .lembrete {
-  border: 2px solid var(--destaque);
+  border: 2px solid var(--agua);
+}
+
+.lembrete[data-categoria='EXERCICIO'] {
+  border-color: var(--exercicio);
 }
 
 h2 {

@@ -56,7 +56,7 @@ function finalizar() {
       <div>
         <dt>Água do dia</dt>
         <dd data-testid="agua">
-          <span class="grande">{{ mililitros(jornada.aguaIngeridaMl) }}</span>
+          <span class="grande agua">{{ mililitros(jornada.aguaIngeridaMl) }}</span>
           de {{ mililitros(jornada.metaAguaMl) }}
         </dd>
       </div>
@@ -178,10 +178,14 @@ dd {
   font-weight: 600;
 }
 
+.agua {
+  color: var(--agua);
+}
+
 progress {
   width: 100%;
   margin-bottom: 1rem;
-  accent-color: var(--destaque);
+  accent-color: var(--agua);
 }
 
 .confirmacao p {

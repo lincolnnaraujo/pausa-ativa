@@ -91,6 +91,11 @@ const aberta = computed(
   () => jornada.value?.status === 'EM_ANDAMENTO' || jornada.value?.status === 'PAUSADA',
 )
 
+/** "Lembrete 2 de 16" na água, "1 de 8" no exercício: cada categoria tem a sua contagem. */
+function totalDaCategoria(categoria: Marco['categoria']): number {
+  return jornada.value?.marcos.filter((marco) => marco.categoria === categoria).length ?? 0
+}
+
 /** O pedido de permissão vai dentro do clique em Iniciar dia: o Chrome exige um gesto da pessoa. */
 function iniciarDia(metaAguaMl: number) {
   void pedirPermissao()
@@ -179,7 +184,7 @@ onMounted(carregar)
           v-for="marco in pendentes"
           :key="marco.id"
           :marco="marco"
-          :total="jornada.marcos.length"
+          :total="totalDaCategoria(marco.categoria)"
           :desabilitado="desabilitado"
           @concluir="concluir"
           @falhar="falhar"

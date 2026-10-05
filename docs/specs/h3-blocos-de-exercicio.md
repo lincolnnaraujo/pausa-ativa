@@ -301,6 +301,9 @@ Os tokens continuam em `frontend/src/assets/main.css`. Os componentes já usam a
 | `--texto-sobre-destaque` | `#1A2238` | Definição | Texto dos botões teal |
 | `--agua` | `#87CEEB` | Definição | Hidratação: cartão, volume e marcador na lista |
 | `--alerta` | `#FF8C69` | Definição | Avisos, falha e erro, em uso pontual |
+| `--fundo-alerta` | `#352F3E` | Derivado (T5) | Fundo dos avisos: coral a 12% sobre o fundo, em cor sólida para o teste medir |
+| `--destaque-realce` | `#3BBBB4` | Derivado (T5) | Botão teal com o mouse em cima |
+| `--borda-campo` | `= --texto-suave` | Derivado (T5) | Borda dos campos de formulário |
 
 Os tokens atuais `--sucesso`, `--erro`, `--aviso` e seus fundos passam a apontar para essas cores: sucesso em teal; erro e aviso em coral, com fundo coral translúcido.
 
@@ -321,8 +324,21 @@ Os tokens atuais `--sucesso`, `--erro`, `--aviso` e seus fundos passam a apontar
 | Azul céu / fundo · Azul céu / cartão | 9,07 · 7,31 |
 | Coral / fundo · Coral / cartão | 6,92 · 5,58 |
 | Azul-escuro / teal (botão) | 6,02 |
+| Coral / fundo do aviso · Texto / fundo do aviso | 5,66 · 12,03 |
+| Borda do campo / cartão (mínimo de 3:1) | 6,15 |
 
 Fica de fora o que é ilustração do mockup: menu lateral, avatar, ilustrações e gráficos. O favicon de gota já combina com a identidade e fica como está.
+
+Detalhes decididos na T5:
+
+- **Tokens de papel.** `--sucesso` e `--exercicio` apontam para o teal; `--erro` e `--aviso`, para o coral. Os componentes continuam usando os nomes de papel, e a paleta muda num lugar só.
+- **Campos.** Com `--borda`, a borda do campo teria 1,47:1 com o cartão, abaixo dos 3:1 que o WCAG pede para identificar um campo (1.4.11). Os campos usam `--borda-campo`. Os botões secundários mantêm a borda decorativa, porque o texto já os identifica.
+- **Lista.** Coral só na falha. Não entregue, não concluído e adiado ficam em `--texto-suave`, porque não entram na taxa e não são falha. Concluído fica em teal, e pendente, em negrito.
+- **Painel.** A água do dia e a barra de progresso ficam em azul céu.
+- **Foco e Chrome.** O foco do teclado é um contorno teal. O `index.html` declara `color-scheme: dark` e `theme-color` com o fundo.
+- **Contagem no cartão.** O cartão mostrava "Lembrete 1 de 24" no exercício, porque contava todos os marcos desde a T4. Passou a contar por categoria: "2 de 16" na água, "1 de 8" no exercício.
+- **Teste.** O `identidadeVisual.spec.ts` lê o `main.css` e os `.vue` do disco, porque o Vitest entrega CSS importado vazio. Ele confere as cinco cores da definição, o tema só escuro, os pares de contraste e que nenhum componente tenha cor fixa.
+- **Conferência visual.** Capturas da tela inicial e da jornada com água e exercício pendentes, com a API simulada, no Chrome headless. A comparação com o backend real fica para a T8.
 
 ## 9. Modo demonstração
 
@@ -369,7 +385,7 @@ Branch `feat/h3-blocos-de-exercicio`. A execução para ao fim de cada etapa, e 
 | T2 | Treino: migração `V3` com o catálogo, persistência, `GET`/`PUT /perfil`, porta `MontarBloco` | Testes de integração e MockMvc; contrato atualizado | ✅ 2026-10-02 (9 testes novos; 137 no backend; Treino com 99,7% das linhas). O catálogo do banco é igual ao do épico, campo a campo, e monta o exemplo de 278 s. Restrições e equipamentos foram para tabelas filhas (seção 5). |
 | T3 | Agenda, domínio: marcos de exercício, `ADIADO`, adiar e resolução, duração do bloco | Cenários 3 a 5 e jornada de 8 h cobertos em Java puro | ✅ 2026-10-05 (28 testes novos no `JornadaTest`; 165 no backend; domínio da Agenda com 99,2% das linhas e 96,9% dos ramos). Cenários 2 a 5 e D3 a D6 no domínio; detalhes na seção 4. |
 | T4 | Agenda: migração `V4`, ligação com o Treino, API (adiamento, bloco, duração, perfil obrigatório), SSE, métricas | Integração com Postgres; contrato e tipos TS atualizados | ✅ 2026-10-05 (13 testes novos; 178 no backend; Agenda com 98,9% das linhas). Cenários 1 a 6 cobertos com Postgres; o bloco do marco 1 bate com o exemplo de 278 s da seção 3.3. Detalhes na seção 6. |
-| T5 | Frontend: identidade visual Sereno & Balanceado nas telas da H2 (seção 8.1): tokens, tema escuro, botões, cores por categoria | Teste de contraste dos tokens; lint, tipos e testes verdes | Pendente |
+| T5 | Frontend: identidade visual Sereno & Balanceado nas telas da H2 (seção 8.1): tokens, tema escuro, botões, cores por categoria | Teste de contraste dos tokens; lint, tipos e testes verdes | ✅ 2026-10-05 (21 testes novos; 147 no frontend, 99,4% das linhas). Detalhes no fim da seção 8.1. |
 | T6 | Frontend: perfil (formulário, edição, obrigatório) e duração do bloco ao iniciar | Lint, tipos e testes verdes, cobertura ≥ 80% | Pendente |
 | T7 | Frontend: cartão do exercício, Adiar, notificação combinada, lista e resumo por categoria | Idem | Pendente |
 | T8 | Verificação ponta a ponta no Chrome, em modo demonstração | Cenários 1 a 8 conferidos | Pendente |
