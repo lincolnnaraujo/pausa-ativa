@@ -5,6 +5,7 @@ import br.com.pausaativa.agenda.application.port.in.FinalizarJornada;
 import br.com.pausaativa.agenda.application.port.in.IniciarJornada;
 import br.com.pausaativa.agenda.application.port.in.PausarJornada;
 import br.com.pausaativa.agenda.application.port.in.RetomarJornada;
+import br.com.pausaativa.agenda.domain.DuracaoDoBloco;
 import br.com.pausaativa.agenda.domain.MetaDeAgua;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -62,12 +63,14 @@ class JornadaController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Inicia o dia. Encerra antes a jornada esquecida de um dia anterior, se houver.")
+    @Operation(
+            summary = "Inicia o dia. Encerra antes a jornada esquecida de um dia anterior, se houver.",
+            description = "Exige o perfil físico preenchido: sem ele, responde 409.")
     JornadaResposta iniciar(@RequestBody(required = false) IniciarJornadaRequisicao requisicao) {
-        int meta = Optional.ofNullable(requisicao)
-                .map(IniciarJornadaRequisicao::metaAguaMl)
-                .orElse(MetaDeAgua.PADRAO.mililitros());
-        return JornadaResposta.de(iniciarJornada.iniciar(meta));
+        Optional<IniciarJornadaRequisicao> corpo = Optional.ofNullable(requisicao);
+        int meta = corpo.map(IniciarJornadaRequisicao::metaAguaMl).orElse(MetaDeAgua.PADRAO.mililitros());
+        int duracaoBloco = corpo.map(IniciarJornadaRequisicao::duracaoBlocoMin).orElse(DuracaoDoBloco.PADRAO.minutos());
+        return JornadaResposta.de(iniciarJornada.iniciar(meta, duracaoBloco));
     }
 
     @PostMapping("/{id}/pausa")

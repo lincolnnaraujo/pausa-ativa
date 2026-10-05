@@ -8,6 +8,9 @@ import br.com.pausaativa.RelogioDeTeste;
 import br.com.pausaativa.TesteDeIntegracao;
 import br.com.pausaativa.agenda.application.port.in.AvancarAgenda;
 import br.com.pausaativa.agenda.application.port.in.IniciarJornada;
+import br.com.pausaativa.treino.application.port.in.SalvarPerfil;
+import br.com.pausaativa.treino.domain.Nivel;
+import br.com.pausaativa.treino.domain.PerfilFisico;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -15,6 +18,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,6 +57,9 @@ class EventosApiTest {
     @Autowired
     MeterRegistry metricas;
 
+    @Autowired
+    SalvarPerfil salvarPerfil;
+
     MockMvc mvc;
 
     private final List<MvcResult> abas = new ArrayList<>();
@@ -60,6 +67,7 @@ class EventosApiTest {
     @BeforeEach
     void comecarDoZero() {
         jdbc.execute("truncate jornada cascade");
+        salvarPerfil.salvar(new PerfilFisico(Set.of(), Nivel.INICIANTE, Set.of(), true));
         relogioAs("09:00");
         mvc = MockMvcBuilders.webAppContextSetup(contexto).build();
     }
@@ -105,7 +113,7 @@ class EventosApiTest {
     @Test
     void cenario1MarcoDisparadoChegaPeloStreamComAMensagem() throws Exception {
         MvcResult aba = abrirAba();
-        iniciarJornada.iniciar(3_000);
+        iniciarJornada.iniciar(3_000, 5);
 
         relogioAs("09:30");
         avancarAgenda.avancar();
@@ -123,10 +131,34 @@ class EventosApiTest {
     }
 
     @Test
+    void cenario2NaHoraCheiaChegamAguaEExercicioComOBlocoEDepoisAJornada() throws Exception {
+        MvcResult aba = abrirAba();
+        iniciarJornada.iniciar(3_000, 5);
+        relogioAs("09:30");
+        avancarAgenda.avancar();
+        int antesDaHoraCheia = recebido(aba).length();
+
+        relogioAs("10:00");
+        avancarAgenda.avancar();
+
+        String doTick = recebido(aba).substring(antesDaHoraCheia);
+        int agua = doTick.indexOf("\"categoria\":\"HIDRATACAO\"");
+        int exercicio = doTick.indexOf("\"categoria\":\"EXERCICIO\"");
+        int jornada = doTick.indexOf("event:" + CanalDeEventos.JORNADA_ATUALIZADA);
+        assertThat(doTick.split("event:" + CanalDeEventos.MARCO_DISPARADO, -1)).hasSize(3);
+        assertThat(agua).as("água antes do exercício").isPositive().isLessThan(exercicio);
+        assertThat(exercicio).as("exercício antes da jornada").isLessThan(jornada);
+        assertThat(doTick.substring(exercicio, jornada))
+                .contains("\"mensagem\":\"Bloco de 5 min: 6 exercícios.\"")
+                .contains("\"exercicio\":\"Sentar e levantar da cadeira\"")
+                .contains("\"podeAdiar\":true");
+    }
+
+    @Test
     void todasAsAbasAbertasRecebemOMesmoMarco() throws Exception {
         MvcResult primeira = abrirAba();
         MvcResult segunda = abrirAba();
-        iniciarJornada.iniciar(3_000);
+        iniciarJornada.iniciar(3_000, 5);
 
         relogioAs("09:30");
         avancarAgenda.avancar();
@@ -138,7 +170,7 @@ class EventosApiTest {
     @Test
     void tickSemMudancaNaoEnviaNada() throws Exception {
         MvcResult aba = abrirAba();
-        iniciarJornada.iniciar(3_000);
+        iniciarJornada.iniciar(3_000, 5);
         String antes = recebido(aba);
 
         relogioAs("09:10");
@@ -171,7 +203,7 @@ class EventosApiTest {
     @Test
     void abaQueReconectaNaoRecebeOMarcoDeNovoEORecuperaPelaConsulta() throws Exception {
         MvcResult antesDeCair = abrirAba();
-        iniciarJornada.iniciar(3_000);
+        iniciarJornada.iniciar(3_000, 5);
         relogioAs("09:30");
         avancarAgenda.avancar();
         fechar(antesDeCair);

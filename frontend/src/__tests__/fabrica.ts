@@ -17,6 +17,8 @@ export function umMarco(sequencia: number, campos: Partial<Marco> = {}): Marco {
     respondidoEm: null,
     mensagem:
       sequencia % 2 === 1 ? 'Beba ~190 ml. Levante-se para buscar a água.' : 'Beba ~190 ml.',
+    podeAdiar: false,
+    bloco: null,
     ...campos,
   }
 }
@@ -33,6 +35,7 @@ export function umaJornada(campos: Partial<Jornada> = {}, intervaloSegundos = 1_
     tempoTrabalhadoSegundos: 0,
     calculadoEm: INICIO,
     metaAguaMl: 3_000,
+    duracaoBlocoMin: 5,
     aguaIngeridaMl: 0,
     marcos: Array.from({ length: 16 }, (_, i) =>
       umMarco(i + 1, { segundosTrabalhadosPrevistos: (i + 1) * intervaloSegundos }),

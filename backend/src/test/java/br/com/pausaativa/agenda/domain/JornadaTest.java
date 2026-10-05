@@ -618,6 +618,7 @@ class JornadaTest {
                             + switch (evento) {
                                 case MarcoDisparado disparado -> disparado.sequencia();
                                 case MarcoEncerrado encerrado -> encerrado.sequencia() + ":" + encerrado.status();
+                                case MarcoAdiado adiado -> adiado.sequencia();
                             })
                     .containsExactly(
                             "MarcoDisparado:1",
@@ -875,10 +876,13 @@ class JornadaTest {
             Jornada jornada = iniciadaAs("09:00");
             jornada.avancar(as("10:00"));
             assertThat(jornada.podeAdiar(exercicio(jornada, 1))).isTrue();
+            jornada.extrairEventos();
 
             boolean mudou = jornada.adiarMarco(exercicio(jornada, 1).id(), as("10:01"));
 
             assertThat(mudou).isTrue();
+            assertThat(jornada.extrairEventos())
+                    .containsExactly(new MarcoAdiado(exercicio(jornada, 1).id(), Categoria.EXERCICIO, 1));
             assertThat(exercicio(jornada, 1).status()).isEqualTo(StatusMarco.ADIADO);
             assertThat(exercicio(jornada, 1).recebidoEm()).contains(as("10:01"));
             assertThat(exercicio(jornada, 1).respondidoEm()).contains(as("10:01"));
@@ -1016,11 +1020,13 @@ class JornadaTest {
         @Test
         void adiarDeNovoNaoMudaNada() {
             Jornada jornada = comPrimeiroExercicioAdiado(DuracaoDoBloco.PADRAO);
+            jornada.extrairEventos();
 
             boolean mudou = jornada.adiarMarco(exercicio(jornada, 1).id(), as("10:02"));
 
             assertThat(mudou).isFalse();
             assertThat(exercicio(jornada, 1).respondidoEm()).contains(as("10:01"));
+            assertThat(jornada.extrairEventos()).isEmpty();
         }
 
         @Test

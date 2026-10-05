@@ -48,6 +48,7 @@
     },
     "/api/v1/jornadas" : {
       "post" : {
+        "description" : "Exige o perfil físico preenchido: sem ele, responde 409.",
         "operationId" : "iniciar",
         "requestBody" : {
           "content" : {
@@ -330,6 +331,65 @@
         "tags" : [ "Jornada" ]
       }
     },
+    "/api/v1/marcos/{id}/adiamento" : {
+      "post" : {
+        "description" : "O bloco seguinte passa a ter 10 min e decide o destino dos dois. Só vale uma vez por cadeia e nunca no último bloco do dia; a água não é adiada.",
+        "operationId" : "adiar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Jornada"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bad Request"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Not Found"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Conflict"
+          }
+        },
+        "summary" : "Adia o bloco de exercício. Repetir devolve a mesma situação.",
+        "tags" : [ "Marco" ]
+      }
+    },
     "/api/v1/marcos/{id}/conclusao" : {
       "post" : {
         "operationId" : "concluir",
@@ -589,9 +649,46 @@
   },
   "components" : {
     "schemas" : {
+      "Bloco" : {
+        "type" : "object",
+        "description" : "Bloco de exercício do marco, como foi proposto no disparo.",
+        "properties" : {
+          "compensaAdiamento" : {
+            "type" : "boolean",
+            "description" : "Se o bloco compensa o anterior, que foi adiado; nesse caso tem 10 min"
+          },
+          "duracaoMin" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Duração do bloco: 5 ou 10 min",
+            "example" : 5
+          },
+          "itens" : {
+            "type" : "array",
+            "description" : "Exercícios na ordem em que devem ser feitos",
+            "items" : {
+              "$ref" : "#/components/schemas/ItemDoBloco"
+            }
+          },
+          "segundosEstimados" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Soma das estimativas dos exercícios, com as trocas",
+            "example" : 278
+          }
+        },
+        "required" : [ "compensaAdiamento", "duracaoMin", "itens", "segundosEstimados" ]
+      },
       "IniciarJornada" : {
         "type" : "object",
         "properties" : {
+          "duracaoBlocoMin" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 5,
+            "description" : "Duração dos blocos de exercício do dia, em minutos: 5 ou 10. Sem ela, 5 min.",
+            "example" : 5
+          },
           "metaAguaMl" : {
             "type" : "integer",
             "format" : "int32",
@@ -602,6 +699,29 @@
             "minimum" : 1
           }
         }
+      },
+      "ItemDoBloco" : {
+        "type" : "object",
+        "properties" : {
+          "exercicio" : {
+            "type" : "string",
+            "example" : "Sentar e levantar da cadeira"
+          },
+          "grupo" : {
+            "type" : "string",
+            "example" : "Pernas"
+          },
+          "instrucao" : {
+            "type" : "string",
+            "example" : "Sente e levante da cadeira sem usar as mãos, com os pés na largura do quadril."
+          },
+          "quantidade" : {
+            "type" : "string",
+            "description" : "\"10 repetições\", \"6 por lado\" ou \"20 s\"",
+            "example" : "10 repetições"
+          }
+        },
+        "required" : [ "exercicio", "grupo", "instrucao", "quantidade" ]
       },
       "Jornada" : {
         "type" : "object",
@@ -621,6 +741,12 @@
             "format" : "date",
             "description" : "Dia em que a jornada começou"
           },
+          "duracaoBlocoMin" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Duração dos blocos de exercício escolhida ao iniciar o dia. O bloco que compensa um adiamento tem 10 min.",
+            "example" : 5
+          },
           "finalizadaEm" : {
             "type" : [ "string", "null" ],
             "format" : "date-time"
@@ -635,6 +761,7 @@
           },
           "marcos" : {
             "type" : "array",
+            "description" : "Água e exercício em ordem de horário; na hora cheia, a água vem antes",
             "items" : {
               "$ref" : "#/components/schemas/Marco"
             }
@@ -660,12 +787,20 @@
             "example" : 5400
           }
         },
-        "required" : [ "aguaIngeridaMl", "calculadoEm", "dataReferencia", "finalizadaEm", "id", "iniciadaEm", "marcos", "metaAguaMl", "pausadaDesde", "status", "tempoTrabalhadoSegundos" ]
+        "required" : [ "aguaIngeridaMl", "calculadoEm", "dataReferencia", "duracaoBlocoMin", "finalizadaEm", "id", "iniciadaEm", "marcos", "metaAguaMl", "pausadaDesde", "status", "tempoTrabalhadoSegundos" ]
       },
       "Marco" : {
         "type" : "object",
         "description" : "Lembrete da jornada. Horários no fuso America/Sao_Paulo.",
         "properties" : {
+          "bloco" : {
+            "description" : "Bloco de exercício. Nulo na água e no exercício que ainda não disparou.",
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/Bloco"
+            }, {
+              "type" : "null"
+            } ]
+          },
           "categoria" : {
             "type" : "string",
             "enum" : [ "HIDRATACAO", "EXERCICIO" ]
@@ -681,6 +816,10 @@
           "mensagem" : {
             "type" : "string",
             "example" : "Beba ~190 ml. Levante-se para buscar a água."
+          },
+          "podeAdiar" : {
+            "type" : "boolean",
+            "description" : "Se o botão Adiar vale agora: só no exercício pendente que não compensa um adiamento e não é o último do dia"
           },
           "recebidoEm" : {
             "type" : [ "string", "null" ],
@@ -707,18 +846,18 @@
             "enum" : [ "AGENDADO", "PENDENTE", "CONCLUIDO", "FALHA", "NAO_ENTREGUE", "NAO_CONCLUIDO", "ADIADO" ]
           },
           "volumeAproximadoMl" : {
-            "type" : "integer",
+            "type" : [ "integer", "null" ],
             "format" : "int32",
-            "description" : "Volume para exibir, arredondado para a dezena",
+            "description" : "Volume para exibir, arredondado para a dezena. Nulo no exercício.",
             "example" : 190
           },
           "volumeMl" : {
-            "type" : "number",
-            "description" : "Volume exato: meta ÷ 16",
+            "type" : [ "number", "null" ],
+            "description" : "Volume exato: meta ÷ 16. Nulo no exercício.",
             "example" : 187.5
           }
         },
-        "required" : [ "categoria", "disparadoEm", "id", "mensagem", "recebidoEm", "respondidoEm", "segundosTrabalhadosPrevistos", "sequencia", "status", "volumeAproximadoMl", "volumeMl" ]
+        "required" : [ "bloco", "categoria", "disparadoEm", "id", "mensagem", "podeAdiar", "recebidoEm", "respondidoEm", "segundosTrabalhadosPrevistos", "sequencia", "status", "volumeAproximadoMl", "volumeMl" ]
       },
       "Perfil" : {
         "type" : "object",

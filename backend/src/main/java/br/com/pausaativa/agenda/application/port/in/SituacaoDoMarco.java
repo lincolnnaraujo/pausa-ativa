@@ -9,33 +9,44 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.UUID;
 
-/** Retrato de um marco para quem está fora do domínio. Horários no fuso de negócio. */
+/**
+ * Retrato de um marco para quem está fora do domínio. Horários no fuso de negócio.
+ *
+ * @param volumeMl nulo no exercício
+ * @param volumeAproximadoMl nulo no exercício
+ * @param podeAdiar se o botão Adiar vale agora: calculado aqui para a tela não repetir a regra
+ * @param bloco nulo na água e no exercício que ainda não disparou
+ */
 public record SituacaoDoMarco(
         UUID id,
         Categoria categoria,
         int sequencia,
         StatusMarco status,
         BigDecimal volumeMl,
-        int volumeAproximadoMl,
+        Integer volumeAproximadoMl,
         long segundosTrabalhadosPrevistos,
         OffsetDateTime disparadoEm,
         OffsetDateTime recebidoEm,
         OffsetDateTime respondidoEm,
-        String mensagem) {
+        String mensagem,
+        boolean podeAdiar,
+        SituacaoDoBloco bloco) {
 
-    public static SituacaoDoMarco de(Marco marco, ZoneId fuso) {
+    static SituacaoDoMarco de(Marco marco, boolean podeAdiar, ZoneId fuso) {
         return new SituacaoDoMarco(
                 marco.id(),
                 marco.categoria(),
                 marco.sequencia(),
                 marco.status(),
                 marco.volumeMl(),
-                marco.volumeArredondado(),
+                marco.volumeMl() == null ? null : marco.volumeArredondado(),
                 marco.tempoTrabalhadoPrevisto().toSeconds(),
                 noFuso(marco.disparadoEm().orElse(null), fuso),
                 noFuso(marco.recebidoEm().orElse(null), fuso),
                 noFuso(marco.respondidoEm().orElse(null), fuso),
-                marco.mensagem());
+                marco.mensagem(),
+                podeAdiar,
+                marco.bloco().map(SituacaoDoBloco::de).orElse(null));
     }
 
     static OffsetDateTime noFuso(Instant instante, ZoneId fuso) {

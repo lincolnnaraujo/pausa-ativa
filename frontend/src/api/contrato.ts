@@ -33,7 +33,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Inicia o dia. Encerra antes a jornada esquecida de um dia anterior, se houver. */
+        /**
+         * Inicia o dia. Encerra antes a jornada esquecida de um dia anterior, se houver.
+         * @description Exige o perfil físico preenchido: sem ele, responde 409.
+         */
         post: operations["iniciar"];
         delete?: never;
         options?: never;
@@ -103,6 +106,26 @@ export interface paths {
         put?: never;
         /** Retoma a jornada pausada */
         post: operations["retomar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/marcos/{id}/adiamento": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Adia o bloco de exercício. Repetir devolve a mesma situação.
+         * @description O bloco seguinte passa a ter 10 min e decide o destino dos dois. Só vale uma vez por cadeia e nunca no último bloco do dia; a água não é adiada.
+         */
+        post: operations["adiar"];
         delete?: never;
         options?: never;
         head?: never;
@@ -202,7 +225,33 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Bloco de exercício do marco, como foi proposto no disparo. */
+        Bloco: {
+            /** @description Se o bloco compensa o anterior, que foi adiado; nesse caso tem 10 min */
+            compensaAdiamento: boolean;
+            /**
+             * Format: int32
+             * @description Duração do bloco: 5 ou 10 min
+             * @example 5
+             */
+            duracaoMin: number;
+            /** @description Exercícios na ordem em que devem ser feitos */
+            itens: components["schemas"]["ItemDoBloco"][];
+            /**
+             * Format: int64
+             * @description Soma das estimativas dos exercícios, com as trocas
+             * @example 278
+             */
+            segundosEstimados: number;
+        };
         IniciarJornada: {
+            /**
+             * Format: int32
+             * @description Duração dos blocos de exercício do dia, em minutos: 5 ou 10. Sem ela, 5 min.
+             * @default 5
+             * @example 5
+             */
+            duracaoBlocoMin: number;
             /**
              * Format: int32
              * @description Meta de água do dia, em ml. Sem ela, 3.000 ml.
@@ -210,6 +259,19 @@ export interface components {
              * @example 3000
              */
             metaAguaMl: number;
+        };
+        ItemDoBloco: {
+            /** @example Sentar e levantar da cadeira */
+            exercicio: string;
+            /** @example Pernas */
+            grupo: string;
+            /** @example Sente e levante da cadeira sem usar as mãos, com os pés na largura do quadril. */
+            instrucao: string;
+            /**
+             * @description "10 repetições", "6 por lado" ou "20 s"
+             * @example 10 repetições
+             */
+            quantidade: string;
         };
         /** @description Situação da jornada no instante calculadoEm. Horários no fuso America/Sao_Paulo. */
         Jornada: {
@@ -225,12 +287,19 @@ export interface components {
              * @description Dia em que a jornada começou
              */
             dataReferencia: string;
+            /**
+             * Format: int32
+             * @description Duração dos blocos de exercício escolhida ao iniciar o dia. O bloco que compensa um adiamento tem 10 min.
+             * @example 5
+             */
+            duracaoBlocoMin: number;
             /** Format: date-time */
             finalizadaEm: string | null;
             /** Format: uuid */
             id: string;
             /** Format: date-time */
             iniciadaEm: string;
+            /** @description Água e exercício em ordem de horário; na hora cheia, a água vem antes */
             marcos: components["schemas"]["Marco"][];
             /**
              * Format: int32
@@ -253,6 +322,8 @@ export interface components {
         };
         /** @description Lembrete da jornada. Horários no fuso America/Sao_Paulo. */
         Marco: {
+            /** @description Bloco de exercício. Nulo na água e no exercício que ainda não disparou. */
+            bloco: components["schemas"]["Bloco"] | null;
             /** @enum {string} */
             categoria: "HIDRATACAO" | "EXERCICIO";
             /** Format: date-time */
@@ -261,6 +332,8 @@ export interface components {
             id: string;
             /** @example Beba ~190 ml. Levante-se para buscar a água. */
             mensagem: string;
+            /** @description Se o botão Adiar vale agora: só no exercício pendente que não compensa um adiamento e não é o último do dia */
+            podeAdiar: boolean;
             /** Format: date-time */
             recebidoEm: string | null;
             /** Format: date-time */
@@ -281,15 +354,15 @@ export interface components {
             status: "AGENDADO" | "PENDENTE" | "CONCLUIDO" | "FALHA" | "NAO_ENTREGUE" | "NAO_CONCLUIDO" | "ADIADO";
             /**
              * Format: int32
-             * @description Volume para exibir, arredondado para a dezena
+             * @description Volume para exibir, arredondado para a dezena. Nulo no exercício.
              * @example 190
              */
-            volumeAproximadoMl: number;
+            volumeAproximadoMl: number | null;
             /**
-             * @description Volume exato: meta ÷ 16
+             * @description Volume exato: meta ÷ 16. Nulo no exercício.
              * @example 187.5
              */
-            volumeMl: number;
+            volumeMl: number | null;
         };
         /** @description Perfil físico do usuário. Vale para os blocos montados depois da última alteração. */
         Perfil: {
@@ -570,6 +643,55 @@ export interface operations {
         };
     };
     retomar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Jornada"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    adiar: {
         parameters: {
             query?: never;
             header?: never;

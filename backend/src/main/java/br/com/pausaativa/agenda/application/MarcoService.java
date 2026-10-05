@@ -21,11 +21,14 @@ import org.springframework.transaction.annotation.Transactional;
 class MarcoService implements ResponderMarco, ConfirmarRecebimento {
 
     private final JornadaRepository repositorio;
+    private final AvancoDaJornada avanco;
     private final PublicadorDeAlteracoes publicador;
     private final Clock clock;
 
-    MarcoService(JornadaRepository repositorio, PublicadorDeAlteracoes publicador, Clock clock) {
+    MarcoService(
+            JornadaRepository repositorio, AvancoDaJornada avanco, PublicadorDeAlteracoes publicador, Clock clock) {
         this.repositorio = repositorio;
+        this.avanco = avanco;
         this.publicador = publicador;
         this.clock = clock;
     }
@@ -44,6 +47,12 @@ class MarcoService implements ResponderMarco, ConfirmarRecebimento {
 
     @Override
     @Transactional
+    public SituacaoDaJornada adiar(UUID marcoId) {
+        return alterar(marcoId, (jornada, agora) -> jornada.adiarMarco(marcoId, agora));
+    }
+
+    @Override
+    @Transactional
     public void confirmar(UUID marcoId) {
         alterar(marcoId, (jornada, agora) -> jornada.confirmarRecebimento(marcoId, agora));
     }
@@ -54,7 +63,7 @@ class MarcoService implements ResponderMarco, ConfirmarRecebimento {
         Jornada jornada = repositorio
                 .buscarPorMarcoComBloqueio(marcoId)
                 .orElseThrow(() -> new MarcoNaoEncontradoException(marcoId));
-        boolean emDia = jornada.avancar(agora).houveMudanca();
+        boolean emDia = avanco.avancar(jornada, agora).houveMudanca();
         boolean respondeu = operacao.test(jornada, agora);
         if (!emDia && !respondeu) {
             return SituacaoDaJornada.de(jornada, agora, clock.getZone());

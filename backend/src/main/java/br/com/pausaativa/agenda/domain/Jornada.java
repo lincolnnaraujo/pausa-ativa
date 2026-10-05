@@ -308,6 +308,7 @@ public final class Jornada {
             throw AdiamentoRecusadoException.ultimo();
         }
         marco.adiar(agora);
+        eventos.add(new MarcoAdiado(marco.id(), marco.categoria(), marco.sequencia()));
         return true;
     }
 

@@ -1,11 +1,17 @@
 package br.com.pausaativa.agenda.adapter.out.metricas;
 
+import br.com.pausaativa.agenda.application.port.in.SituacaoDoBloco;
+import br.com.pausaativa.agenda.application.port.in.SituacaoDoMarco;
 import br.com.pausaativa.agenda.application.port.out.JornadaAlterada;
 import br.com.pausaativa.agenda.domain.EventoDaJornada;
+import br.com.pausaativa.agenda.domain.MarcoAdiado;
 import br.com.pausaativa.agenda.domain.MarcoDisparado;
 import br.com.pausaativa.agenda.domain.MarcoEncerrado;
+import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,8 +19,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
- * Métricas e logs dos marcos (spec H2, seção 10). Os logs saem em JSON com {@code jornadaId} e
- * {@code marcoId} como campos; os painéis ficam para a H5.
+ * Métricas e logs dos marcos (spec H2, seção 10) e dos blocos de exercício (spec H3, seção 10). Os logs
+ * saem em JSON com {@code jornadaId} e {@code marcoId} como campos; os painéis ficam para a H5.
  */
 @Component
 class ObservabilidadeDaAgenda {
@@ -32,10 +38,58 @@ class ObservabilidadeDaAgenda {
         UUID jornadaId = alteracao.situacao().id();
         for (EventoDaJornada evento : alteracao.eventos()) {
             switch (evento) {
-                case MarcoDisparado disparado -> registrarDisparo(jornadaId, disparado);
+                case MarcoDisparado disparado -> {
+                    registrarDisparo(jornadaId, disparado);
+                    blocoDo(alteracao, disparado).ifPresent(bloco -> registrarBloco(jornadaId, disparado, bloco));
+                }
                 case MarcoEncerrado encerrado -> registrarEncerramento(jornadaId, encerrado);
+                case MarcoAdiado adiado -> registrarAdiamento(jornadaId, adiado);
             }
         }
+    }
+
+    /** O bloco é montado depois do disparo, na mesma alteração: vem na situação publicada. */
+    private static Optional<SituacaoDoBloco> blocoDo(JornadaAlterada alteracao, MarcoDisparado disparado) {
+        return alteracao.situacao().marcos().stream()
+                .filter(marco -> marco.id().equals(disparado.marcoId()))
+                .map(SituacaoDoMarco::bloco)
+                .filter(Objects::nonNull)
+                .findFirst();
+    }
+
+    private void registrarBloco(UUID jornadaId, MarcoDisparado disparado, SituacaoDoBloco bloco) {
+        metricas.counter(
+                        "pausaativa.blocos.montados",
+                        "duracao",
+                        String.valueOf(bloco.duracaoMin()),
+                        "compensa_adiamento",
+                        String.valueOf(bloco.compensaAdiamento()))
+                .increment();
+        DistributionSummary.builder("pausaativa.blocos.itens")
+                .description("Quantidade de exercícios por bloco")
+                .register(metricas)
+                .record(bloco.exercicios().size());
+        log.atInfo()
+                .addKeyValue("jornadaId", jornadaId)
+                .addKeyValue("marcoId", disparado.marcoId())
+                .addKeyValue("sequencia", disparado.sequencia())
+                .addKeyValue("duracaoMin", bloco.duracaoMin())
+                .addKeyValue("compensaAdiamento", bloco.compensaAdiamento())
+                .addKeyValue(
+                        "exercicios",
+                        bloco.exercicios().stream()
+                                .map(SituacaoDoBloco.Exercicio::codigo)
+                                .toList())
+                .log("Bloco de exercício proposto");
+    }
+
+    private void registrarAdiamento(UUID jornadaId, MarcoAdiado adiado) {
+        metricas.counter("pausaativa.marcos.adiados").increment();
+        log.atInfo()
+                .addKeyValue("jornadaId", jornadaId)
+                .addKeyValue("marcoId", adiado.marcoId())
+                .addKeyValue("sequencia", adiado.sequencia())
+                .log("Bloco de exercício adiado");
     }
 
     private void registrarDisparo(UUID jornadaId, MarcoDisparado disparado) {

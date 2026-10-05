@@ -38,6 +38,15 @@ class MarcoController {
         return JornadaResposta.de(responderMarco.falhar(id));
     }
 
+    @PostMapping("/{id}/adiamento")
+    @Operation(
+            summary = "Adia o bloco de exercício. Repetir devolve a mesma situação.",
+            description = "O bloco seguinte passa a ter 10 min e decide o destino dos dois. Só vale uma vez por"
+                    + " cadeia e nunca no último bloco do dia; a água não é adiada.")
+    JornadaResposta adiar(@PathVariable UUID id) {
+        return JornadaResposta.de(responderMarco.adiar(id));
+    }
+
     @PostMapping("/{id}/recebimento")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(
