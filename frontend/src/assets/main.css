@@ -104,6 +104,17 @@ body {
   cursor: not-allowed;
 }
 
+/* Botão com cara de link, para ações secundárias como "Editar perfil". */
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--destaque);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .botoes {
   display: flex;
   flex-wrap: wrap;

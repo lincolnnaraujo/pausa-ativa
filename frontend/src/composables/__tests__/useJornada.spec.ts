@@ -11,7 +11,7 @@ import {
   type Jornada,
   pausarJornada,
 } from '@/api/jornada'
-import { lerUltimaMeta } from '@/preferencias'
+import { lerUltimaDuracao, lerUltimaMeta } from '@/preferencias'
 
 import { useJornada } from '../useJornada'
 
@@ -178,15 +178,17 @@ describe('useJornada', () => {
   })
 
   describe('comandos', () => {
-    it('inicia o dia e guarda a meta para o dia seguinte', async () => {
+    it('inicia o dia e guarda a meta e a duração do bloco para o dia seguinte', async () => {
       vi.mocked(iniciarJornada).mockResolvedValue(umaJornada({ metaAguaMl: 2_500 }))
       const tela = criar()
 
-      await tela.iniciar(2_500)
+      const iniciou = await tela.iniciar(2_500, 10)
 
-      expect(iniciarJornada).toHaveBeenCalledWith(2_500)
+      expect(iniciou).toBe(true)
+      expect(iniciarJornada).toHaveBeenCalledWith(2_500, 10)
       expect(tela.jornada.value?.metaAguaMl).toBe(2_500)
       expect(lerUltimaMeta()).toBe(2_500)
+      expect(lerUltimaDuracao()).toBe(10)
     })
 
     it('meta recusada mostra o motivo, não recarrega nem guarda a meta', async () => {
@@ -195,11 +197,13 @@ describe('useJornada', () => {
       )
       const tela = criar()
 
-      await tela.iniciar(9_000)
+      const iniciou = await tela.iniciar(9_000, 10)
 
+      expect(iniciou).toBe(false)
       expect(tela.erro.value).toBe('A meta de água precisa ficar entre 1 e 6000 ml.')
       expect(buscarJornadaAtual).not.toHaveBeenCalled()
       expect(lerUltimaMeta()).toBe(3_000)
+      expect(lerUltimaDuracao()).toBe(5)
     })
 
     it('comando recusado por tela desatualizada mostra o motivo e busca a situação real', async () => {

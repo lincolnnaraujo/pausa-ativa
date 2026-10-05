@@ -25,6 +25,16 @@ vi.mock('@/api/sistema', async (importOriginal) => ({
   buscarStatus: vi.fn(),
 }))
 
+vi.mock('@/api/perfil', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api/perfil')>()),
+  buscarPerfil: vi.fn().mockResolvedValue({
+    articulacoesPoupadas: [],
+    nivel: 'INICIANTE',
+    equipamentos: [],
+    aceitaChao: true,
+  }),
+}))
+
 enableAutoUnmount(afterEach)
 
 /** 2 h trabalhadas às 11:00, sem lembrete pendente. */
@@ -235,7 +245,7 @@ describe('JornadaView em tempo real', () => {
       await flushPromises()
 
       expect(NotificationFalsa.requestPermission).toHaveBeenCalledOnce()
-      expect(iniciarJornada).toHaveBeenCalledWith(3_000)
+      expect(iniciarJornada).toHaveBeenCalledWith(3_000, 5)
     })
 
     it('não concedida: o aviso fixo tem um botão que pede a permissão e some quando ela é dada', async () => {

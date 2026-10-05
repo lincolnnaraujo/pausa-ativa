@@ -15,9 +15,23 @@ import {
   pausarJornada,
   retomarJornada,
 } from '@/api/jornada'
+import { buscarPerfil, type Perfil, salvarPerfil } from '@/api/perfil'
 import { buscarStatus } from '@/api/sistema'
 
 import JornadaView from '../JornadaView.vue'
+
+vi.mock('@/api/perfil', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api/perfil')>()),
+  buscarPerfil: vi.fn(),
+  salvarPerfil: vi.fn(),
+}))
+
+const PERFIL: Perfil = {
+  articulacoesPoupadas: [],
+  nivel: 'INICIANTE',
+  equipamentos: [],
+  aceitaChao: true,
+}
 
 vi.mock('@/api/jornada', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api/jornada')>()),
@@ -85,6 +99,7 @@ describe('JornadaView', () => {
     instalarNavegadorFalso()
     vi.mocked(buscarStatus).mockReturnValue(new Promise(() => {}))
     vi.mocked(confirmarRecebimento).mockResolvedValue()
+    vi.mocked(buscarPerfil).mockResolvedValue(PERFIL)
     localStorage.clear()
   })
 
@@ -126,10 +141,56 @@ describe('JornadaView', () => {
       await wrapper.get('form').trigger('submit')
       await flushPromises()
 
-      expect(iniciarJornada).toHaveBeenCalledWith(3_000)
+      expect(iniciarJornada).toHaveBeenCalledWith(3_000, 5)
       expect(wrapper.find('[data-testid="iniciar-dia"]').exists()).toBe(false)
       expect(texto(wrapper, 'situacao')).toBe('Em andamento desde 09:00')
       expect(texto(wrapper, 'proximo')).toBe('em 30 min')
+    })
+
+    it('escolhe blocos de 10 min e lembra a escolha no dia seguinte', async () => {
+      vi.mocked(iniciarJornada).mockResolvedValue(umaJornada({ duracaoBlocoMin: 10 }))
+      const wrapper = await montar(null)
+      expect(wrapper.get<HTMLInputElement>('input[name="duracao-bloco"][value="5"]').element.checked).toBe(
+        true,
+      )
+
+      await wrapper.get('input[name="duracao-bloco"][value="10"]').setValue(true)
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+
+      expect(iniciarJornada).toHaveBeenCalledWith(3_000, 10)
+      expect(localStorage.getItem('pausa-ativa.duracao-bloco-min')).toBe('10')
+    })
+
+    it('mostra o resumo do perfil e permite editar antes de começar', async () => {
+      const editado: Perfil = { ...PERFIL, articulacoesPoupadas: ['JOELHO'], aceitaChao: false }
+      vi.mocked(salvarPerfil).mockResolvedValue(editado)
+      const wrapper = await montar(null)
+      expect(texto(wrapper, 'resumo-do-perfil')).toContain(
+        'Iniciante · nada a poupar · sem equipamento · com exercícios no chão',
+      )
+
+      await botao(wrapper, 'Editar perfil').trigger('click')
+      expect(wrapper.get('#titulo-perfil').text()).toBe('Editar perfil físico')
+      await wrapper.get('input[name="articulacao"][value="JOELHO"]').setValue(true)
+      await wrapper.get('input[name="chao"][value="false"]').setValue(true)
+      await wrapper.get('[data-testid="formulario-do-perfil"]').trigger('submit')
+      await flushPromises()
+
+      expect(salvarPerfil).toHaveBeenCalledWith(editado)
+      expect(texto(wrapper, 'resumo-do-perfil')).toContain('poupa joelho')
+      expect(texto(wrapper, 'resumo-do-perfil')).toContain('sem exercícios no chão')
+    })
+
+    it('cancelar a edição volta ao início do dia sem gravar', async () => {
+      const wrapper = await montar(null)
+
+      await botao(wrapper, 'Editar perfil').trigger('click')
+      await wrapper.get('input[name="nivel"][value="INTERMEDIARIO"]').setValue(true)
+      await botao(wrapper, 'Cancelar').trigger('click')
+
+      expect(salvarPerfil).not.toHaveBeenCalled()
+      expect(texto(wrapper, 'resumo-do-perfil')).toContain('Iniciante')
     })
 
     it('sugere a última meta usada', async () => {
@@ -166,6 +227,72 @@ describe('JornadaView', () => {
     })
   })
 
+  describe('sem perfil (Cenário 6 da H3)', () => {
+    beforeEach(() => vi.mocked(buscarPerfil).mockResolvedValue(null))
+
+    it('pede o perfil antes do Iniciar dia, sem como pular', async () => {
+      const wrapper = await montar(null)
+
+      expect(wrapper.find('[data-testid="iniciar-dia"]').exists()).toBe(false)
+      expect(wrapper.get('#titulo-perfil').text()).toBe('Seu perfil físico')
+      expect(texto(wrapper, 'formulario-do-perfil')).toContain('Os blocos de exercício de cada hora')
+      expect(wrapper.findAll('button').map((b) => b.text())).not.toContain('Cancelar')
+    })
+
+    it('com os padrões da spec, salva e libera o Iniciar dia', async () => {
+      vi.mocked(salvarPerfil).mockResolvedValue(PERFIL)
+      const wrapper = await montar(null)
+      expect(wrapper.get<HTMLInputElement>('input[name="nivel"][value="INICIANTE"]').element.checked).toBe(
+        true,
+      )
+      expect(wrapper.get<HTMLInputElement>('input[name="chao"][value="true"]').element.checked).toBe(true)
+
+      await wrapper.get('[data-testid="formulario-do-perfil"]').trigger('submit')
+      await flushPromises()
+
+      expect(salvarPerfil).toHaveBeenCalledWith(PERFIL)
+      expect(wrapper.find('[data-testid="iniciar-dia"]').exists()).toBe(true)
+    })
+
+    it('se o servidor recusar o perfil, mostra o motivo e mantém o formulário', async () => {
+      vi.mocked(salvarPerfil).mockRejectedValue(new OperacaoRecusadaError(400, 'Nível inválido.'))
+      const wrapper = await montar(null)
+
+      await wrapper.get('[data-testid="formulario-do-perfil"]').trigger('submit')
+      await flushPromises()
+
+      expect(texto(wrapper, 'erro-perfil')).toBe('Nível inválido.')
+      expect(wrapper.find('[data-testid="formulario-do-perfil"]').exists()).toBe(true)
+    })
+
+    it('se o backend recusar o início por falta de perfil, leva ao formulário', async () => {
+      vi.mocked(buscarPerfil).mockResolvedValueOnce(PERFIL).mockResolvedValue(null)
+      vi.mocked(iniciarJornada).mockRejectedValue(
+        new OperacaoRecusadaError(409, 'Preencha o perfil físico antes de iniciar o dia.'),
+      )
+      const wrapper = await montar(null)
+
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+
+      expect(texto(wrapper, 'erro')).toBe('Preencha o perfil físico antes de iniciar o dia.')
+      expect(wrapper.get('#titulo-perfil').text()).toBe('Seu perfil físico')
+    })
+
+    it('com o servidor fora na busca do perfil, explica e tenta de novo', async () => {
+      vi.mocked(buscarPerfil)
+        .mockRejectedValueOnce(new ServidorIndisponivelError('fora'))
+        .mockResolvedValueOnce(PERFIL)
+      const wrapper = await montar(null)
+      expect(wrapper.find('[data-testid="jornada-indisponivel"]').exists()).toBe(true)
+
+      await botao(wrapper, 'Tentar novamente').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="iniciar-dia"]').exists()).toBe(true)
+    })
+  })
+
   describe('em andamento', () => {
     it('mostra tempo trabalhado, água do dia e o próximo lembrete', async () => {
       const wrapper = await montar(emAndamento())
@@ -197,6 +324,21 @@ describe('JornadaView', () => {
       // Próximo lembrete: previsto para 30 min depois do instante calculado pelo servidor.
       expect(linhaDoMarco(wrapper, 4).text()).toBe('4~11:00~190 mlAgendado')
       expect(linhaDoMarco(wrapper, 16).text()).toBe('16~17:00~190 mlAgendado')
+    })
+
+    it('permite editar o perfil durante o dia; vale para os próximos blocos', async () => {
+      vi.mocked(salvarPerfil).mockResolvedValue({ ...PERFIL, nivel: 'INTERMEDIARIO' })
+      const wrapper = await montar(emAndamento())
+
+      await botao(wrapper, 'Editar perfil físico').trigger('click')
+      expect(texto(wrapper, 'formulario-do-perfil')).toContain('As mudanças valem para os próximos blocos')
+      await wrapper.get('input[name="nivel"][value="INTERMEDIARIO"]').setValue(true)
+      await wrapper.get('[data-testid="formulario-do-perfil"]').trigger('submit')
+      await flushPromises()
+
+      expect(salvarPerfil).toHaveBeenCalledWith({ ...PERFIL, nivel: 'INTERMEDIARIO' })
+      expect(wrapper.find('[data-testid="formulario-do-perfil"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="painel"]').exists()).toBe(true)
     })
 
     it('pausa o dia', async () => {

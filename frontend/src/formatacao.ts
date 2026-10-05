@@ -1,4 +1,5 @@
 import type { Marco, StatusMarco } from '@/api/jornada'
+import type { Articulacao, Equipamento, Nivel, Perfil } from '@/api/perfil'
 
 /** Fuso de negócio (spec H2, seção 3.4). Os horários da tela não dependem do fuso do computador. */
 export const FUSO = 'America/Sao_Paulo'
@@ -63,4 +64,37 @@ const TITULOS: Record<Marco['categoria'], string> = {
 /** Título do lembrete, no cartão e na notificação. */
 export function tituloDoMarco(categoria: Marco['categoria']): string {
   return TITULOS[categoria]
+}
+
+export const ROTULOS_DE_ARTICULACAO: Record<Articulacao, string> = {
+  JOELHO: 'Joelho',
+  OMBRO: 'Ombro',
+  PUNHO: 'Punho',
+  LOMBAR: 'Lombar',
+  CERVICAL: 'Cervical',
+}
+
+export const ROTULOS_DE_EQUIPAMENTO: Record<Equipamento, string> = {
+  APOIO_DE_FLEXAO: 'Apoio de flexão',
+  HALTERES_2KG: 'Halteres de 2 kg',
+}
+
+export const ROTULOS_DE_NIVEL: Record<Nivel, string> = {
+  INICIANTE: 'Iniciante',
+  INTERMEDIARIO: 'Intermediário',
+}
+
+const formatoDeLista = new Intl.ListFormat('pt-BR', { type: 'conjunction' })
+
+/** Uma linha para lembrar o perfil antes de iniciar o dia: "Iniciante · poupa joelho e ombro · …". */
+export function resumoDoPerfil(perfil: Perfil): string {
+  const minusculas = (rotulos: string[]) => formatoDeLista.format(rotulos.map((r) => r.toLowerCase()))
+  const articulacoes = perfil.articulacoesPoupadas.map((a) => ROTULOS_DE_ARTICULACAO[a])
+  const equipamentos = perfil.equipamentos.map((e) => ROTULOS_DE_EQUIPAMENTO[e])
+  return [
+    ROTULOS_DE_NIVEL[perfil.nivel],
+    articulacoes.length > 0 ? `poupa ${minusculas(articulacoes)}` : 'nada a poupar',
+    equipamentos.length > 0 ? minusculas(equipamentos) : 'sem equipamento',
+    perfil.aceitaChao ? 'com exercícios no chão' : 'sem exercícios no chão',
+  ].join(' · ')
 }

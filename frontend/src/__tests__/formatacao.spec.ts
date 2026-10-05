@@ -5,6 +5,7 @@ import {
   horario,
   intervalo,
   mililitros,
+  resumoDoPerfil,
   rotuloDoStatus,
   tempoAte,
   tituloDoMarco,
@@ -50,6 +51,22 @@ describe('formatação', () => {
     expect(rotuloDoStatus('NAO_ENTREGUE')).toBe('Não entregue')
     expect(rotuloDoStatus('NAO_CONCLUIDO')).toBe('Não concluído')
     expect(rotuloDoStatus('ADIADO')).toBe('Adiado')
+  })
+
+  it('resume o perfil numa linha', () => {
+    expect(
+      resumoDoPerfil({ articulacoesPoupadas: [], nivel: 'INICIANTE', equipamentos: [], aceitaChao: true }),
+    ).toBe('Iniciante · nada a poupar · sem equipamento · com exercícios no chão')
+    expect(
+      resumoDoPerfil({
+        articulacoesPoupadas: ['JOELHO', 'OMBRO', 'LOMBAR'],
+        nivel: 'INTERMEDIARIO',
+        equipamentos: ['APOIO_DE_FLEXAO', 'HALTERES_2KG'],
+        aceitaChao: false,
+      }),
+    ).toBe(
+      'Intermediário · poupa joelho, ombro e lombar · apoio de flexão e halteres de 2 kg · sem exercícios no chão',
+    )
   })
 
   it('dá a cada categoria o título do lembrete', () => {

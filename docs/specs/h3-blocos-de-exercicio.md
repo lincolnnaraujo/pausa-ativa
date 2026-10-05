@@ -284,6 +284,14 @@ Nenhum evento novo. O `marco-disparado` passa a vir também para o exercício, j
 
 A notificação combinada junta os `marco-disparado` que chegam antes do `jornada-atualizada` seguinte (seção 7). A `tag` é formada pelos ids dos marcos, então várias abas continuam mostrando uma notificação só.
 
+Detalhes decididos na T6:
+
+- **Carga.** A tela busca a jornada e o perfil juntos. Sem jornada hoje, ela espera os dois para decidir entre o formulário e o Iniciar dia; com o servidor fora em qualquer um, mostra "Tentar novamente".
+- **Formulário.** As quatro perguntas da seção 3.1, cada uma com uma linha de ajuda, e os padrões da spec já marcados. No primeiro preenchimento, o título é "Seu perfil físico" e não há Cancelar. Na edição, o formulário vem preenchido e avisa que vale para os próximos blocos. O rodapé lembra que o app não substitui orientação médica.
+- **Iniciar dia.** Mostra a escolha de 5 ou 10 min (lembra a última, como a meta) e uma linha com o resumo do perfil e o botão Editar perfil: "Iniciante · poupa joelho · halteres de 2 kg · com exercícios no chão".
+- **Editar durante o dia.** Um link "Editar perfil físico" no rodapé, enquanto há jornada (seção 3.1: o perfil muda a qualquer momento). O formulário ocupa o lugar da jornada até salvar ou cancelar; as notificações continuam chegando.
+- **409 por falta de perfil.** Se o backend recusar o início, a tela mostra o motivo e busca o perfil de novo; sem ele, aparece o formulário (Cenário 6).
+
 ### 8.1 Identidade visual: Sereno & Balanceado
 
 O usuário entregou a definição em 2026-10-05, na pasta [`identidadevisual/`](../../identidadevisual/): o texto com a paleta e uma imagem de referência (mockup de desktop e celular). A paleta usa azuis e ciano análogos, em tema escuro e com contraste suave, para transmitir calma e destacar a hidratação.
@@ -386,7 +394,7 @@ Branch `feat/h3-blocos-de-exercicio`. A execução para ao fim de cada etapa, e 
 | T3 | Agenda, domínio: marcos de exercício, `ADIADO`, adiar e resolução, duração do bloco | Cenários 3 a 5 e jornada de 8 h cobertos em Java puro | ✅ 2026-10-05 (28 testes novos no `JornadaTest`; 165 no backend; domínio da Agenda com 99,2% das linhas e 96,9% dos ramos). Cenários 2 a 5 e D3 a D6 no domínio; detalhes na seção 4. |
 | T4 | Agenda: migração `V4`, ligação com o Treino, API (adiamento, bloco, duração, perfil obrigatório), SSE, métricas | Integração com Postgres; contrato e tipos TS atualizados | ✅ 2026-10-05 (13 testes novos; 178 no backend; Agenda com 98,9% das linhas). Cenários 1 a 6 cobertos com Postgres; o bloco do marco 1 bate com o exemplo de 278 s da seção 3.3. Detalhes na seção 6. |
 | T5 | Frontend: identidade visual Sereno & Balanceado nas telas da H2 (seção 8.1): tokens, tema escuro, botões, cores por categoria | Teste de contraste dos tokens; lint, tipos e testes verdes | ✅ 2026-10-05 (21 testes novos; 147 no frontend, 99,4% das linhas). Detalhes no fim da seção 8.1. |
-| T6 | Frontend: perfil (formulário, edição, obrigatório) e duração do bloco ao iniciar | Lint, tipos e testes verdes, cobertura ≥ 80% | Pendente |
+| T6 | Frontend: perfil (formulário, edição, obrigatório) e duração do bloco ao iniciar | Lint, tipos e testes verdes, cobertura ≥ 80% | ✅ 2026-10-05 (17 testes novos; 164 no frontend, 99% das linhas). Cenário 6 no frontend; detalhes na seção 8. |
 | T7 | Frontend: cartão do exercício, Adiar, notificação combinada, lista e resumo por categoria | Idem | Pendente |
 | T8 | Verificação ponta a ponta no Chrome, em modo demonstração | Cenários 1 a 8 conferidos | Pendente |
 | T9 | README, C4 (incluindo o nginx 1.31 que entrou depois da v0.2.0), release notes, PR e CI | Aceite do usuário; merge e tag `v0.3.0` | Pendente |

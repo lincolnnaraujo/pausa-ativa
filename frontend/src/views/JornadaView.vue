@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
-import { confirmarRecebimento, type Marco } from '@/api/jornada'
+import { confirmarRecebimento, type DuracaoDoBlocoMin, type Marco } from '@/api/jornada'
+import type { Perfil } from '@/api/perfil'
 import AvisosDoNavegador from '@/components/AvisosDoNavegador.vue'
 import CartaoDoMarco from '@/components/CartaoDoMarco.vue'
+import FormularioDoPerfil from '@/components/FormularioDoPerfil.vue'
 import IniciarDia from '@/components/IniciarDia.vue'
 import ListaDeMarcos from '@/components/ListaDeMarcos.vue'
 import PainelDaJornada from '@/components/PainelDaJornada.vue'
@@ -12,6 +14,7 @@ import RodapeDeConexao from '@/components/RodapeDeConexao.vue'
 import { useEventos } from '@/composables/useEventos'
 import { useJornada } from '@/composables/useJornada'
 import { useNotificacoes } from '@/composables/useNotificacoes'
+import { usePerfil } from '@/composables/usePerfil'
 import { useSom } from '@/composables/useSom'
 import { intervalo } from '@/formatacao'
 
@@ -35,8 +38,20 @@ const {
   concluir,
   falhar,
 } = useJornada()
+const {
+  perfil,
+  carga: cargaDoPerfil,
+  salvando: salvandoPerfil,
+  erro: erroDoPerfil,
+  carregar: carregarPerfil,
+  recarregar: recarregarPerfil,
+  salvar: salvarPerfil,
+} = usePerfil()
 const { permissao, pedirPermissao, notificar } = useNotificacoes()
 const { ligado: somLigado, bloqueado: somBloqueado, tocar } = useSom()
+
+/** A pessoa pediu para editar o perfil; ele pode mudar a qualquer momento (spec H3, seção 3.1). */
+const editandoPerfil = ref(false)
 
 /** Marcos com recebimento confirmado, ou a caminho, por esta aba. */
 const confirmados = new Set<string>()
@@ -96,13 +111,43 @@ function totalDaCategoria(categoria: Marco['categoria']): number {
   return jornada.value?.marcos.filter((marco) => marco.categoria === categoria).length ?? 0
 }
 
-/** O pedido de permissão vai dentro do clique em Iniciar dia: o Chrome exige um gesto da pessoa. */
-function iniciarDia(metaAguaMl: number) {
-  void pedirPermissao()
-  void iniciar(metaAguaMl)
+/** Sem perfil, o formulário vem antes do Iniciar dia, e não dá para pular (Cenário 6 da H3). */
+const perfilObrigatorio = computed(
+  () => jornada.value === null && cargaDoPerfil.value === 'pronta' && perfil.value === null,
+)
+const mostrarFormularioDoPerfil = computed(() => editandoPerfil.value || perfilObrigatorio.value)
+
+const carregando = computed(
+  () => jornada.value === null && (carga.value === 'carregando' || cargaDoPerfil.value === 'carregando'),
+)
+const indisponivel = computed(
+  () => jornada.value === null && (carga.value === 'indisponivel' || cargaDoPerfil.value === 'indisponivel'),
+)
+
+function carregarTudo() {
+  return Promise.all([carregar(), carregarPerfil()])
 }
 
-onMounted(carregar)
+/**
+ * O pedido de permissão vai dentro do clique em Iniciar dia: o Chrome exige um gesto da pessoa. Se o
+ * backend recusar (por exemplo, 409 por falta de perfil), a tela busca o perfil de novo e, sem ele,
+ * mostra o formulário.
+ */
+async function iniciarDia(metaAguaMl: number, duracaoBlocoMin: DuracaoDoBlocoMin) {
+  void pedirPermissao()
+  if (!(await iniciar(metaAguaMl, duracaoBlocoMin))) {
+    await recarregarPerfil()
+  }
+}
+
+async function salvarPerfilFisico(novo: Perfil) {
+  if (await salvarPerfil(novo)) {
+    editandoPerfil.value = false
+    erro.value = null
+  }
+}
+
+onMounted(carregarTudo)
 </script>
 
 <template>
@@ -147,7 +192,7 @@ onMounted(carregar)
     </p>
 
     <p
-      v-if="carga === 'carregando' && jornada === null"
+      v-if="carregando"
       class="cartao"
       data-testid="carregando"
     >
@@ -155,7 +200,7 @@ onMounted(carregar)
     </p>
 
     <section
-      v-else-if="carga === 'indisponivel' && jornada === null"
+      v-else-if="indisponivel"
       class="cartao"
       data-testid="jornada-indisponivel"
     >
@@ -166,19 +211,31 @@ onMounted(carregar)
       <button
         type="button"
         class="botao"
-        @click="carregar"
+        @click="carregarTudo"
       >
         Tentar novamente
       </button>
     </section>
 
-    <IniciarDia
-      v-else-if="jornada === null"
-      :desabilitado="desabilitado"
-      @iniciar="iniciarDia"
+    <FormularioDoPerfil
+      v-else-if="mostrarFormularioDoPerfil"
+      :perfil="perfil"
+      :obrigatorio="perfilObrigatorio"
+      :desabilitado="desabilitado || salvandoPerfil"
+      :erro="erroDoPerfil"
+      @salvar="salvarPerfilFisico"
+      @cancelar="editandoPerfil = false"
     />
 
-    <template v-else>
+    <IniciarDia
+      v-else-if="jornada === null && perfil !== null"
+      :desabilitado="desabilitado"
+      :perfil="perfil"
+      @iniciar="iniciarDia"
+      @editar-perfil="editandoPerfil = true"
+    />
+
+    <template v-else-if="jornada !== null">
       <template v-if="aberta">
         <CartaoDoMarco
           v-for="marco in pendentes"
@@ -215,6 +272,14 @@ onMounted(carregar)
         >
         Tocar um som nos lembretes
       </label>
+      <button
+        v-if="jornada !== null && perfil !== null && !mostrarFormularioDoPerfil"
+        type="button"
+        class="link"
+        @click="editandoPerfil = true"
+      >
+        Editar perfil físico
+      </button>
       <RodapeDeConexao :conexao="conexao" />
     </div>
   </main>

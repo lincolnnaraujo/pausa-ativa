@@ -11,14 +11,25 @@ export type StatusMarco = Marco['status']
 export const META_PADRAO_ML = 3_000
 export const META_MAXIMA_ML = 6_000
 
+/** Durações do bloco de exercício que o dia aceita (spec H3, seção 3.4). */
+export const DURACOES_DO_BLOCO_MIN = [5, 10] as const
+export type DuracaoDoBlocoMin = (typeof DURACOES_DO_BLOCO_MIN)[number]
+export const DURACAO_PADRAO_DO_BLOCO_MIN: DuracaoDoBlocoMin = 5
+
 /** A jornada aberta ou a de hoje; `null` se ainda não houve jornada hoje (204). */
 export async function buscarJornadaAtual(): Promise<Jornada | null> {
   const resposta = await requisitar('GET', '/api/v1/jornadas/atual')
   return resposta.status === 204 ? null : ((await resposta.json()) as Jornada)
 }
 
-export async function iniciarJornada(metaAguaMl: number): Promise<Jornada> {
-  const resposta = await requisitar('POST', '/api/v1/jornadas', { corpo: { metaAguaMl } })
+/** Sem perfil físico, o backend recusa com 409 (spec H3, D7). */
+export async function iniciarJornada(
+  metaAguaMl: number,
+  duracaoBlocoMin: DuracaoDoBlocoMin,
+): Promise<Jornada> {
+  const resposta = await requisitar('POST', '/api/v1/jornadas', {
+    corpo: { metaAguaMl, duracaoBlocoMin },
+  })
   return (await resposta.json()) as Jornada
 }
 
