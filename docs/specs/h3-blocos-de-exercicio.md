@@ -1,6 +1,7 @@
 # Spec H3: Montar e executar blocos de exercício (release v0.3.0)
 
 > **Status:** aprovada pelo usuário em 2026-10-02, com as recomendações D1 a D9 da seção 13 e as instruções do apêndice A. Em implementação; progresso na seção 12.
+> **Ampliação de 2026-10-05:** a pedido do usuário, a release passa a aplicar a identidade visual Sereno & Balanceado (seção 8.1, etapa T5, Cenário 8). A decisão D10 espera confirmação.
 > **Origem:** História 3 de [`docs/epico-pausa-ativa.md`](../epico-pausa-ativa.md). O catálogo foi revisado com o usuário em 2026-10-02.
 > **Depende de:** H2 (v0.2.0), entregue em 2026-10-02.
 > **Data:** 2026-10-02.
@@ -28,8 +29,9 @@ Os gráficos e a taxa de sucesso por categoria ficam para a H4.
 | Concluir, Adiar e Falhar; status `ADIADO` | Prometheus e Grafana (H5) |
 | Duração do bloco escolhida ao iniciar (5 ou 10 min) | |
 | Notificação combinada na hora cheia | |
-| Modo demonstração com exercício a cada 2 min | |
-| Métricas e logs dos blocos | |
+| Modo demonstração com exercício a cada 2 min | Ilustrações, menu lateral e avatar do mockup da identidade visual (fora do produto) |
+| Métricas e logs dos blocos | Cores dos gráficos (H4, com a mesma paleta) |
+| Identidade visual Sereno & Balanceado no frontend (seção 8.1) | |
 
 ## 3. Regras de domínio refinadas
 
@@ -261,6 +263,46 @@ Nenhum evento novo. O `marco-disparado` passa a vir também para o exercício, j
 
 A notificação combinada junta os `marco-disparado` que chegam antes do `jornada-atualizada` seguinte (seção 7). A `tag` é formada pelos ids dos marcos, então várias abas continuam mostrando uma notificação só.
 
+### 8.1 Identidade visual: Sereno & Balanceado
+
+O usuário entregou a definição em 2026-10-05, na pasta [`identidadevisual/`](../../identidadevisual/): o texto com a paleta e uma imagem de referência (mockup de desktop e celular). A paleta usa azuis e ciano análogos, em tema escuro e com contraste suave, para transmitir calma e destacar a hidratação.
+
+Os tokens continuam em `frontend/src/assets/main.css`. Os componentes já usam as cores só por eles, então a troca é feita nesse arquivo, mais os ajustes de componente abaixo.
+
+| Token | Cor | Origem | Uso |
+|---|---|---|---|
+| `--fundo` | `#1A2238` | Definição | Fundo da página |
+| `--fundo-cartao` | `#243156` | Derivado do mockup | Cartões e campos: um tom acima do fundo |
+| `--borda` | `#3A4A78` | Derivado do mockup | Bordas e divisórias (decorativas) |
+| `--texto` | `#F0F8FF` | Definição | Texto principal |
+| `--texto-suave` | `#A8B5CC` | Derivado | Rótulos, horários e textos de apoio |
+| `--destaque` | `#20B2AA` | Definição | Botão principal, foco, links, exercício e marcos concluídos |
+| `--texto-sobre-destaque` | `#1A2238` | Definição | Texto dos botões teal |
+| `--agua` | `#87CEEB` | Definição | Hidratação: cartão, volume e marcador na lista |
+| `--alerta` | `#FF8C69` | Definição | Avisos, falha e erro, em uso pontual |
+
+Os tokens atuais `--sucesso`, `--erro`, `--aviso` e seus fundos passam a apontar para essas cores: sucesso em teal; erro e aviso em coral, com fundo coral translúcido.
+
+**Regras**
+
+- **Tema só escuro (D10).** A definição é de tema escuro, e um tema claro seria uma identidade nova, não definida. O `:root` passa a `color-scheme: dark`, e o bloco `prefers-color-scheme` sai.
+- **Botão principal:** fundo teal, texto `#1A2238` e cantos em pílula, como o "Fazer pausa agora" do mockup. Texto gelo sobre teal dá 2,44:1 e reprova o WCAG AA; o azul-escuro dá 6,02:1.
+- **Categorias:** água em azul céu e exercício em teal, no cartão (borda) e na lista (marcador). A categoria também aparece em texto ou ícone (💧, 🏃), nunca só pela cor.
+- **Coral com moderação**, como pede a definição ("uso sutil"): aviso de permissão, falha na lista, mensagem de erro e o botão **Falhar**, que passa a ser contornado em coral em vez de vermelho cheio.
+- **Títulos de cartão** em caixa alta e peso 600, como no mockup. A fonte continua a do sistema.
+- **Contraste:** todo texto tem pelo menos 4,5:1 sobre `--fundo` e sobre `--fundo-cartao`. As cores derivadas (cartão, borda e texto suave) não estão na definição: foram tiradas do mockup e escolhidas para cumprir esse mínimo. Podem ser ajustadas.
+
+| Par (texto sobre fundo) | Contraste |
+|---|---|
+| Texto / fundo · Texto / cartão | 14,72 · 11,87 |
+| Texto suave / fundo · Texto suave / cartão | 7,63 · 6,15 |
+| Teal / fundo · Teal / cartão | 6,02 · 4,86 |
+| Azul céu / fundo · Azul céu / cartão | 9,07 · 7,31 |
+| Coral / fundo · Coral / cartão | 6,92 · 5,58 |
+| Azul-escuro / teal (botão) | 6,02 |
+
+Fica de fora o que é ilustração do mockup: menu lateral, avatar, ilustrações e gráficos. O favicon de gota já combina com a identidade e fica como está.
+
 ## 9. Modo demonstração
 
 O exercício dispara a cada **dobro do intervalo da água (D9)**: 60 min no uso normal e 2 min no `docker-compose.demo.yml`. Com isso, a hora cheia continua coincidindo com um marco de água par, e o dia inteiro de demonstração continua durando 16 min. Uma propriedade só (`pausa-ativa.agenda.intervalo`) controla as duas categorias.
@@ -287,6 +329,7 @@ Logs JSON com `jornadaId`, `marcoId` e os códigos dos exercícios do bloco mont
 | 5. Segundo adiamento | Domínio e API: 409 com a mensagem; `podeAdiar` falso | O botão Adiar não aparece |
 | 6. Perfil ausente | API: 409 ao iniciar sem perfil. Frontend: formulário antes do Iniciar dia | Banco limpo: a tela pede o perfil |
 | 7. Restrições eliminam o catálogo | Domínio: perfil que poupa todas as articulações, sem equipamento e sem chão recebe só exercícios sem restrição, e o bloco de 10 min termina com a reserva repetida | Perfil assim; conferir o bloco |
+| 8. Identidade visual | Frontend: teste que lê os tokens de `main.css` e confere a paleta e o contraste mínimo de 4,5:1 dos pares de texto (seção 8.1) | Capturas das telas de perfil, jornada e resumo, comparadas com o mockup |
 
 Também da seção "Cenários de Teste" do épico, nesta história:
 
@@ -305,14 +348,17 @@ Branch `feat/h3-blocos-de-exercicio`. A execução para ao fim de cada etapa, e 
 | T2 | Treino: migração `V3` com o catálogo, persistência, `GET`/`PUT /perfil`, porta `MontarBloco` | Testes de integração e MockMvc; contrato atualizado | ✅ 2026-10-02 (9 testes novos; 137 no backend; Treino com 99,7% das linhas). O catálogo do banco é igual ao do épico, campo a campo, e monta o exemplo de 278 s. Restrições e equipamentos foram para tabelas filhas (seção 5). |
 | T3 | Agenda, domínio: marcos de exercício, `ADIADO`, adiar e resolução, duração do bloco | Cenários 3 a 5 e jornada de 8 h cobertos em Java puro | Pendente |
 | T4 | Agenda: migração `V4`, ligação com o Treino, API (adiamento, bloco, duração, perfil obrigatório), SSE, métricas | Integração com Postgres; contrato e tipos TS atualizados | Pendente |
-| T5 | Frontend: perfil (formulário, edição, obrigatório) e duração do bloco ao iniciar | Lint, tipos e testes verdes, cobertura ≥ 80% | Pendente |
-| T6 | Frontend: cartão do exercício, Adiar, notificação combinada, lista e resumo por categoria | Idem | Pendente |
-| T7 | Verificação ponta a ponta no Chrome, em modo demonstração | Cenários 1 a 7 conferidos | Pendente |
-| T8 | README, C4 (incluindo o nginx 1.31 que entrou depois da v0.2.0), release notes, PR e CI | Aceite do usuário; merge e tag `v0.3.0` | Pendente |
+| T5 | Frontend: identidade visual Sereno & Balanceado nas telas da H2 (seção 8.1): tokens, tema escuro, botões, cores por categoria | Teste de contraste dos tokens; lint, tipos e testes verdes | Pendente |
+| T6 | Frontend: perfil (formulário, edição, obrigatório) e duração do bloco ao iniciar | Lint, tipos e testes verdes, cobertura ≥ 80% | Pendente |
+| T7 | Frontend: cartão do exercício, Adiar, notificação combinada, lista e resumo por categoria | Idem | Pendente |
+| T8 | Verificação ponta a ponta no Chrome, em modo demonstração | Cenários 1 a 8 conferidos | Pendente |
+| T9 | README, C4 (incluindo o nginx 1.31 que entrou depois da v0.2.0), release notes, PR e CI | Aceite do usuário; merge e tag `v0.3.0` | Pendente |
+
+A T5 vem antes das telas novas para que o perfil e o cartão do exercício já nasçam com os tokens da identidade, sem retrabalho.
 
 ## 13. Decisões para o usuário confirmar
 
-Lacunas que o épico não decidia. **O usuário aceitou todas as recomendações em 2026-10-02.**
+Lacunas que o épico não decidia. **O usuário aceitou as recomendações D1 a D9 em 2026-10-02.** A D10 veio com a identidade visual e espera confirmação até a T5.
 
 | # | Decisão | Recomendação | Alternativa |
 |---|---|---|---|
@@ -325,6 +371,7 @@ Lacunas que o épico não decidia. **O usuário aceitou todas as recomendações
 | D7 | Perfil obrigatório | **Na tela e no backend** (409 ao iniciar sem perfil): a regra não depende de quem chama a API | Só na tela |
 | D8 | Instrução de cada exercício | **Uma linha de como fazer**, escrita pelo Claude e revisada por você no apêndice A | Só o nome do exercício |
 | D9 | Exercício no modo demonstração | **Dobro do intervalo da água** (2 min), com uma propriedade só | Propriedade própria para o exercício |
+| D10 | Tema claro (a confirmar; incluída em 2026-10-05) | **Só tema escuro**, como na definição. Hoje o app segue o tema do sistema; um tema claro precisaria de uma paleta nova | Derivar uma variante clara da paleta e manter `prefers-color-scheme` |
 
 ## Apêndice A: instruções dos exercícios
 

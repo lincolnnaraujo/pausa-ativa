@@ -117,6 +117,7 @@ Catálogo inicial (revisado pelo usuário em 2026-10-02):
 | Backend | Java 25, Spring Boot 4.x, Maven, Flyway |
 | Banco | PostgreSQL em container, sem porta exposta ao host |
 | Frontend | Vue 3, Vite, TypeScript, servido por nginx |
+| Identidade visual | Paleta **Sereno & Balanceado**, tema escuro, definida pelo usuário em [`identidadevisual/`](../identidadevisual/) (2026-10-05). Tokens CSS em `frontend/src/assets/main.css`, aplicados na H3 |
 | Comunicação | REST (comandos e consultas) + SSE (backend → frontend para disparo de marcos) |
 | Notificação | Notification API do Chrome com aba fixada, alerta sonoro configurável |
 | Relógio | Backend é o agendador único; tempo acessado por `java.time.Clock` injetado, fuso `America/Sao_Paulo`, persistência em UTC |
@@ -264,7 +265,7 @@ Cada história é uma release. Ordem de entrega: 1 → 2 → 3 → 4 → 5.
 
 ### História 3 — [FEATURE] Montar e executar blocos de exercício (release v0.3.0)
 
-**Descrição:** formulário de perfil físico, catálogo de exercícios via migração, seleção por regras, marcos de exercício a cada 60 min com Concluir, Adiar e Falhar, notificação combinada na hora cheia.
+**Descrição:** formulário de perfil físico, catálogo de exercícios via migração, seleção por regras, marcos de exercício a cada 60 min com Concluir, Adiar e Falhar, notificação combinada na hora cheia. Também aplica a identidade visual Sereno & Balanceado em todas as telas (incluída em 2026-10-05).
 
 **Critérios de Aceitação**
 
@@ -303,13 +304,18 @@ Cada história é uma release. Ordem de entrega: 1 → 2 → 3 → 4 → 5.
 - **Quando** o bloco é montado
 - **Então** ele é preenchido com os exercícios de reserva (marcha estacionária, mobilidade torácica e alongamentos), que não têm restrição
 
-**Dependências:** História 2; revisão do catálogo pelo usuário.
+#### Cenário 8: identidade visual
+- **Dado** a aplicação aberta no Chrome
+- **Quando** navego pelas telas de perfil, jornada e resumo
+- **Então** elas seguem a paleta Sereno & Balanceado em tema escuro, com água em azul céu, exercício em teal e coral só em alertas, e todo texto tem contraste de pelo menos 4,5:1 com o fundo
+
+**Dependências:** História 2; revisão do catálogo pelo usuário; definição da identidade visual.
 
 ---
 
 ### História 4 — [FEATURE] Visualizar histórico e gráficos (release v0.4.0)
 
-**Descrição:** agregações por dia, semana e mês, por categoria; tela de resumo ao finalizar o dia; edição de registros no mesmo dia.
+**Descrição:** agregações por dia, semana e mês, por categoria; tela de resumo ao finalizar o dia; edição de registros no mesmo dia. Os gráficos usam a paleta da identidade visual (água em azul céu, exercício em teal, falha em coral).
 
 **Critérios de Aceitação**
 
@@ -446,6 +452,7 @@ Estimativa em story points foi dispensada pelo usuário.
 - [ ] Repositório no GitHub com Actions habilitado
 - [ ] Chrome com permissão de notificação para `http://127.0.0.1:38742` (a permissão vale por origem, e a porta faz parte dela)
 - [x] Revisão do catálogo de exercícios pelo usuário (2026-10-02)
+- [x] Definição da identidade visual pelo usuário (2026-10-05, pasta `identidadevisual/`)
 
 ## Notas Adicionais
 
