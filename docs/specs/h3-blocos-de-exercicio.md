@@ -1,7 +1,7 @@
 # Spec H3: Montar e executar blocos de exercício (release v0.3.0)
 
 > **Status:** aprovada pelo usuário em 2026-10-02, com as recomendações D1 a D9 da seção 13 e as instruções do apêndice A. Em implementação; progresso na seção 12.
-> **Ampliação de 2026-10-05:** a pedido do usuário, a release passa a aplicar a identidade visual Sereno & Balanceado (seção 8.1, etapa T5, Cenário 8). A decisão D10 espera confirmação.
+> **Ampliação de 2026-10-05:** a pedido do usuário, a release passa a aplicar a identidade visual Sereno & Balanceado (seção 8.1, etapa T5, Cenário 8). A decisão D10 (só tema escuro) foi confirmada no mesmo dia.
 > **Origem:** História 3 de [`docs/epico-pausa-ativa.md`](../epico-pausa-ativa.md). O catálogo foi revisado com o usuário em 2026-10-02.
 > **Depende de:** H2 (v0.2.0), entregue em 2026-10-02.
 > **Data:** 2026-10-02.
@@ -369,7 +369,7 @@ A T5 vem antes das telas novas para que o perfil e o cartão do exercício já n
 
 ## 13. Decisões para o usuário confirmar
 
-Lacunas que o épico não decidia. **O usuário aceitou as recomendações D1 a D9 em 2026-10-02.** A D10 veio com a identidade visual e espera confirmação até a T5.
+Lacunas que o épico não decidia. **O usuário aceitou as recomendações D1 a D9 em 2026-10-02.** A D10 veio com a identidade visual e foi confirmada em 2026-10-05: só tema escuro; uma paleta clara fica para um segundo momento.
 
 | # | Decisão | Recomendação | Alternativa |
 |---|---|---|---|
@@ -382,7 +382,7 @@ Lacunas que o épico não decidia. **O usuário aceitou as recomendações D1 a 
 | D7 | Perfil obrigatório | **Na tela e no backend** (409 ao iniciar sem perfil): a regra não depende de quem chama a API | Só na tela |
 | D8 | Instrução de cada exercício | **Uma linha de como fazer**, escrita pelo Claude e revisada por você no apêndice A | Só o nome do exercício |
 | D9 | Exercício no modo demonstração | **Dobro do intervalo da água** (2 min), com uma propriedade só | Propriedade própria para o exercício |
-| D10 | Tema claro (a confirmar; incluída em 2026-10-05) | **Só tema escuro**, como na definição. Hoje o app segue o tema do sistema; um tema claro precisaria de uma paleta nova | Derivar uma variante clara da paleta e manter `prefers-color-scheme` |
+| D10 | Tema claro (confirmada em 2026-10-05) | **Só tema escuro**, como na definição. Hoje o app segue o tema do sistema; um tema claro precisaria de uma paleta nova | Derivar uma variante clara da paleta e manter `prefers-color-scheme` |
 
 ## Apêndice A: instruções dos exercícios
 

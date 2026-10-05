@@ -458,7 +458,7 @@ Estimativa em story points foi dispensada pelo usuário.
 
 - **Limitações conhecidas:** com o Chrome fechado ou o modo "Não incomodar" do Windows ativo, a notificação não aparece. O status `NAO_ENTREGUE` cobre o primeiro caso; o segundo não é detectável e pode virar `FALHA`.
 - **Fora de escopo:** autenticação, acesso por celular, E2E com Playwright, geração de treino por LLM, reabertura de jornada.
-- **Melhorias futuras:** Push API com service worker para funcionar com a aba fechada; streaks; progressão de carga no catálogo; importação de feriados.
+- **Melhorias futuras:** Push API com service worker para funcionar com a aba fechada; streaks; progressão de carga no catálogo; importação de feriados; paleta para o tema claro (a H3 entrega só o escuro, decisão D10).
 
 ## ⚠️ Perguntas Pendentes para Refinamento
 
