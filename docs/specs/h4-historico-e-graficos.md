@@ -1,6 +1,6 @@
 # Spec H4: Visualizar histórico e gráficos (release v0.4.0)
 
-> **Status:** rascunho para revisão do usuário. As decisões em aberto estão na seção 13.
+> **Status:** aprovada pelo usuário em 2026-10-06, com as recomendações D1 a D11 da seção 13. Em implementação; progresso na seção 12.
 > **Origem:** História 4 de [`docs/epico-pausa-ativa.md`](../epico-pausa-ativa.md).
 > **Depende de:** H2 (v0.2.0) e H3 (v0.3.0), entregue em 2026-10-06.
 > **Data:** 2026-10-06.
@@ -128,6 +128,13 @@ flowchart LR
 
 **O pacote `historico.adapter.out.persistence`**, criado vazio na H1, continua vazio (D1).
 
+Detalhes decididos na T1:
+
+- **Tipos próprios.** O domínio do Histórico tem `Categoria`, `Situacao` e `EstadoDaJornada` próprios, porque a regra R4 não deixa um módulo usar os tipos de outro. A `Situacao` junta agendado, pendente e adiado sem destino em `EM_ABERTO`; a tradução fica no adapter da T3.
+- **Taxa.** `TaxaDeSucesso` só existe com pelo menos um concluído ou uma falha; a ausência é um `Optional` vazio ("sem dados"). O percentual é um `BigDecimal` de uma casa, truncado; a meta compara inteiros (`concluídos × 100 ≥ 80 × respondidos`).
+- **Resumo.** `ResumoDoPeriodo.de(periodo, registros, hoje)` recebe só os dias com jornada e completa os demais: sem jornada, ou futuros. Recusa registro fora do período, depois de hoje ou repetido. As categorias saem sempre na ordem água, exercício.
+- **Data futura.** `Periodo.contendo` recusa uma data depois de hoje com `DataFuturaException`, que vira 400 na T3.
+
 ## 5. Modelo de dados
 
 **`V5`: Agenda**
@@ -197,7 +204,7 @@ Nenhum evento novo. A correção publica `jornada-atualizada`. Com o Histórico 
 | Navegação | Duas abas no topo, **Hoje** e **Histórico (D9)**. A aba ativa fica no endereço (`#historico`), e recarregar volta para ela. |
 | Hoje | A tela de sempre. A aba continua viva quando o Histórico está aberto: eventos, notificações e som seguem funcionando. |
 | Lembrete pendente com o Histórico aberto | A aba Hoje mostra um contador ("Hoje · 1"), e uma faixa no Histórico avisa, com um botão que volta para Hoje |
-| Histórico | Uma linha de filtros no topo: **Dia, Semana ou Mês**, os botões ‹ e › e o período por extenso ("29 set – 5 out 2026", "outubro de 2026"), mais **Voltar para hoje** |
+| Histórico | Uma linha de filtros no topo: **Dia, Semana ou Mês**, os botões ‹ e › e o período por extenso ("28 set – 4 out 2026", "outubro de 2026"), mais **Voltar para hoje** |
 | Resumo do período | Para cada categoria: a taxa em destaque (ou "sem dados"), "Meta de 80%: atingida ✓" ou "não atingida", "Dias na meta: 3 de 4" (na semana e no mês) e as situações com as quantidades |
 | Gráfico (semana e mês) | Um por categoria, com as colunas empilhadas por situação, uma por dia (seção 8.1). Clicar numa coluna abre o dia. |
 | Dia | O resumo do dia, com a taxa e a meta, e a lista dos lembretes, só para leitura. Cada bloco de exercício abre a lista dos exercícios propostos naquele dia. |
@@ -239,7 +246,7 @@ O cinza do não concluído foi escolhido entre três candidatos: `#6B7A9E` ficav
 - **Legenda** sempre visível acima de cada gráfico, com as quatro situações.
 - **Dica de valores** ao passar o mouse ou focar uma coluna pelo teclado: a data, a taxa e as quantidades de cada situação. A área de toque é a faixa inteira do dia, não só a coluna pintada.
 - **Tabela equivalente:** "Ver como tabela" mostra os mesmos números, um dia por linha. A dica nunca é o único caminho para um valor.
-- O SVG tem título e descrição (`role="img"`), por exemplo "Água, semana de 29 set a 5 out: 52 concluídos, 9 falhas; taxa de 85,2%".
+- O SVG tem título e descrição (`role="img"`), por exemplo "Água, semana de 28 set a 4 out: 52 concluídos, 9 falhas; taxa de 85,2%".
 - O `identidadeVisual.spec.ts` passa a conferir os dois tokens novos e o contraste mínimo de 3:1 das marcas sobre o cartão.
 
 **Como desenhar (D8).** SVG em componentes Vue próprios, sem biblioteca. As colunas empilhadas são simples, as cores vêm dos tokens, e o jsdom consegue testar o que o componente desenha.
@@ -284,7 +291,7 @@ Branch `feat/h4-historico-e-graficos`. A execução para ao fim de cada etapa, e
 
 | # | Etapa | Pronto quando | Status |
 |---|---|---|---|
-| T1 | Histórico, domínio: períodos, taxa (truncamento e meta exata), resumo do período, dias na meta, dias sem jornada | Cenários 1, 2 e 6 cobertos em Java puro | Pendente |
+| T1 | Histórico, domínio: períodos, taxa (truncamento e meta exata), resumo do período, dias na meta, dias sem jornada | Cenários 1, 2 e 6 cobertos em Java puro | ✅ 2026-10-06 (30 testes; domínio do Histórico com 99,2% das linhas e 90,7% dos ramos; 208 no backend). Detalhes na seção 4. |
 | T2 | Agenda, domínio: correção (Concluído ↔ Falha, prazo do dia, par adiado, `editadoEm`, `podeCorrigir`) | Cenários 4 e 5 cobertos em Java puro | Pendente |
 | T3 | Agenda e Histórico: migração `V5`, consulta agregada por dia, `GET /historico`, `GET /jornadas?data=`, `POST /correcao`, métricas | Integração com Postgres; mês com um ano de dados em menos de 500 ms; contrato e tipos TS atualizados | Pendente |
 | T4 | Modo demonstração: dados de exemplo (seção 9) | A demonstração sobe com 45 dias de histórico; o compose de uso diário, sem nenhum | Pendente |
