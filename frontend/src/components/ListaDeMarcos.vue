@@ -52,7 +52,10 @@ function detalheDoMarco(marco: Marco): string {
             <th scope="col">
               Lembrete
             </th>
-            <th scope="col">
+            <th
+              scope="col"
+              class="detalhe"
+            >
               Detalhe
             </th>
             <th scope="col">
@@ -71,7 +74,9 @@ function detalheDoMarco(marco: Marco): string {
             <td class="categoria">
               {{ rotuloDaCategoria(marco.categoria) }} {{ marco.sequencia }}
             </td>
-            <td>{{ detalheDoMarco(marco) }}</td>
+            <td class="detalhe">
+              {{ detalheDoMarco(marco) }}
+            </td>
             <td>
               <span
                 class="status"
@@ -126,6 +131,16 @@ tbody tr:last-child td {
 
 tr[data-categoria='EXERCICIO'] .categoria {
   border-left-color: var(--exercicio);
+}
+
+/*
+ * No celular, as quatro colunas não cabem e a situação ficaria fora da tela. O detalhe sai: o volume e
+ * o bloco aparecem no cartão do lembrete.
+ */
+@media (max-width: 30rem) {
+  .detalhe {
+    display: none;
+  }
 }
 
 .status {

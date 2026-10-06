@@ -57,7 +57,7 @@ function finalizar() {
         <dt>Água do dia</dt>
         <dd data-testid="agua">
           <span class="grande agua">{{ mililitros(jornada.aguaIngeridaMl) }}</span>
-          de {{ mililitros(jornada.metaAguaMl) }}
+          de <span class="meta">{{ mililitros(jornada.metaAguaMl) }}</span>
         </dd>
       </div>
       <div>
@@ -180,6 +180,11 @@ dd {
 
 .agua {
   color: var(--agua);
+}
+
+/* A meta não quebra entre o número e a unidade ("3.000" numa linha e "ml" na outra). */
+.meta {
+  white-space: nowrap;
 }
 
 progress {
