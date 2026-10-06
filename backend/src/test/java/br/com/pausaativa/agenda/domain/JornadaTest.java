@@ -619,6 +619,7 @@ class JornadaTest {
                                 case MarcoDisparado disparado -> disparado.sequencia();
                                 case MarcoEncerrado encerrado -> encerrado.sequencia() + ":" + encerrado.status();
                                 case MarcoAdiado adiado -> adiado.sequencia();
+                                case MarcoCorrigido corrigido -> corrigido.sequencia() + ":" + corrigido.para();
                             })
                     .containsExactly(
                             "MarcoDisparado:1",
@@ -1074,6 +1075,238 @@ class JornadaTest {
             assertThat(StatusMarco.ADIADO.encerrado()).isFalse();
             jornada.avancar(as("10:59:59"));
             assertThat(exercicio(jornada, 1).status()).isEqualTo(StatusMarco.ADIADO);
+        }
+    }
+
+    /** Correção no mesmo dia (spec H4, seção 3.3; decisões D4 a D6). */
+    @Nested
+    class Correcao {
+
+        /** Instante do dia seguinte ao da jornada, em São Paulo. */
+        private static Instant amanhaAs(String hora) {
+            return LocalDateTime.of(DIA.plusDays(1), LocalTime.parse(hora))
+                    .atZone(SAO_PAULO)
+                    .toInstant();
+        }
+
+        /** Jornada de 09:00 com a 1ª água respondida às 09:31. */
+        private Jornada comPrimeiraAgua(StatusMarco resposta) {
+            Jornada jornada = iniciadaAs("09:00");
+            jornada.avancar(as("09:30"));
+            if (resposta == CONCLUIDO) {
+                jornada.concluirMarco(agua(jornada, 1).id(), as("09:31"));
+            } else {
+                jornada.falharMarco(agua(jornada, 1).id(), as("09:31"));
+            }
+            jornada.extrairEventos();
+            return jornada;
+        }
+
+        /** Exercício 1 adiado e resolvido como concluído pelo exercício 2, às 11:08. */
+        private Jornada comParAdiadoConcluido() {
+            Jornada jornada = iniciadaAs("09:00");
+            jornada.avancar(as("10:00"));
+            jornada.adiarMarco(exercicio(jornada, 1).id(), as("10:01"));
+            jornada.avancar(as("11:00"));
+            jornada.concluirMarco(exercicio(jornada, 2).id(), as("11:08"));
+            jornada.extrairEventos();
+            return jornada;
+        }
+
+        @Test
+        void cenario4FalhaViraConcluidoMarcaEditadoESomaAAgua() {
+            Jornada jornada = comPrimeiraAgua(FALHA);
+            Marco agua = agua(jornada, 1);
+            assertThat(jornada.aguaIngeridaMl()).isEqualByComparingTo("0");
+
+            boolean mudou = jornada.corrigirMarco(agua.id(), CONCLUIDO, as("18:00"), SAO_PAULO);
+
+            assertThat(mudou).isTrue();
+            assertThat(agua.status()).isEqualTo(CONCLUIDO);
+            assertThat(agua.editadoEm()).contains(as("18:00"));
+            assertThat(agua.respondidoEm()).contains(as("09:31"));
+            assertThat(jornada.aguaIngeridaMl()).isEqualByComparingTo("187.5");
+            assertThat(jornada.extrairEventos())
+                    .containsExactly(new MarcoCorrigido(agua.id(), Categoria.HIDRATACAO, 1, FALHA, CONCLUIDO));
+        }
+
+        @Test
+        void concluidoViraFalhaETiraAAgua() {
+            Jornada jornada = comPrimeiraAgua(CONCLUIDO);
+
+            jornada.corrigirMarco(agua(jornada, 1).id(), FALHA, as("12:00"), SAO_PAULO);
+
+            assertThat(agua(jornada, 1).status()).isEqualTo(FALHA);
+            assertThat(jornada.aguaIngeridaMl()).isEqualByComparingTo("0");
+        }
+
+        @Test
+        void desfazerACorrecaoMantemAMarcaDeEditado() {
+            Jornada jornada = comPrimeiraAgua(FALHA);
+            UUID agua = agua(jornada, 1).id();
+            jornada.corrigirMarco(agua, CONCLUIDO, as("12:00"), SAO_PAULO);
+
+            jornada.corrigirMarco(agua, FALHA, as("13:00"), SAO_PAULO);
+
+            assertThat(agua(jornada, 1).status()).isEqualTo(FALHA);
+            assertThat(agua(jornada, 1).editadoEm()).contains(as("13:00"));
+        }
+
+        @Test
+        void d5ValeComAJornadaFinalizadaAteOFimDoDia() {
+            Jornada jornada = comPrimeiraAgua(FALHA);
+            jornada.finalizar(as("12:00"));
+
+            jornada.corrigirMarco(agua(jornada, 1).id(), CONCLUIDO, as("23:59:59"), SAO_PAULO);
+
+            assertThat(agua(jornada, 1).status()).isEqualTo(CONCLUIDO);
+        }
+
+        @Test
+        void d5ValeComAJornadaPausada() {
+            Jornada jornada = comPrimeiraAgua(FALHA);
+            jornada.pausar(as("12:00"));
+
+            assertThat(jornada.corrigirMarco(agua(jornada, 1).id(), CONCLUIDO, as("12:30"), SAO_PAULO))
+                    .isTrue();
+        }
+
+        @Test
+        void cenario5DepoisDoDiaDaJornadaERecusadoENadaMuda() {
+            Jornada jornada = comPrimeiraAgua(FALHA);
+            jornada.finalizar(as("18:00"));
+            jornada.extrairEventos();
+            UUID agua = agua(jornada, 1).id();
+
+            assertThatThrownBy(() -> jornada.corrigirMarco(agua, CONCLUIDO, amanhaAs("00:00"), SAO_PAULO))
+                    .isInstanceOf(CorrecaoRecusadaException.class)
+                    .hasMessage("Só dá para corrigir os lembretes de hoje.");
+            assertThat(agua(jornada, 1).status()).isEqualTo(FALHA);
+            assertThat(agua(jornada, 1).editadoEm()).isEmpty();
+            assertThat(jornada.extrairEventos()).isEmpty();
+        }
+
+        @Test
+        void jornadaQueAtravessaAMeiaNoiteValeSoNoDiaEmQueComecou() {
+            Jornada jornada = iniciadaAs("22:00");
+            jornada.avancar(as("22:30"));
+            jornada.concluirMarco(agua(jornada, 1).id(), as("22:31"));
+            UUID agua = agua(jornada, 1).id();
+
+            assertThat(jornada.podeCorrigir(agua(jornada, 1), as("23:59"), SAO_PAULO))
+                    .isTrue();
+            assertThatThrownBy(() -> jornada.corrigirMarco(agua, FALHA, amanhaAs("00:10"), SAO_PAULO))
+                    .isInstanceOf(CorrecaoRecusadaException.class);
+        }
+
+        @Test
+        void d4NaoEntregueENaoConcluidoNaoSeCorrigem() {
+            Jornada jornada = iniciadaAs("09:00");
+            jornada.avancar(as("09:30"));
+            jornada.avancar(as("10:00")); // a água 1 vence sem recebimento
+            jornada.finalizar(as("10:05"));
+
+            assertThat(agua(jornada, 1).status()).isEqualTo(NAO_ENTREGUE);
+            assertThat(agua(jornada, 4).status()).isEqualTo(NAO_CONCLUIDO);
+            for (Marco marco : List.of(agua(jornada, 1), agua(jornada, 4))) {
+                assertThatThrownBy(() -> jornada.corrigirMarco(marco.id(), CONCLUIDO, as("12:00"), SAO_PAULO))
+                        .isInstanceOf(CorrecaoRecusadaException.class)
+                        .hasMessage("Só dá para corrigir um lembrete concluído ou com falha.");
+            }
+        }
+
+        @Test
+        void d4PendenteAgendadoEAdiadoAindaPedemResposta() {
+            Jornada jornada = iniciadaAs("09:00");
+            jornada.avancar(as("10:00"));
+            jornada.adiarMarco(exercicio(jornada, 1).id(), as("10:01"));
+
+            assertThat(agua(jornada, 2).status()).isEqualTo(PENDENTE);
+            assertThat(agua(jornada, 3).status()).isEqualTo(AGENDADO);
+            for (Marco marco : List.of(agua(jornada, 2), agua(jornada, 3), exercicio(jornada, 1))) {
+                assertThatThrownBy(() -> jornada.corrigirMarco(marco.id(), CONCLUIDO, as("10:02"), SAO_PAULO))
+                        .isInstanceOf(CorrecaoRecusadaException.class);
+            }
+        }
+
+        @Test
+        void corrigirParaASituacaoAtualNaoMudaNada() {
+            Jornada jornada = comPrimeiraAgua(CONCLUIDO);
+
+            boolean mudou = jornada.corrigirMarco(agua(jornada, 1).id(), CONCLUIDO, as("12:00"), SAO_PAULO);
+
+            assertThat(mudou).isFalse();
+            assertThat(agua(jornada, 1).editadoEm()).isEmpty();
+            assertThat(jornada.extrairEventos()).isEmpty();
+        }
+
+        @Test
+        void soSeCorrigeParaConcluidoOuFalha() {
+            Jornada jornada = comPrimeiraAgua(CONCLUIDO);
+            UUID agua = agua(jornada, 1).id();
+
+            assertThatThrownBy(() -> jornada.corrigirMarco(agua, NAO_ENTREGUE, as("12:00"), SAO_PAULO))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        void marcoDeOutraJornadaNaoEEncontrado() {
+            Jornada jornada = comPrimeiraAgua(CONCLUIDO);
+
+            assertThatThrownBy(() -> jornada.corrigirMarco(UUID.randomUUID(), FALHA, as("12:00"), SAO_PAULO))
+                    .isInstanceOf(MarcoNaoEncontradoException.class);
+        }
+
+        @Test
+        void d6CorrigirOBlocoQueCompensouCorrigeOAdiado() {
+            Jornada jornada = comParAdiadoConcluido();
+
+            jornada.corrigirMarco(exercicio(jornada, 2).id(), FALHA, as("18:00"), SAO_PAULO);
+
+            assertThat(exercicio(jornada, 1).status()).isEqualTo(FALHA);
+            assertThat(exercicio(jornada, 2).status()).isEqualTo(FALHA);
+            assertThat(exercicio(jornada, 1).editadoEm()).contains(as("18:00"));
+            assertThat(jornada.extrairEventos())
+                    .extracting(evento -> ((MarcoCorrigido) evento).sequencia())
+                    .containsExactly(2, 1);
+        }
+
+        @Test
+        void d6CorrigirOAdiadoResolvidoCorrigeOSeguinte() {
+            Jornada jornada = comParAdiadoConcluido();
+
+            jornada.corrigirMarco(exercicio(jornada, 1).id(), FALHA, as("18:00"), SAO_PAULO);
+
+            assertThat(exercicio(jornada, 1).status()).isEqualTo(FALHA);
+            assertThat(exercicio(jornada, 2).status()).isEqualTo(FALHA);
+        }
+
+        @Test
+        void blocoSemParCorrigeSoEle() {
+            Jornada jornada = comParAdiadoConcluido();
+            jornada.avancar(as("12:00"));
+            jornada.concluirMarco(exercicio(jornada, 3).id(), as("12:05"));
+
+            jornada.corrigirMarco(exercicio(jornada, 3).id(), FALHA, as("18:00"), SAO_PAULO);
+
+            assertThat(exercicio(jornada, 3).status()).isEqualTo(FALHA);
+            assertThat(exercicio(jornada, 2).status()).isEqualTo(CONCLUIDO);
+            assertThat(exercicio(jornada, 2).editadoEm()).isEmpty();
+        }
+
+        @Test
+        void podeCorrigirSoRespostasDoDia() {
+            Jornada jornada = comPrimeiraAgua(FALHA);
+            jornada.avancar(as("10:00"));
+
+            assertThat(jornada.podeCorrigir(agua(jornada, 1), as("12:00"), SAO_PAULO))
+                    .isTrue();
+            assertThat(jornada.podeCorrigir(agua(jornada, 2), as("12:00"), SAO_PAULO))
+                    .isFalse(); // pendente
+            assertThat(jornada.podeCorrigir(agua(jornada, 3), as("12:00"), SAO_PAULO))
+                    .isFalse(); // agendado
+            assertThat(jornada.podeCorrigir(agua(jornada, 1), amanhaAs("08:00"), SAO_PAULO))
+                    .isFalse();
         }
     }
 }

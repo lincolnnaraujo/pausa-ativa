@@ -2,6 +2,7 @@ package br.com.pausaativa.agenda.domain;
 
 import static br.com.pausaativa.agenda.domain.StatusMarco.ADIADO;
 import static br.com.pausaativa.agenda.domain.StatusMarco.AGENDADO;
+import static br.com.pausaativa.agenda.domain.StatusMarco.CONCLUIDO;
 import static br.com.pausaativa.agenda.domain.StatusMarco.FALHA;
 import static br.com.pausaativa.agenda.domain.StatusMarco.NAO_ENTREGUE;
 import static br.com.pausaativa.agenda.domain.StatusMarco.PENDENTE;
@@ -34,6 +35,7 @@ public final class Marco {
     private Instant disparadoEm;
     private Instant recebidoEm;
     private Instant respondidoEm;
+    private Instant editadoEm;
     private BlocoDoMarco bloco;
 
     private Marco(
@@ -71,6 +73,7 @@ public final class Marco {
             Instant disparadoEm,
             Instant recebidoEm,
             Instant respondidoEm,
+            Instant editadoEm,
             BlocoDoMarco bloco) {
         Marco marco = new Marco(id, categoria, sequencia, tempoTrabalhadoPrevisto, tempoTrabalhadoLimite, volumeMl);
         marco.status = status;
@@ -78,6 +81,7 @@ public final class Marco {
         marco.disparadoEm = disparadoEm;
         marco.recebidoEm = recebidoEm;
         marco.respondidoEm = respondidoEm;
+        marco.editadoEm = editadoEm;
         marco.bloco = bloco;
         return marco;
     }
@@ -152,6 +156,17 @@ public final class Marco {
 
     void encerrarSemResposta(StatusMarco motivo) {
         status = motivo;
+    }
+
+    /** Só uma resposta se corrige: concluído ou falha (decisão D4 da spec H4). */
+    boolean corrigivel() {
+        return status == CONCLUIDO || status == FALHA;
+    }
+
+    /** Troca a resposta e guarda o instante da correção. O instante da resposta original fica. */
+    void corrigir(StatusMarco correta, Instant agora) {
+        status = correta;
+        editadoEm = agora;
     }
 
     void prepararBloco(DuracaoDoBloco duracao, boolean compensaAdiamento) {
@@ -248,5 +263,10 @@ public final class Marco {
 
     public Optional<Instant> respondidoEm() {
         return Optional.ofNullable(respondidoEm);
+    }
+
+    /** Vazio até a primeira correção. Fica mesmo se a correção for desfeita. */
+    public Optional<Instant> editadoEm() {
+        return Optional.ofNullable(editadoEm);
     }
 }

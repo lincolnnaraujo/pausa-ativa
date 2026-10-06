@@ -79,6 +79,15 @@ O épico define as regras. Esta seção as torna precisas o bastante para o cód
 
 Mensagens de recusa (409): "Só dá para corrigir os lembretes de hoje." e "Só dá para corrigir um lembrete concluído ou com falha.".
 
+Detalhes decididos na T2:
+
+- **Assinatura.** `Jornada.corrigirMarco(marcoId, correta, agora, fuso)` e `podeCorrigir(marco, agora, fuso)` recebem o fuso, como o `esquecida` da H2: a jornada guarda a data de referência, mas não o fuso. Uma correção para algo além de Concluído ou Falha é erro de programação (`IllegalArgumentException`); a API filtra antes (T3).
+- **Ordem das recusas.** Primeiro o dia, depois a situação, e só então a idempotência: um marco de ontem é sempre recusado, mesmo que a correção não mudasse nada.
+- **Par adiado.** Depois de resolvido, o adiado deixa de estar `ADIADO`; quem diz que houve o par é o `compensaAdiamento` gravado no bloco do seguinte. O par só é corrigido junto se a outra metade também é Concluído ou Falha.
+- **Resposta original.** A correção muda a situação e o `editadoEm`; o `respondidoEm` continua o da resposta original.
+- **Evento e métrica.** A correção registra um `MarcoCorrigido` por marco alterado (dois num par), com a situação anterior e a nova. A métrica `pausaativa.marcos.corrigidos` e o log entraram já na T2, porque o `switch` sobre os eventos é exaustivo; o teste deles fica para a integração da T3.
+- **Persistência.** Até a `V5` (T3), a persistência remonta o marco com `editadoEm` vazio.
+
 ### 3.4 Resumo de fechamento
 
 O resumo do dia, que já mostra a água total e as situações por categoria desde a H3, ganha, para cada categoria, a **taxa** e a linha **"Meta de 80%: atingida ✓"**, "não atingida" ou "sem dados" (Cenário 3). A taxa vem do Histórico (seção 4), a mesma regra das outras visões.
@@ -292,7 +301,7 @@ Branch `feat/h4-historico-e-graficos`. A execução para ao fim de cada etapa, e
 | # | Etapa | Pronto quando | Status |
 |---|---|---|---|
 | T1 | Histórico, domínio: períodos, taxa (truncamento e meta exata), resumo do período, dias na meta, dias sem jornada | Cenários 1, 2 e 6 cobertos em Java puro | ✅ 2026-10-06 (30 testes; domínio do Histórico com 99,2% das linhas e 90,7% dos ramos; 208 no backend). Detalhes na seção 4. |
-| T2 | Agenda, domínio: correção (Concluído ↔ Falha, prazo do dia, par adiado, `editadoEm`, `podeCorrigir`) | Cenários 4 e 5 cobertos em Java puro | Pendente |
+| T2 | Agenda, domínio: correção (Concluído ↔ Falha, prazo do dia, par adiado, `editadoEm`, `podeCorrigir`) | Cenários 4 e 5 cobertos em Java puro | ✅ 2026-10-06 (15 testes novos no `JornadaTest`; 223 no backend; domínio da Agenda com 99,3% das linhas e 97,2% dos ramos). D4 a D6 no domínio; detalhes na seção 3.3. |
 | T3 | Agenda e Histórico: migração `V5`, consulta agregada por dia, `GET /historico`, `GET /jornadas?data=`, `POST /correcao`, métricas | Integração com Postgres; mês com um ano de dados em menos de 500 ms; contrato e tipos TS atualizados | Pendente |
 | T4 | Modo demonstração: dados de exemplo (seção 9) | A demonstração sobe com 45 dias de histórico; o compose de uso diário, sem nenhum | Pendente |
 | T5 | Frontend: abas Hoje e Histórico, filtros, resumo do período, visão do dia com os blocos, estado vazio | Lint, tipos e testes verdes, cobertura ≥ 80% | Pendente |

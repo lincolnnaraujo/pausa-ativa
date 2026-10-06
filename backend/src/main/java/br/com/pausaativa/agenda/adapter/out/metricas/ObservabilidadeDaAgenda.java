@@ -5,6 +5,7 @@ import br.com.pausaativa.agenda.application.port.in.SituacaoDoMarco;
 import br.com.pausaativa.agenda.application.port.out.JornadaAlterada;
 import br.com.pausaativa.agenda.domain.EventoDaJornada;
 import br.com.pausaativa.agenda.domain.MarcoAdiado;
+import br.com.pausaativa.agenda.domain.MarcoCorrigido;
 import br.com.pausaativa.agenda.domain.MarcoDisparado;
 import br.com.pausaativa.agenda.domain.MarcoEncerrado;
 import io.micrometer.core.instrument.DistributionSummary;
@@ -19,8 +20,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
- * Métricas e logs dos marcos (spec H2, seção 10) e dos blocos de exercício (spec H3, seção 10). Os logs
- * saem em JSON com {@code jornadaId} e {@code marcoId} como campos; os painéis ficam para a H5.
+ * Métricas e logs dos marcos (spec H2, seção 10), dos blocos de exercício (spec H3, seção 10) e das
+ * correções (spec H4, seção 10). Os logs saem em JSON com {@code jornadaId} e {@code marcoId} como campos;
+ * os painéis ficam para a H5.
  */
 @Component
 class ObservabilidadeDaAgenda {
@@ -44,6 +46,7 @@ class ObservabilidadeDaAgenda {
                 }
                 case MarcoEncerrado encerrado -> registrarEncerramento(jornadaId, encerrado);
                 case MarcoAdiado adiado -> registrarAdiamento(jornadaId, adiado);
+                case MarcoCorrigido corrigido -> registrarCorrecao(jornadaId, corrigido);
             }
         }
     }
@@ -121,5 +124,24 @@ class ObservabilidadeDaAgenda {
                 .addKeyValue("sequencia", encerrado.sequencia())
                 .addKeyValue("status", status)
                 .log("Marco encerrado");
+    }
+
+    private void registrarCorrecao(UUID jornadaId, MarcoCorrigido corrigido) {
+        String categoria = corrigido.categoria().name();
+        metricas.counter(
+                        "pausaativa.marcos.corrigidos",
+                        "categoria",
+                        categoria,
+                        "para",
+                        corrigido.para().name())
+                .increment();
+        log.atInfo()
+                .addKeyValue("jornadaId", jornadaId)
+                .addKeyValue("marcoId", corrigido.marcoId())
+                .addKeyValue("categoria", categoria)
+                .addKeyValue("sequencia", corrigido.sequencia())
+                .addKeyValue("de", corrigido.de().name())
+                .addKeyValue("para", corrigido.para().name())
+                .log("Marco corrigido");
     }
 }

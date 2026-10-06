@@ -127,6 +127,7 @@ class MarcoEntity {
                 disparadoEm,
                 recebidoEm,
                 respondidoEm,
+                null, // editadoEm: a coluna chega com a V5 (T3 da spec H4)
                 bloco());
     }
 
