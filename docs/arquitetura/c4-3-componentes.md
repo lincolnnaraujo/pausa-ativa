@@ -15,24 +15,24 @@ flowchart LR
         SH["<b>shared</b><br/><i>Clock, configuração<br/>do OpenAPI</i>"]
     end
 
-    AG -.->|"monta o bloco de exercício (H3)"| TR
+    AG -->|"monta o bloco de exercício<br/>(MontarBloco, ConsultarPerfil)"| TR
     HI -.->|"consulta jornadas e marcos (H4)"| AG
     SI -->|"recebe o Clock<br/>(injeção, sem import)"| SH
     AG -->|"recebe o Clock<br/>(injeção, sem import)"| SH
 
     classDef vazio stroke-dasharray: 5 5
-    class TR,HI vazio
+    class HI vazio
 ```
 
-| Módulo | Tipo | Conteúdo na v0.2.0 | Recebe código em |
+| Módulo | Tipo | Conteúdo na v0.3.0 | Recebe código em |
 |---|---|---|---|
-| `agenda` | Bounded context | Jornada e marcos de hidratação, agendador, reconciliação, API REST, SSE e métricas ([abaixo](#agenda-por-dentro)) | H2; marcos de exercício na H3 |
-| `treino` | Bounded context | Só a estrutura de pacotes | H3 |
+| `agenda` | Bounded context | Jornada com marcos de hidratação e de exercício, adiamento, agendador, reconciliação, API REST, SSE e métricas ([abaixo](#agenda-por-dentro)) | H2 e H3 |
+| `treino` | Bounded context | Perfil físico, catálogo de 22 exercícios e seleção do bloco, com a API do perfil ([abaixo](#treino-por-dentro)) | H3 |
 | `historico` | Bounded context | Só a estrutura de pacotes | H4 |
 | `sistema` | Técnico | `StatusController` (`GET /api/v1/sistema/status`) | — |
 | `shared` | Transversal | `RelogioConfig` (o `Clock` único), `OpenApiConfig` | — |
 
-Um módulo só fala com outro pela **porta de entrada** dele (`application.port.in`). As setas tracejadas mostram as dependências planejadas.
+Um módulo só fala com outro pela **porta de entrada** dele (`application.port.in`). A Agenda depende do Treino, e o Treino não conhece a Agenda: sem ciclos. As setas tracejadas mostram as dependências planejadas.
 
 ## Estrutura hexagonal de cada módulo
 
@@ -76,9 +76,10 @@ flowchart LR
         direction LR
         WEB["<b>adapter.in.web</b><br/>JornadaController<br/>MarcoController<br/>EventosController"]
         AGD["<b>adapter.in.agendador</b><br/>AgendadorDaAgenda<br/><i>reconcilia na subida,<br/>depois tick de 1 s</i>"]
-        APP["<b>application</b><br/>JornadaService · MarcoService<br/>AgendadorService · ReconciliacaoService"]
-        DOM["<b>domain</b><br/>Jornada (raiz) · Marco · Pausa<br/>MetaDeAgua · PlanoDeMarcos"]
+        APP["<b>application</b><br/>JornadaService · MarcoService<br/>AgendadorService · ReconciliacaoService<br/>AvancoDaJornada"]
+        DOM["<b>domain</b><br/>Jornada (raiz) · Marco · Pausa<br/>MetaDeAgua · PlanoDeMarcos<br/>DuracaoDoBloco · BlocoDoMarco"]
         PER["<b>adapter.out.persistence</b><br/>JornadaRepositoryJpa<br/><i>lock pessimista</i>"]
+        TRE["<b>adapter.out.treino</b><br/>MontadorDeBlocosDoTreino"]
         SSE["<b>CanalDeEventos</b><br/><i>conexões SSE</i>"]
         MET["<b>adapter.out.metricas</b><br/>ObservabilidadeDaAgenda"]
     end
@@ -87,6 +88,8 @@ flowchart LR
     AGD -->|"AvancarAgenda<br/>ReconciliarJornadas"| APP
     APP --> DOM
     APP -->|"JornadaRepository"| PER
+    APP -->|"MontadorDeBlocos"| TRE
+    TRE -->|"MontarBloco<br/>ConsultarPerfil"| TREINO(["módulo treino"])
     PER --> DB[("PostgreSQL")]
     APP -.->|"JornadaAlterada,<br/>depois do commit"| SSE
     APP -.->|"JornadaAlterada,<br/>depois do commit"| MET
@@ -95,18 +98,55 @@ flowchart LR
 
 | Componente | Papel |
 |---|---|
-| `Jornada` | Raiz do agregado: dona das pausas e dos 16 marcos. Calcula o tempo trabalhado, dispara marcos, vence prazos, finaliza e reconcilia. Recebe o instante atual como parâmetro e registra `MarcoDisparado` e `MarcoEncerrado`. |
-| `JornadaService`, `MarcoService` | Comandos da tela. Antes de agir, põem a jornada em dia (`avancar`), como o próximo tick faria. |
+| `Jornada` | Raiz do agregado: dona das pausas, dos 16 marcos de água e dos 8 de exercício. Calcula o tempo trabalhado, dispara marcos, vence prazos, adia e resolve o adiado, finaliza e reconcilia. Recebe o instante atual como parâmetro e registra `MarcoDisparado`, `MarcoEncerrado` e `MarcoAdiado`. |
+| `BlocoDoMarco` | Bloco de um marco de exercício: duração (5 ou 10 min), se compensa um adiado e a cópia dos exercícios propostos. Nasce no disparo, sem exercícios, e recebe a lista uma vez só. |
+| `AvancoDaJornada` | Avança a jornada e, para cada exercício disparado, pede o bloco ao `MontadorDeBlocos` e o entrega à jornada, na mesma transação e antes de gravar. O tick, os comandos da jornada e as respostas aos marcos passam por ele, então nenhum exercício pendente fica sem bloco. |
+| `MontadorDeBlocosDoTreino` | Implementa a porta `MontadorDeBlocos` chamando o `MontarBloco` e o `ConsultarPerfil` do Treino. É a única peça da Agenda que conhece o Treino. |
+| `JornadaService`, `MarcoService` | Comandos da tela. Antes de agir, põem a jornada em dia, como o próximo tick faria. Sem perfil físico, iniciar o dia é recusado (409). |
 | `AgendadorService` | O tick: avança a jornada aberta e encerra a esquecida (spec H2, seção 3.5). |
 | `ReconciliacaoService` | Na subida: marcos que passaram com o backend fora viram `NAO_ENTREGUE`, sem disparo atrasado. |
 | `AgendadorDaAgenda` | Chama a reconciliação e **só depois** liga o tick de 1 s. Um `@Scheduled` comum poderia rodar antes. |
 | `PublicadorDeAlteracoes` | Depois de gravar, publica `JornadaAlterada` (situação + eventos). Comandos sem mudança não publicam. |
 | `CanalDeEventos` | Conexões SSE das abas. Recebe `JornadaAlterada` depois do commit e envia `marco-disparado` e `jornada-atualizada`; ping a cada 20 s. |
-| `ObservabilidadeDaAgenda` | Métricas `pausaativa.marcos.*` e logs JSON com `jornadaId` e `marcoId`. |
-| `JornadaRepositoryJpa` | Carrega a jornada com lock pessimista (`SELECT … FOR NO KEY UPDATE`): o tick e os cliques nunca alteram a mesma jornada ao mesmo tempo. |
+| `ObservabilidadeDaAgenda` | Métricas `pausaativa.marcos.*` (com a tag `categoria`), `pausaativa.marcos.adiados`, `pausaativa.blocos.montados` e `pausaativa.blocos.itens`; logs JSON com `jornadaId`, `marcoId` e os códigos dos exercícios do bloco. |
+| `JornadaRepositoryJpa` | Carrega a jornada com lock pessimista (`SELECT … FOR NO KEY UPDATE`): o tick e os cliques nunca alteram a mesma jornada ao mesmo tempo. Os itens dos blocos vêm numa consulta só (`@BatchSize`), porque o tick lê a jornada a cada segundo. |
 | `TratamentoDeErrosDaAgenda` | Regras recusadas viram Problem Details: 400, 404 ou 409, com a mensagem do domínio. |
 
-**Tabelas** (migração `V2`): `jornada`, `pausa` e `marco`. Uma restrição única por dia e um índice parcial barram a segunda jornada aberta, mesmo com dois "Iniciar dia" simultâneos; `unique (jornada_id, categoria, sequencia)` barra marco duplicado.
+**Tabelas** (migrações `V2` e `V4`): `jornada`, `pausa`, `marco` e `item_do_bloco`. Uma restrição única por dia e um índice parcial barram a segunda jornada aberta, mesmo com dois "Iniciar dia" simultâneos; `unique (jornada_id, categoria, sequencia)` barra marco duplicado. A `V4` acrescenta a duração do bloco na jornada e no marco, o status `ADIADO` (só no exercício) e a tabela `item_do_bloco`, cópia do catálogo no instante do disparo, sem chave estrangeira para o catálogo.
+
+## Treino por dentro
+
+```mermaid
+flowchart LR
+    TELA(["Chrome"])
+    AGENDA(["módulo agenda"])
+    subgraph treino["treino"]
+        direction LR
+        WEB["<b>adapter.in.web</b><br/>PerfilController"]
+        IN["<b>application.port.in</b><br/>ConsultarPerfil · SalvarPerfil<br/>MontarBloco"]
+        APP["<b>application</b><br/>PerfilService<br/>MontagemDeBlocoService"]
+        DOM["<b>domain</b><br/>PerfilFisico · Exercicio · Quantidade<br/>SelecaoDeBloco · BlocoDeExercicio"]
+        PER["<b>adapter.out.persistence</b><br/>PerfilRepositoryJpa<br/>CatalogoRepositoryJpa"]
+    end
+    TELA -->|"GET / PUT /api/v1/perfil"| WEB
+    WEB --> IN
+    AGENDA -->|"monta o bloco"| IN
+    APP -.->|implementa| IN
+    APP --> DOM
+    APP -->|"PerfilRepository<br/>CatalogoRepository"| PER
+    PER --> DB[("PostgreSQL")]
+```
+
+| Componente | Papel |
+|---|---|
+| `SelecaoDeBloco` | A regra da seleção, em Java puro: filtra os exercícios elegíveis pelo perfil, percorre os grupos musculares em rodízio a partir do grupo do marco, prefere os exercícios usados há mais tempo no dia e preenche a duração pela estimativa (3 s por repetição, 15 s por troca). Sobrando tempo, repete os exercícios de reserva. É determinística: a mesma entrada dá sempre o mesmo bloco. |
+| `PerfilFisico`, `Exercicio`, `Quantidade` | O perfil (articulações a poupar, nível, equipamentos, chão), o exercício do catálogo e a quantidade por nível (repetições, por lado ou segundos). |
+| `MontagemDeBlocoService` | Implementa `MontarBloco`: carrega o perfil e o catálogo e aplica a `SelecaoDeBloco`. O pedido traz a duração, o número do marco e os exercícios já propostos no dia, que a Agenda conhece. Assim, o Treino não consulta a Agenda. |
+| `PerfilService` | Implementa `ConsultarPerfil` e `SalvarPerfil`. Existe um perfil só, porque o usuário é único. |
+| `PerfilController` | `GET /api/v1/perfil` (204 enquanto não preenchido) e `PUT /api/v1/perfil`, que substitui o perfil inteiro. |
+| `TratamentoDeErrosDoTreino` | Perfil inválido vira Problem Details 400, com a mensagem em português. |
+
+**Tabelas** (migração `V3`): `exercicio` e `exercicio_restricao`, com os 22 exercícios do catálogo inseridos pela própria migração (o catálogo não muda pela tela); `perfil_fisico`, com `check (id = 1)`, e as filhas `perfil_articulacao` e `perfil_equipamento`. Restrições e equipamentos ficam em tabelas filhas, e não em arrays do Postgres, para o Hibernate validar o esquema e o banco conferir os valores com `check`.
 
 ## Regras de arquitetura
 
@@ -128,9 +168,9 @@ Cada regra tem uma classe de exemplo que a viola de propósito (`backend/src/tes
 | Componente | Papel |
 |---|---|
 | `RelogioConfig` | Único `Clock` da aplicação, em `America/Sao_Paulo`, com precisão de milissegundos. A JVM e o banco trabalham em UTC. Os testes trocam o `Clock` por um controlável, que avança sem `sleep`. |
-| `OpenApiConfig` | Metadados do contrato OpenAPI (springdoc). O `ContratoOpenApiTest` compara o gerado com `docs/api/openapi.json`. |
+| `OpenApiConfig` | Metadados do contrato OpenAPI (springdoc). Reescreve as referências anuláveis (como o `bloco` do marco) em `oneOf: [$ref, null]`, para o tipo TypeScript gerado aceitar `null`. O `ContratoOpenApiTest` compara o gerado com `docs/api/openapi.json`. |
 | Spring Boot Actuator | Health (com liveness e readiness), info e métricas Prometheus |
-| Flyway | Migrações em `src/main/resources/db/migration`. A `V1` é só o baseline; a `V2` cria as tabelas da Agenda. |
+| Flyway | Migrações em `src/main/resources/db/migration`. A `V1` é só o baseline; a `V2` e a `V4` são da Agenda, e a `V3`, do Treino. |
 | HikariCP | Pool de conexões com timeouts curtos e `socketTimeout` de 10 s, para nenhuma thread travar com o banco sem resposta |
 | Threads virtuais | `spring.threads.virtual.enabled`: as conexões SSE ficam abertas o dia todo sem prender threads de plataforma |
 
@@ -140,10 +180,12 @@ Uma tela só, sem router nem Pinia. O estado fica em composables do Vue.
 
 | Peça | Papel |
 |---|---|
-| `JornadaView` | A página. Liga os composables: confirma o recebimento dos lembretes pendentes que aparecem e anuncia os novos com notificação e som. |
-| `useJornada` | Situação da jornada e comandos. Mantém o cronômetro com `performance.now()` e descarta respostas mais velhas que a da tela. Em 404 ou 409, busca a situação real. |
+| `JornadaView` | A página. Liga os composables: confirma o recebimento dos lembretes pendentes que aparecem e anuncia os novos. Os `marco-disparado` entram num lote, fechado pelo `jornada-atualizada` seguinte (ou depois de 1 s), e o lote vira uma notificação e um som: na hora cheia, água e exercício juntos. Sem perfil, mostra o formulário antes do Iniciar dia. |
+| `useJornada` | Situação da jornada e comandos, incluindo o Adiar. Mantém o cronômetro com `performance.now()` e descarta respostas mais velhas que a da tela. Em 404 ou 409, busca a situação real. |
+| `usePerfil` | Busca e salva o perfil físico. |
 | `useEventos` | `EventSource` em `/api/v1/eventos`. Quando o navegador desiste (502 do nginx), abre outra conexão com espera de 2 s, dobrando até 30 s. Cada abertura busca a jornada atual. |
-| `useNotificacoes` | Permissão e notificação do Chrome, com a `tag` igual ao id do marco. |
+| `useNotificacoes` | Permissão e notificação do Chrome. A `tag` junta os ids dos marcos do lote com "+": com várias abas abertas, o Chrome mostra uma notificação só. |
 | `useSom` | Tom de 880 Hz por Web Audio; sabe quando o Chrome ainda bloqueia o som. |
 | `api/` | Cliente HTTP com timeout de 5 s e Problem Details; tipos gerados do contrato (`contrato.ts`). |
-| Componentes | `IniciarDia`, `PainelDaJornada`, `CartaoDoMarco`, `ListaDeMarcos`, `ResumoDoDia`, `AvisosDoNavegador`, `RodapeDeConexao` |
+| `assets/main.css` | Tokens da identidade visual Sereno & Balanceado, só tema escuro. Os componentes usam as cores só por eles; o `identidadeVisual.spec.ts` confere a paleta, o contraste mínimo de 4,5:1 e que nenhum componente tenha cor fixa. |
+| Componentes | `FormularioDoPerfil`, `IniciarDia`, `PainelDaJornada`, `CartaoDoMarco` (água ou exercício, com o bloco), `ListaDeMarcos`, `ResumoDoDia` (por categoria), `AvisosDoNavegador`, `RodapeDeConexao` |

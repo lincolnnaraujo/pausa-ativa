@@ -1,6 +1,6 @@
 # Spec H3: Montar e executar blocos de exercício (release v0.3.0)
 
-> **Status:** aprovada pelo usuário em 2026-10-02, com as recomendações D1 a D9 da seção 13 e as instruções do apêndice A. Em implementação; progresso na seção 12.
+> **Status:** aprovada pelo usuário em 2026-10-02, com as recomendações D1 a D9 da seção 13 e as instruções do apêndice A. Implementada e em aceite; progresso na seção 12.
 > **Ampliação de 2026-10-05:** a pedido do usuário, a release passa a aplicar a identidade visual Sereno & Balanceado (seção 8.1, etapa T5, Cenário 8). A decisão D10 (só tema escuro) foi confirmada no mesmo dia.
 > **Origem:** História 3 de [`docs/epico-pausa-ativa.md`](../epico-pausa-ativa.md). O catálogo foi revisado com o usuário em 2026-10-02.
 > **Depende de:** H2 (v0.2.0), entregue em 2026-10-02.
@@ -433,7 +433,7 @@ Branch `feat/h3-blocos-de-exercicio`. A execução para ao fim de cada etapa, e 
 | T6 | Frontend: perfil (formulário, edição, obrigatório) e duração do bloco ao iniciar | Lint, tipos e testes verdes, cobertura ≥ 80% | ✅ 2026-10-05 (17 testes novos; 164 no frontend, 99% das linhas). Cenário 6 no frontend; detalhes na seção 8. |
 | T7 | Frontend: cartão do exercício, Adiar, notificação combinada, lista e resumo por categoria | Idem | ✅ 2026-10-05 (11 testes novos; 175 no frontend, 99,1% das linhas). Cenários 2 a 5 no frontend; detalhes na seção 8. |
 | T8 | Verificação ponta a ponta no Chrome, em modo demonstração | Cenários 1 a 8 conferidos | ✅ 2026-10-06 (Chrome headless, 47 de 48 verificações; a outra era do roteiro; seção 11.1). Dois ajustes de layout em 400 px, conferidos de novo no Chrome (6 de 6); 175 testes no frontend. |
-| T9 | README, C4 (incluindo o nginx 1.31 que entrou depois da v0.2.0), release notes, PR e CI | Aceite do usuário; merge e tag `v0.3.0` | Pendente |
+| T9 | README, C4 (incluindo o nginx 1.31 que entrou depois da v0.2.0), release notes, PR e CI | Aceite do usuário; merge e tag `v0.3.0` | Em aceite (2026-10-06): documentação, versão 0.3.0 e PR prontos; faltam o aceite, o merge e a tag |
 
 A T5 vem antes das telas novas para que o perfil e o cartão do exercício já nasçam com os tokens da identidade, sem retrabalho.
 
