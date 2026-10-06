@@ -1,11 +1,13 @@
 package br.com.pausaativa.agenda.adapter.out.persistence;
 
+import br.com.pausaativa.agenda.application.port.out.ContagemDoDia;
 import br.com.pausaativa.agenda.application.port.out.JornadaRepository;
 import br.com.pausaativa.agenda.domain.Jornada;
 import br.com.pausaativa.agenda.domain.JornadaJaIniciadaException;
 import br.com.pausaativa.agenda.domain.StatusJornada;
 import java.time.LocalDate;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -51,6 +53,11 @@ class JornadaRepositoryJpa implements JornadaRepository {
     @Override
     public boolean existeNoDia(LocalDate dia) {
         return jpa.existsByDataReferencia(dia);
+    }
+
+    @Override
+    public List<ContagemDoDia> contarPorDia(LocalDate de, LocalDate ate) {
+        return jpa.contarPorDia(de, ate);
     }
 
     /**

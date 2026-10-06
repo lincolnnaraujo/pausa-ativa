@@ -24,6 +24,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/historico": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resumo do dia, da semana (segunda a domingo) ou do mês que contém a data
+         * @description Taxa = concluídos ÷ (concluídos + falhas), por categoria. A data não pode ser futura.
+         */
+        get: operations["consultar_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jornadas": {
         parameters: {
             query?: never;
@@ -31,7 +51,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Jornada de um dia, com os blocos propostos
+         * @description No mesmo formato de /jornadas/atual. Usada pelo histórico para rever um dia passado.
+         */
+        get: operations["doDia"];
         put?: never;
         /**
          * Inicia o dia. Encerra antes a jornada esquecida de um dia anterior, se houver.
@@ -149,6 +173,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/marcos/{id}/correcao": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Corrige a resposta de um lembrete de hoje. Corrigir para a situação atual devolve a mesma.
+         * @description Concluído vira falha, ou o contrário, até o fim do dia em que a jornada começou. Num par adiado, corrige os dois. O lembrete fica marcado como editado.
+         */
+        post: operations["corrigir"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/marcos/{id}/falha": {
         parameters: {
             query?: never;
@@ -244,6 +288,68 @@ export interface components {
              */
             segundosEstimados: number;
         };
+        /** @description Uma categoria num dia: situações, taxa e meta. */
+        ContagemDoDia: {
+            /** @enum {string} */
+            categoria: "HIDRATACAO" | "EXERCICIO";
+            /** Format: int32 */
+            concluidos: number;
+            /** Format: int32 */
+            emAberto: number;
+            /** Format: int32 */
+            falhas: number;
+            /** @description Se o dia chegou a 80%. Nula sem dados. */
+            metaAtingida: boolean | null;
+            /** Format: int32 */
+            naoConcluidos: number;
+            /** Format: int32 */
+            naoEntregues: number;
+            /**
+             * @description Taxa do dia, em %, truncada em uma casa. Nula sem dados.
+             * @example 85.7
+             */
+            taxa: number | null;
+        };
+        Correcao: {
+            /**
+             * @description A situação correta do lembrete: concluído ou falha
+             * @enum {string}
+             */
+            status: "CONCLUIDO" | "FALHA";
+        };
+        /** @description Um dia do período. Sem jornada, não tem categorias e não conta como falha. */
+        DiaDoHistorico: {
+            /** @description Água e exercício, nessa ordem; vazia sem jornada */
+            categorias: components["schemas"]["ContagemDoDia"][];
+            /** Format: date */
+            data: string;
+            /** @description Dia depois de hoje, dentro da semana ou do mês corrente */
+            futuro: boolean;
+            /**
+             * @description Estado da jornada do dia. Nulo sem jornada.
+             * @enum {string|null}
+             */
+            jornada: "EM_ANDAMENTO" | "PAUSADA" | "FINALIZADA" | "ENCERRADA_AUTOMATICAMENTE" | null;
+        };
+        /** @description Uma visão do histórico: o resumo de cada categoria e todos os dias do período. */
+        Historico: {
+            /** @description Água e exercício, nessa ordem */
+            categorias: components["schemas"]["ResumoDaCategoria"][];
+            /** @description Todos os dias do período, em ordem, com ou sem jornada */
+            dias: components["schemas"]["DiaDoHistorico"][];
+            /**
+             * Format: date
+             * @description Último dia do período, inclusive
+             */
+            fim: string;
+            /**
+             * Format: date
+             * @description Primeiro dia do período
+             */
+            inicio: string;
+            /** @enum {string} */
+            periodo: "DIA" | "SEMANA" | "MES";
+        };
         IniciarJornada: {
             /**
              * Format: int32
@@ -328,12 +434,19 @@ export interface components {
             categoria: "HIDRATACAO" | "EXERCICIO";
             /** Format: date-time */
             disparadoEm: string | null;
+            /**
+             * Format: date-time
+             * @description Instante da última correção. Nulo se o lembrete nunca foi corrigido.
+             */
+            editadoEm: string | null;
             /** Format: uuid */
             id: string;
             /** @example Beba ~190 ml. Levante-se para buscar a água. */
             mensagem: string;
             /** @description Se o botão Adiar vale agora: só no exercício pendente que não compensa um adiamento e não é o último do dia */
             podeAdiar: boolean;
+            /** @description Se o botão Corrigir vale agora: só no lembrete concluído ou com falha, até o fim do dia em que a jornada começou */
+            podeCorrigir: boolean;
             /** Format: date-time */
             recebidoEm: string | null;
             /** Format: date-time */
@@ -385,6 +498,43 @@ export interface components {
             /** Format: uri */
             type?: string;
         };
+        /** @description Uma categoria no período: situações somadas, taxa do período e dias na meta. */
+        ResumoDaCategoria: {
+            /** @enum {string} */
+            categoria: "HIDRATACAO" | "EXERCICIO";
+            /** Format: int32 */
+            concluidos: number;
+            /**
+             * Format: int32
+             * @description Dias com pelo menos um concluído ou uma falha na categoria
+             * @example 4
+             */
+            diasComDados: number;
+            /**
+             * Format: int32
+             * @description Desses dias, os que tiveram taxa de pelo menos 80%
+             * @example 3
+             */
+            diasNaMeta: number;
+            /**
+             * Format: int32
+             * @description Agendados, pendentes e adiados sem destino, só na jornada em andamento
+             */
+            emAberto: number;
+            /** Format: int32 */
+            falhas: number;
+            /** @description Se a taxa chegou a 80%, pela fração exata. Nula sem dados. */
+            metaAtingida: boolean | null;
+            /** Format: int32 */
+            naoConcluidos: number;
+            /** Format: int32 */
+            naoEntregues: number;
+            /**
+             * @description Concluídos ÷ (concluídos + falhas) do período, em %, com uma casa, truncado. Nula sem nenhum concluído nem falha.
+             * @example 85.7
+             */
+            taxa: number | null;
+        };
         SalvarPerfil: {
             /** @description Se exercícios deitado ou de quatro podem entrar no bloco */
             aceitaChao: boolean;
@@ -435,6 +585,94 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": string;
+                };
+            };
+        };
+    };
+    consultar_1: {
+        parameters: {
+            query: {
+                periodo: "DIA" | "SEMANA" | "MES";
+                data: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Historico"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    doDia: {
+        parameters: {
+            query: {
+                data: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Houve jornada no dia */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Jornada"];
+                };
+            };
+            /** @description Nenhuma jornada no dia */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -750,6 +988,59 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Jornada"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    corrigir: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Correcao"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {

@@ -1,6 +1,7 @@
 package br.com.pausaativa.agenda.adapter.in.web;
 
 import br.com.pausaativa.agenda.application.port.in.ConsultarJornadaAtual;
+import br.com.pausaativa.agenda.application.port.in.ConsultarJornadaDoDia;
 import br.com.pausaativa.agenda.application.port.in.FinalizarJornada;
 import br.com.pausaativa.agenda.application.port.in.IniciarJornada;
 import br.com.pausaativa.agenda.application.port.in.PausarJornada;
@@ -11,8 +12,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.time.LocalDate;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -35,18 +39,35 @@ class JornadaController {
     private final PausarJornada pausarJornada;
     private final RetomarJornada retomarJornada;
     private final FinalizarJornada finalizarJornada;
+    private final ConsultarJornadaDoDia consultarJornadaDoDia;
 
     JornadaController(
             ConsultarJornadaAtual consultarJornadaAtual,
             IniciarJornada iniciarJornada,
             PausarJornada pausarJornada,
             RetomarJornada retomarJornada,
-            FinalizarJornada finalizarJornada) {
+            FinalizarJornada finalizarJornada,
+            ConsultarJornadaDoDia consultarJornadaDoDia) {
         this.consultarJornadaAtual = consultarJornadaAtual;
         this.iniciarJornada = iniciarJornada;
         this.pausarJornada = pausarJornada;
         this.retomarJornada = retomarJornada;
         this.finalizarJornada = finalizarJornada;
+        this.consultarJornadaDoDia = consultarJornadaDoDia;
+    }
+
+    @GetMapping
+    @Operation(
+            summary = "Jornada de um dia, com os blocos propostos",
+            description = "No mesmo formato de /jornadas/atual. Usada pelo histórico para rever um dia passado.")
+    @ApiResponse(responseCode = "200", description = "Houve jornada no dia")
+    @ApiResponse(responseCode = "204", description = "Nenhuma jornada no dia", content = @Content)
+    ResponseEntity<JornadaResposta> doDia(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate data) {
+        return consultarJornadaDoDia
+                .doDia(data)
+                .map(JornadaResposta::de)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @GetMapping("/atual")

@@ -13,6 +13,9 @@
     "description" : "Informações sobre a própria aplicação",
     "name" : "Sistema"
   }, {
+    "description" : "Situações e taxa de sucesso por dia, semana e mês",
+    "name" : "Histórico"
+  }, {
     "description" : "Perfil físico usado para montar os blocos de exercício",
     "name" : "Perfil"
   }, {
@@ -46,7 +49,114 @@
         "tags" : [ "Eventos" ]
       }
     },
+    "/api/v1/historico" : {
+      "get" : {
+        "description" : "Taxa = concluídos ÷ (concluídos + falhas), por categoria. A data não pode ser futura.",
+        "operationId" : "consultar_1",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "periodo",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "DIA", "SEMANA", "MES" ]
+          }
+        }, {
+          "in" : "query",
+          "name" : "data",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Historico"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bad Request"
+          }
+        },
+        "summary" : "Resumo do dia, da semana (segunda a domingo) ou do mês que contém a data",
+        "tags" : [ "Histórico" ]
+      }
+    },
     "/api/v1/jornadas" : {
+      "get" : {
+        "description" : "No mesmo formato de /jornadas/atual. Usada pelo histórico para rever um dia passado.",
+        "operationId" : "doDia",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "data",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "date"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Jornada"
+                }
+              }
+            },
+            "description" : "Houve jornada no dia"
+          },
+          "204" : {
+            "description" : "Nenhuma jornada no dia"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bad Request"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Not Found"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Conflict"
+          }
+        },
+        "summary" : "Jornada de um dia, com os blocos propostos",
+        "tags" : [ "Jornada" ]
+      },
       "post" : {
         "description" : "Exige o perfil físico preenchido: sem ele, responde 409.",
         "operationId" : "iniciar",
@@ -448,6 +558,75 @@
         "tags" : [ "Marco" ]
       }
     },
+    "/api/v1/marcos/{id}/correcao" : {
+      "post" : {
+        "description" : "Concluído vira falha, ou o contrário, até o fim do dia em que a jornada começou. Num par adiado, corrige os dois. O lembrete fica marcado como editado.",
+        "operationId" : "corrigir",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Correcao"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Jornada"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bad Request"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Not Found"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Conflict"
+          }
+        },
+        "summary" : "Corrige a resposta de um lembrete de hoje. Corrigir para a situação atual devolve a mesma.",
+        "tags" : [ "Marco" ]
+      }
+    },
     "/api/v1/marcos/{id}/falha" : {
       "post" : {
         "operationId" : "falhar",
@@ -679,6 +858,119 @@
         },
         "required" : [ "compensaAdiamento", "duracaoMin", "itens", "segundosEstimados" ]
       },
+      "ContagemDoDia" : {
+        "type" : "object",
+        "description" : "Uma categoria num dia: situações, taxa e meta.",
+        "properties" : {
+          "categoria" : {
+            "type" : "string",
+            "enum" : [ "HIDRATACAO", "EXERCICIO" ]
+          },
+          "concluidos" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "emAberto" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "falhas" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "metaAtingida" : {
+            "type" : [ "boolean", "null" ],
+            "description" : "Se o dia chegou a 80%. Nula sem dados."
+          },
+          "naoConcluidos" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "naoEntregues" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "taxa" : {
+            "type" : [ "number", "null" ],
+            "description" : "Taxa do dia, em %, truncada em uma casa. Nula sem dados.",
+            "example" : 85.7
+          }
+        },
+        "required" : [ "categoria", "concluidos", "emAberto", "falhas", "metaAtingida", "naoConcluidos", "naoEntregues", "taxa" ]
+      },
+      "Correcao" : {
+        "type" : "object",
+        "properties" : {
+          "status" : {
+            "type" : "string",
+            "description" : "A situação correta do lembrete: concluído ou falha",
+            "enum" : [ "CONCLUIDO", "FALHA" ]
+          }
+        },
+        "required" : [ "status" ]
+      },
+      "DiaDoHistorico" : {
+        "type" : "object",
+        "description" : "Um dia do período. Sem jornada, não tem categorias e não conta como falha.",
+        "properties" : {
+          "categorias" : {
+            "type" : "array",
+            "description" : "Água e exercício, nessa ordem; vazia sem jornada",
+            "items" : {
+              "$ref" : "#/components/schemas/ContagemDoDia"
+            }
+          },
+          "data" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "futuro" : {
+            "type" : "boolean",
+            "description" : "Dia depois de hoje, dentro da semana ou do mês corrente"
+          },
+          "jornada" : {
+            "type" : [ "string", "null" ],
+            "description" : "Estado da jornada do dia. Nulo sem jornada.",
+            "enum" : [ "EM_ANDAMENTO", "PAUSADA", "FINALIZADA", "ENCERRADA_AUTOMATICAMENTE" ]
+          }
+        },
+        "required" : [ "categorias", "data", "futuro", "jornada" ]
+      },
+      "Historico" : {
+        "type" : "object",
+        "description" : "Uma visão do histórico: o resumo de cada categoria e todos os dias do período.",
+        "properties" : {
+          "categorias" : {
+            "type" : "array",
+            "description" : "Água e exercício, nessa ordem",
+            "items" : {
+              "$ref" : "#/components/schemas/ResumoDaCategoria"
+            }
+          },
+          "dias" : {
+            "type" : "array",
+            "description" : "Todos os dias do período, em ordem, com ou sem jornada",
+            "items" : {
+              "$ref" : "#/components/schemas/DiaDoHistorico"
+            }
+          },
+          "fim" : {
+            "type" : "string",
+            "format" : "date",
+            "description" : "Último dia do período, inclusive"
+          },
+          "inicio" : {
+            "type" : "string",
+            "format" : "date",
+            "description" : "Primeiro dia do período"
+          },
+          "periodo" : {
+            "type" : "string",
+            "enum" : [ "DIA", "SEMANA", "MES" ]
+          }
+        },
+        "required" : [ "categorias", "dias", "fim", "inicio", "periodo" ]
+      },
       "IniciarJornada" : {
         "type" : "object",
         "properties" : {
@@ -809,6 +1101,11 @@
             "type" : [ "string", "null" ],
             "format" : "date-time"
           },
+          "editadoEm" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time",
+            "description" : "Instante da última correção. Nulo se o lembrete nunca foi corrigido."
+          },
           "id" : {
             "type" : "string",
             "format" : "uuid"
@@ -820,6 +1117,10 @@
           "podeAdiar" : {
             "type" : "boolean",
             "description" : "Se o botão Adiar vale agora: só no exercício pendente que não compensa um adiamento e não é o último do dia"
+          },
+          "podeCorrigir" : {
+            "type" : "boolean",
+            "description" : "Se o botão Corrigir vale agora: só no lembrete concluído ou com falha, até o fim do dia em que a jornada começou"
           },
           "recebidoEm" : {
             "type" : [ "string", "null" ],
@@ -857,7 +1158,7 @@
             "example" : 187.5
           }
         },
-        "required" : [ "bloco", "categoria", "disparadoEm", "id", "mensagem", "podeAdiar", "recebidoEm", "respondidoEm", "segundosTrabalhadosPrevistos", "sequencia", "status", "volumeAproximadoMl", "volumeMl" ]
+        "required" : [ "bloco", "categoria", "disparadoEm", "editadoEm", "id", "mensagem", "podeAdiar", "podeCorrigir", "recebidoEm", "respondidoEm", "segundosTrabalhadosPrevistos", "sequencia", "status", "volumeAproximadoMl", "volumeMl" ]
       },
       "Perfil" : {
         "type" : "object",
@@ -913,6 +1214,59 @@
             "format" : "uri"
           }
         }
+      },
+      "ResumoDaCategoria" : {
+        "type" : "object",
+        "description" : "Uma categoria no período: situações somadas, taxa do período e dias na meta.",
+        "properties" : {
+          "categoria" : {
+            "type" : "string",
+            "enum" : [ "HIDRATACAO", "EXERCICIO" ]
+          },
+          "concluidos" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "diasComDados" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Dias com pelo menos um concluído ou uma falha na categoria",
+            "example" : 4
+          },
+          "diasNaMeta" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Desses dias, os que tiveram taxa de pelo menos 80%",
+            "example" : 3
+          },
+          "emAberto" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Agendados, pendentes e adiados sem destino, só na jornada em andamento"
+          },
+          "falhas" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "metaAtingida" : {
+            "type" : [ "boolean", "null" ],
+            "description" : "Se a taxa chegou a 80%, pela fração exata. Nula sem dados."
+          },
+          "naoConcluidos" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "naoEntregues" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "taxa" : {
+            "type" : [ "number", "null" ],
+            "description" : "Concluídos ÷ (concluídos + falhas) do período, em %, com uma casa, truncado. Nula sem nenhum concluído nem falha.",
+            "example" : 85.7
+          }
+        },
+        "required" : [ "categoria", "concluidos", "diasComDados", "diasNaMeta", "emAberto", "falhas", "metaAtingida", "naoConcluidos", "naoEntregues", "taxa" ]
       },
       "SalvarPerfil" : {
         "type" : "object",

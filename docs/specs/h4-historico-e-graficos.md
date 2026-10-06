@@ -199,8 +199,19 @@ Exemplo do Cenário 1:
 }
 ```
 
-- `dias` traz **todos** os dias do período, em ordem. Um dia sem jornada vem com `"jornada": null` e `categorias` vazio; um dia futuro também, com `"futuro": true`.
+- `dias` traz **todos** os dias do período, em ordem, cada um com `futuro`. Um dia sem jornada vem com `"jornada": null` e `categorias` vazio; um dia futuro também, com `"futuro": true`. Um dia com jornada traz as duas categorias, mesmo a que não teve lembretes (o exercício de uma jornada da v0.2.0 vem zerado e sem taxa).
 - `taxa` vem truncada em uma casa e é nula sem dados; `metaAtingida` também é nula sem dados. A tela só formata o número com vírgula.
+
+Detalhes decididos na T3:
+
+- **Porta para o Histórico.** `ConsultarRegistrosDiarios` devolve records só com tipos do JDK (as situações como texto), como a porta `MontarBloco` do Treino, por causa da regra R4. O `RegistrosDiariosService` da Agenda agrupa as linhas da consulta por dia; o `RegistrosDiariosDaAgenda` do Histórico traduz o texto para o domínio dele, com agendado, pendente e adiado em `EM_ABERTO`.
+- **Consulta agregada.** Uma JPQL com `group by` e `select new` devolve o record `ContagemDoDia` da porta de saída. Só os dias com jornada vêm do banco; o Histórico completa os demais.
+- **Jornada de um dia.** `GET /jornadas?data=` reaproveita o `buscarDoDia` do repositório e a mesma representação de `/jornadas/atual`.
+- **Corpo da correção.** O `status` aceita só `CONCLUIDO` ou `FALHA` (enumeração própria no contrato). Sem ele, 400 com "Informe o status correto: CONCLUIDO ou FALHA."; com outro valor, o 400 do framework, em Problem Details, como no perfil.
+- **Timer.** `pausaativa.historico.consultas` é medido no `HistoricoController`, em volta da consulta inteira.
+- **Desempenho.** O teste grava um ano de jornadas (365 dias, 8.760 marcos) e consulta o mês 11 vezes: todas abaixo de 500 ms, e o teste inteiro, com a carga, levou 0,3 s.
+- **Restrição.** A `V5` impede `editado_em` fora de concluído e falha (`ck_marco_editado`), conferido no teste.
+- **Frontend.** Só a fábrica de dados dos testes ganhou `editadoEm` e `podeCorrigir`, para o `vue-tsc` aceitar o contrato novo.
 
 ## 7. Eventos (SSE)
 
@@ -302,7 +313,7 @@ Branch `feat/h4-historico-e-graficos`. A execução para ao fim de cada etapa, e
 |---|---|---|---|
 | T1 | Histórico, domínio: períodos, taxa (truncamento e meta exata), resumo do período, dias na meta, dias sem jornada | Cenários 1, 2 e 6 cobertos em Java puro | ✅ 2026-10-06 (30 testes; domínio do Histórico com 99,2% das linhas e 90,7% dos ramos; 208 no backend). Detalhes na seção 4. |
 | T2 | Agenda, domínio: correção (Concluído ↔ Falha, prazo do dia, par adiado, `editadoEm`, `podeCorrigir`) | Cenários 4 e 5 cobertos em Java puro | ✅ 2026-10-06 (15 testes novos no `JornadaTest`; 223 no backend; domínio da Agenda com 99,3% das linhas e 97,2% dos ramos). D4 a D6 no domínio; detalhes na seção 3.3. |
-| T3 | Agenda e Histórico: migração `V5`, consulta agregada por dia, `GET /historico`, `GET /jornadas?data=`, `POST /correcao`, métricas | Integração com Postgres; mês com um ano de dados em menos de 500 ms; contrato e tipos TS atualizados | Pendente |
+| T3 | Agenda e Histórico: migração `V5`, consulta agregada por dia, `GET /historico`, `GET /jornadas?data=`, `POST /correcao`, métricas | Integração com Postgres; mês com um ano de dados em menos de 500 ms; contrato e tipos TS atualizados | ✅ 2026-10-06 (19 testes novos; 242 no backend; Histórico com 100% das linhas, Agenda com 99,0%). Cenários 1 a 6 pela API; o mês com um ano de dados ficou abaixo de 500 ms em todas as 11 consultas. Detalhes na seção 6. |
 | T4 | Modo demonstração: dados de exemplo (seção 9) | A demonstração sobe com 45 dias de histórico; o compose de uso diário, sem nenhum | Pendente |
 | T5 | Frontend: abas Hoje e Histórico, filtros, resumo do período, visão do dia com os blocos, estado vazio | Lint, tipos e testes verdes, cobertura ≥ 80% | Pendente |
 | T6 | Frontend: gráficos em SVG (seção 8.1), legenda, dica de valores pelo mouse e pelo teclado, tabela equivalente, tokens novos no teste da identidade | Idem | Pendente |

@@ -1,6 +1,7 @@
 package br.com.pausaativa.agenda.application;
 
 import br.com.pausaativa.agenda.application.port.in.ConsultarJornadaAtual;
+import br.com.pausaativa.agenda.application.port.in.ConsultarJornadaDoDia;
 import br.com.pausaativa.agenda.application.port.in.FinalizarJornada;
 import br.com.pausaativa.agenda.application.port.in.IniciarJornada;
 import br.com.pausaativa.agenda.application.port.in.PausarJornada;
@@ -23,7 +24,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 /** Ciclo de vida da jornada: iniciar, pausar, retomar, finalizar e consultar. */
 @Service
-class JornadaService implements IniciarJornada, PausarJornada, RetomarJornada, FinalizarJornada, ConsultarJornadaAtual {
+class JornadaService
+        implements IniciarJornada,
+                PausarJornada,
+                RetomarJornada,
+                FinalizarJornada,
+                ConsultarJornadaAtual,
+                ConsultarJornadaDoDia {
 
     private final JornadaRepository repositorio;
     private final MontadorDeBlocos montador;
@@ -109,6 +116,13 @@ class JornadaService implements IniciarJornada, PausarJornada, RetomarJornada, F
                 .buscarAberta()
                 .or(() -> repositorio.buscarDoDia(LocalDate.ofInstant(agora, clock.getZone())))
                 .map(jornada -> SituacaoDaJornada.de(jornada, agora, clock.getZone()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<SituacaoDaJornada> doDia(LocalDate dia) {
+        Instant agora = clock.instant();
+        return repositorio.buscarDoDia(dia).map(jornada -> SituacaoDaJornada.de(jornada, agora, clock.getZone()));
     }
 
     /**

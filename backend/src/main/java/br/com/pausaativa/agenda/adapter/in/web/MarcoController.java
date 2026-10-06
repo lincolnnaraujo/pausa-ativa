@@ -1,6 +1,7 @@
 package br.com.pausaativa.agenda.adapter.in.web;
 
 import br.com.pausaativa.agenda.application.port.in.ConfirmarRecebimento;
+import br.com.pausaativa.agenda.application.port.in.CorrigirMarco;
 import br.com.pausaativa.agenda.application.port.in.ResponderMarco;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -9,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,10 +22,13 @@ class MarcoController {
 
     private final ResponderMarco responderMarco;
     private final ConfirmarRecebimento confirmarRecebimento;
+    private final CorrigirMarco corrigirMarco;
 
-    MarcoController(ResponderMarco responderMarco, ConfirmarRecebimento confirmarRecebimento) {
+    MarcoController(
+            ResponderMarco responderMarco, ConfirmarRecebimento confirmarRecebimento, CorrigirMarco corrigirMarco) {
         this.responderMarco = responderMarco;
         this.confirmarRecebimento = confirmarRecebimento;
+        this.corrigirMarco = corrigirMarco;
     }
 
     @PostMapping("/{id}/conclusao")
@@ -45,6 +50,15 @@ class MarcoController {
                     + " cadeia e nunca no último bloco do dia; a água não é adiada.")
     JornadaResposta adiar(@PathVariable UUID id) {
         return JornadaResposta.de(responderMarco.adiar(id));
+    }
+
+    @PostMapping(path = "/{id}/correcao", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(
+            summary = "Corrige a resposta de um lembrete de hoje. Corrigir para a situação atual devolve a mesma.",
+            description = "Concluído vira falha, ou o contrário, até o fim do dia em que a jornada começou. Num"
+                    + " par adiado, corrige os dois. O lembrete fica marcado como editado.")
+    JornadaResposta corrigir(@PathVariable UUID id, @RequestBody CorrecaoRequisicao requisicao) {
+        return JornadaResposta.de(corrigirMarco.corrigir(id, requisicao.paraDominio()));
     }
 
     @PostMapping("/{id}/recebimento")

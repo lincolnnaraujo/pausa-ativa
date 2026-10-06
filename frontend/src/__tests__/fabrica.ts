@@ -15,9 +15,11 @@ export function umMarco(sequencia: number, campos: Partial<Marco> = {}): Marco {
     disparadoEm: null,
     recebidoEm: null,
     respondidoEm: null,
+    editadoEm: null,
     mensagem:
       sequencia % 2 === 1 ? 'Beba ~190 ml. Levante-se para buscar a água.' : 'Beba ~190 ml.',
     podeAdiar: false,
+    podeCorrigir: false,
     bloco: null,
     ...campos,
   }

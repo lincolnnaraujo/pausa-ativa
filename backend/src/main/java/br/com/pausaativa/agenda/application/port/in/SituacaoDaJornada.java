@@ -50,7 +50,8 @@ public record SituacaoDaJornada(
                 jornada.aguaIngeridaMl(),
                 jornada.marcos().stream()
                         .sorted(POR_HORARIO)
-                        .map(marco -> SituacaoDoMarco.de(marco, jornada.podeAdiar(marco), fuso))
+                        .map(marco -> SituacaoDoMarco.de(
+                                marco, jornada.podeAdiar(marco), jornada.podeCorrigir(marco, agora, fuso), fuso))
                         .toList());
     }
 }
