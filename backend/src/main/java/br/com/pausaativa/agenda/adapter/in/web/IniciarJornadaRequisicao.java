@@ -10,4 +10,10 @@ record IniciarJornadaRequisicao(
                 maximum = "6000",
                 defaultValue = "3000",
                 example = "3000")
-        Integer metaAguaMl) {}
+        Integer metaAguaMl,
+
+        @Schema(
+                description = "Duração dos blocos de exercício do dia, em minutos: 5 ou 10. Sem ela, 5 min.",
+                defaultValue = "5",
+                example = "5")
+        Integer duracaoBlocoMin) {}

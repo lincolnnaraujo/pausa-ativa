@@ -1,6 +1,9 @@
 package br.com.pausaativa.agenda.adapter.in.web;
 
 import br.com.pausaativa.agenda.application.JornadaNaoEncontradaException;
+import br.com.pausaativa.agenda.application.PerfilAusenteException;
+import br.com.pausaativa.agenda.domain.AdiamentoRecusadoException;
+import br.com.pausaativa.agenda.domain.DuracaoDoBlocoInvalidaException;
 import br.com.pausaativa.agenda.domain.JornadaJaIniciadaException;
 import br.com.pausaativa.agenda.domain.MarcoNaoEncontradoException;
 import br.com.pausaativa.agenda.domain.MetaDeAguaInvalidaException;
@@ -20,7 +23,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice(assignableTypes = {JornadaController.class, MarcoController.class})
 class TratamentoDeErrosDaAgenda {
 
-    @ExceptionHandler(MetaDeAguaInvalidaException.class)
+    @ExceptionHandler({MetaDeAguaInvalidaException.class, DuracaoDoBlocoInvalidaException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     ProblemDetail requisicaoInvalida(RegraDeNegocioException erro) {
         return problema(HttpStatus.BAD_REQUEST, "Requisição inválida", erro);
@@ -34,8 +37,10 @@ class TratamentoDeErrosDaAgenda {
 
     @ExceptionHandler({
         JornadaJaIniciadaException.class,
+        PerfilAusenteException.class,
         TransicaoDeJornadaInvalidaException.class,
-        RespostaDeMarcoRecusadaException.class
+        RespostaDeMarcoRecusadaException.class,
+        AdiamentoRecusadoException.class
     })
     @ResponseStatus(HttpStatus.CONFLICT)
     ProblemDetail operacaoRecusada(RegraDeNegocioException erro) {

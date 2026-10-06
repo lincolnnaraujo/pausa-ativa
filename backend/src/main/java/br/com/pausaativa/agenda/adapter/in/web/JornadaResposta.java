@@ -22,6 +22,7 @@ import java.util.UUID;
             "tempoTrabalhadoSegundos",
             "calculadoEm",
             "metaAguaMl",
+            "duracaoBlocoMin",
             "aguaIngeridaMl",
             "marcos"
         })
@@ -54,9 +55,16 @@ record JornadaResposta(
         OffsetDateTime calculadoEm,
         @Schema(example = "3000") int metaAguaMl,
 
+        @Schema(
+                description = "Duração dos blocos de exercício escolhida ao iniciar o dia. O bloco que"
+                        + " compensa um adiamento tem 10 min.",
+                example = "5")
+        int duracaoBlocoMin,
+
         @Schema(description = "Soma dos marcos de hidratação concluídos", example = "562.5")
         BigDecimal aguaIngeridaMl,
 
+        @Schema(description = "Água e exercício em ordem de horário; na hora cheia, a água vem antes")
         List<MarcoResposta> marcos) {
 
     static JornadaResposta de(SituacaoDaJornada jornada) {
@@ -70,6 +78,7 @@ record JornadaResposta(
                 jornada.tempoTrabalhadoSegundos(),
                 jornada.calculadoEm(),
                 jornada.metaAguaMl(),
+                jornada.duracaoBlocoMin(),
                 jornada.aguaIngeridaMl(),
                 jornada.marcos().stream().map(MarcoResposta::de).toList());
     }

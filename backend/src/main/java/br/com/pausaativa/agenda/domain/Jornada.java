@@ -4,6 +4,7 @@ import static br.com.pausaativa.agenda.domain.StatusJornada.EM_ANDAMENTO;
 import static br.com.pausaativa.agenda.domain.StatusJornada.ENCERRADA_AUTOMATICAMENTE;
 import static br.com.pausaativa.agenda.domain.StatusJornada.FINALIZADA;
 import static br.com.pausaativa.agenda.domain.StatusJornada.PAUSADA;
+import static br.com.pausaativa.agenda.domain.StatusMarco.ADIADO;
 import static br.com.pausaativa.agenda.domain.StatusMarco.AGENDADO;
 import static br.com.pausaativa.agenda.domain.StatusMarco.CONCLUIDO;
 import static br.com.pausaativa.agenda.domain.StatusMarco.FALHA;
@@ -18,6 +19,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,13 +29,14 @@ import java.util.UUID;
  *
  * <p>Os marcos são calculados sobre o <b>tempo trabalhado</b> (início até agora, menos as pausas),
  * nunca sobre o relógio de parede. Nenhum método lê o relógio: o instante atual chega por parâmetro.
- * Regras detalhadas na seção 3 da spec H2.
+ * Regras detalhadas na seção 3 das specs H2 (jornada e água) e H3 (exercício e adiamento).
  */
 public final class Jornada {
 
     private final UUID id;
     private final LocalDate dataReferencia;
     private final MetaDeAgua meta;
+    private final DuracaoDoBloco duracaoDoBloco;
     private final Instant iniciadaEm;
     private final List<Pausa> pausas;
     private final List<Marco> marcos;
@@ -45,6 +48,7 @@ public final class Jornada {
             UUID id,
             LocalDate dataReferencia,
             MetaDeAgua meta,
+            DuracaoDoBloco duracaoDoBloco,
             Instant iniciadaEm,
             List<Pausa> pausas,
             List<Marco> marcos,
@@ -53,6 +57,7 @@ public final class Jornada {
         this.id = id;
         this.dataReferencia = dataReferencia;
         this.meta = meta;
+        this.duracaoDoBloco = duracaoDoBloco;
         this.iniciadaEm = iniciadaEm;
         this.pausas = pausas;
         this.marcos = marcos;
@@ -65,6 +70,7 @@ public final class Jornada {
             UUID id,
             LocalDate dataReferencia,
             MetaDeAgua meta,
+            DuracaoDoBloco duracaoDoBloco,
             Instant iniciadaEm,
             StatusJornada status,
             Instant finalizadaEm,
@@ -74,6 +80,7 @@ public final class Jornada {
                 id,
                 dataReferencia,
                 meta,
+                duracaoDoBloco,
                 iniciadaEm,
                 new ArrayList<>(pausas),
                 new ArrayList<>(marcos),
@@ -81,15 +88,41 @@ public final class Jornada {
                 finalizadaEm);
     }
 
-    /** Começa o dia e agenda todos os marcos do plano (decisão D1). */
-    public static Jornada iniciar(UUID id, Instant agora, ZoneId fuso, MetaDeAgua meta, PlanoDeMarcos plano) {
-        BigDecimal volume = meta.volumePorMarco(plano.quantidade());
+    /**
+     * Começa o dia e agenda todos os marcos dos planos (decisão D1 da spec H2). O plano de hidratação é
+     * obrigatório, e a meta de água é dividida entre os marcos dele.
+     */
+    public static Jornada iniciar(
+            UUID id,
+            Instant agora,
+            ZoneId fuso,
+            MetaDeAgua meta,
+            DuracaoDoBloco duracaoDoBloco,
+            List<PlanoDeMarcos> planos) {
+        if (planos.stream().map(PlanoDeMarcos::categoria).distinct().count() != planos.size()) {
+            throw new IllegalArgumentException("Um plano por categoria: " + planos);
+        }
+        PlanoDeMarcos hidratacao = planos.stream()
+                .filter(plano -> plano.categoria() == Categoria.HIDRATACAO)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("A jornada precisa do plano de hidratação"));
+        BigDecimal volume = meta.volumePorMarco(hidratacao.quantidade());
         List<Marco> marcos = new ArrayList<>();
-        for (int sequencia = 1; sequencia <= plano.quantidade(); sequencia++) {
-            marcos.add(Marco.agendado(plano, sequencia, volume));
+        for (PlanoDeMarcos plano : planos) {
+            for (int sequencia = 1; sequencia <= plano.quantidade(); sequencia++) {
+                marcos.add(Marco.agendado(plano, sequencia, plano == hidratacao ? volume : null));
+            }
         }
         return new Jornada(
-                id, LocalDate.ofInstant(agora, fuso), meta, agora, new ArrayList<>(), marcos, EM_ANDAMENTO, null);
+                id,
+                LocalDate.ofInstant(agora, fuso),
+                meta,
+                duracaoDoBloco,
+                agora,
+                new ArrayList<>(),
+                marcos,
+                EM_ANDAMENTO,
+                null);
     }
 
     /** Início até agora (ou até o fim da jornada), menos as pausas. */
@@ -108,6 +141,9 @@ public final class Jornada {
     /**
      * Dispara os marcos cujo tempo chegou e vence os prazos. Chamado a cada segundo pelo agendador.
      * Pausada ou encerrada, a jornada não muda: o tempo trabalhado está parado.
+     *
+     * <p>O exercício disparado sai com o bloco preparado, ainda sem exercícios: a aplicação os pede ao
+     * Treino e chama {@link #atribuirBloco} antes de gravar.
      */
     public Avanco avancar(Instant agora) {
         if (status != EM_ANDAMENTO) {
@@ -120,6 +156,9 @@ public final class Jornada {
             if (marco.devidoEm(trabalhado)) {
                 Instant previstoPara = instanteEmQueOTempoTrabalhadoChegaA(marco.tempoTrabalhadoPrevisto());
                 marco.disparar(previstoPara, agora);
+                if (marco.categoria() == Categoria.EXERCICIO) {
+                    prepararBloco(marco);
+                }
                 disparados.add(marco);
                 eventos.add(new MarcoDisparado(marco.id(), marco.categoria(), marco.sequencia(), previstoPara, agora));
             }
@@ -155,10 +194,12 @@ public final class Jornada {
         }
         encerrarPausaEmCurso(agora);
         vencerPrazos(tempoTrabalhado(agora));
-        marcos.stream().filter(marco -> !marco.status().encerrado()).forEach(marco -> {
-            marco.encerrarSemResposta(NAO_CONCLUIDO);
-            registrarEncerramento(marco);
-        });
+        marcos.stream()
+                .filter(marco -> marco.status() == AGENDADO || marco.status() == PENDENTE)
+                .forEach(marco -> {
+                    marco.encerrarSemResposta(NAO_CONCLUIDO);
+                    registrarEncerramento(marco);
+                });
         status = FINALIZADA;
         finalizadaEm = agora;
         return true;
@@ -184,7 +225,7 @@ public final class Jornada {
 
     /**
      * Fecha a jornada esquecida. Pendentes seguem a regra do prazo vencido; agendados nunca chegaram
-     * ao usuário e viram {@code NAO_ENTREGUE} (Cenário 8).
+     * ao usuário e viram {@code NAO_ENTREGUE} (Cenário 8). Um adiado segue o bloco seguinte.
      */
     public boolean encerrarAutomaticamente(Instant agora) {
         if (!status.aberta()) {
@@ -243,6 +284,66 @@ public final class Jornada {
         return mudou;
     }
 
+    /**
+     * Adia um bloco de exercício pendente (spec H3, seção 3.5). O seguinte terá 10 min e decidirá o
+     * destino dos dois. Adiar de novo o mesmo marco não muda nada.
+     *
+     * @return se a jornada mudou
+     */
+    public boolean adiarMarco(UUID marcoId, Instant agora) {
+        Marco marco = marco(marcoId);
+        if (marco.categoria() != Categoria.EXERCICIO) {
+            throw AdiamentoRecusadoException.hidratacao();
+        }
+        if (marco.status() == ADIADO) {
+            return false;
+        }
+        if (marco.status() != PENDENTE) {
+            throw AdiamentoRecusadoException.naoPendente(marco.status());
+        }
+        if (compensaAdiamento(marco)) {
+            throw AdiamentoRecusadoException.jaCompensa();
+        }
+        if (seguinte(marco).isEmpty()) {
+            throw AdiamentoRecusadoException.ultimo();
+        }
+        marco.adiar(agora);
+        eventos.add(new MarcoAdiado(marco.id(), marco.categoria(), marco.sequencia()));
+        return true;
+    }
+
+    /** Se o botão Adiar vale para o marco agora. Calculado aqui para a tela não repetir a regra. */
+    public boolean podeAdiar(Marco marco) {
+        return marco.categoria() == Categoria.EXERCICIO
+                && marco.status() == PENDENTE
+                && !compensaAdiamento(marco)
+                && seguinte(marco).isPresent();
+    }
+
+    /**
+     * Entrega ao marco de exercício disparado os exercícios que o Treino montou para o bloco dele.
+     *
+     * @throws IllegalStateException se o marco não tem bloco ou o bloco já tem exercícios
+     * @throws IllegalArgumentException se a lista está vazia ou não cabe na duração do bloco
+     */
+    public void atribuirBloco(UUID marcoId, List<ExercicioProposto> exercicios) {
+        marco(marcoId).atribuirExercicios(exercicios);
+    }
+
+    /**
+     * Códigos dos exercícios já propostos hoje, do bloco mais antigo para o mais recente. O Treino usa a
+     * lista para variar os blocos (spec H3, seção 3.3) sem consultar a Agenda.
+     */
+    public List<String> exerciciosPropostosNoDia() {
+        return marcos.stream()
+                .filter(marco -> marco.categoria() == Categoria.EXERCICIO)
+                .sorted(Comparator.comparingInt(Marco::sequencia))
+                .flatMap(marco -> marco.bloco().stream())
+                .flatMap(bloco -> bloco.exercicios().stream())
+                .map(ExercicioProposto::codigo)
+                .toList();
+    }
+
     /** Devolve os eventos acumulados desde a última extração e esvazia a lista. */
     public List<EventoDaJornada> extrairEventos() {
         List<EventoDaJornada> extraidos = List.copyOf(eventos);
@@ -254,10 +355,10 @@ public final class Jornada {
         return marco(marcoId).confirmarRecebimento(agora);
     }
 
-    /** Soma dos marcos concluídos (Cenário 2). */
+    /** Soma dos marcos de hidratação concluídos (Cenário 2 da H2). */
     public BigDecimal aguaIngeridaMl() {
         return marcos.stream()
-                .filter(marco -> marco.status() == CONCLUIDO)
+                .filter(marco -> marco.categoria() == Categoria.HIDRATACAO && marco.status() == CONCLUIDO)
                 .map(Marco::volumeMl)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
@@ -274,8 +375,37 @@ public final class Jornada {
         return venceu;
     }
 
+    /** Registra o status final do marco e, se ele compensava um adiado, resolve o adiado junto. */
     private void registrarEncerramento(Marco marco) {
         eventos.add(new MarcoEncerrado(marco.id(), marco.categoria(), marco.sequencia(), marco.status()));
+        anterior(marco).filter(adiado -> adiado.status() == ADIADO).ifPresent(adiado -> {
+            adiado.resolverAdiamento(marco.status());
+            eventos.add(new MarcoEncerrado(adiado.id(), adiado.categoria(), adiado.sequencia(), adiado.status()));
+        });
+    }
+
+    /** Depois de um adiamento, o bloco tem 10 min, mesmo num dia de blocos de 10 min (decisão D3). */
+    private void prepararBloco(Marco marco) {
+        boolean compensa = compensaAdiamento(marco);
+        marco.prepararBloco(compensa ? DuracaoDoBloco.DEZ_MINUTOS : duracaoDoBloco, compensa);
+    }
+
+    private boolean compensaAdiamento(Marco marco) {
+        return anterior(marco).filter(anterior -> anterior.status() == ADIADO).isPresent();
+    }
+
+    private Optional<Marco> anterior(Marco marco) {
+        return marco(marco.categoria(), marco.sequencia() - 1);
+    }
+
+    private Optional<Marco> seguinte(Marco marco) {
+        return marco(marco.categoria(), marco.sequencia() + 1);
+    }
+
+    private Optional<Marco> marco(Categoria categoria, int sequencia) {
+        return marcos.stream()
+                .filter(marco -> marco.categoria() == categoria && marco.sequencia() == sequencia)
+                .findFirst();
     }
 
     private void encerrarPausaEmCurso(Instant agora) {
@@ -315,6 +445,11 @@ public final class Jornada {
 
     public MetaDeAgua meta() {
         return meta;
+    }
+
+    /** A duração escolhida ao iniciar o dia. O bloco que compensa um adiamento tem 10 min (D3). */
+    public DuracaoDoBloco duracaoDoBloco() {
+        return duracaoDoBloco;
     }
 
     public Instant iniciadaEm() {

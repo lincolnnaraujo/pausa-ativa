@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
-import { duracao, horario, intervalo, mililitros, rotuloDoStatus, tempoAte } from '@/formatacao'
+import {
+  duracao,
+  duracaoCurta,
+  horario,
+  intervalo,
+  mililitros,
+  resumoDoPerfil,
+  rotuloDaCategoria,
+  rotuloDoStatus,
+  tempoAte,
+  tituloDoMarco,
+} from '@/formatacao'
 
 describe('formatação', () => {
   it('mostra o horário no fuso de São Paulo, qualquer que seja o offset recebido', () => {
@@ -41,5 +52,38 @@ describe('formatação', () => {
     expect(rotuloDoStatus('CONCLUIDO')).toBe('Concluído')
     expect(rotuloDoStatus('NAO_ENTREGUE')).toBe('Não entregue')
     expect(rotuloDoStatus('NAO_CONCLUIDO')).toBe('Não concluído')
+    expect(rotuloDoStatus('ADIADO')).toBe('Adiado: resolvido pelo próximo bloco')
+  })
+
+  it('mostra a duração estimada do bloco em minutos e segundos', () => {
+    expect(duracaoCurta(278)).toBe('4 min 38 s')
+    expect(duracaoCurta(300)).toBe('5 min')
+    expect(duracaoCurta(45)).toBe('45 s')
+  })
+
+  it('dá à categoria um ícone e um nome, para a cor não ser o único sinal', () => {
+    expect(rotuloDaCategoria('HIDRATACAO')).toBe('💧 Água')
+    expect(rotuloDaCategoria('EXERCICIO')).toBe('🏃 Exercício')
+  })
+
+  it('resume o perfil numa linha', () => {
+    expect(
+      resumoDoPerfil({ articulacoesPoupadas: [], nivel: 'INICIANTE', equipamentos: [], aceitaChao: true }),
+    ).toBe('Iniciante · nada a poupar · sem equipamento · com exercícios no chão')
+    expect(
+      resumoDoPerfil({
+        articulacoesPoupadas: ['JOELHO', 'OMBRO', 'LOMBAR'],
+        nivel: 'INTERMEDIARIO',
+        equipamentos: ['APOIO_DE_FLEXAO', 'HALTERES_2KG'],
+        aceitaChao: false,
+      }),
+    ).toBe(
+      'Intermediário · poupa joelho, ombro e lombar · apoio de flexão e halteres de 2 kg · sem exercícios no chão',
+    )
+  })
+
+  it('dá a cada categoria o título do lembrete', () => {
+    expect(tituloDoMarco('HIDRATACAO')).toBe('Hora da água 💧')
+    expect(tituloDoMarco('EXERCICIO')).toBe('Hora do exercício 🏃')
   })
 })

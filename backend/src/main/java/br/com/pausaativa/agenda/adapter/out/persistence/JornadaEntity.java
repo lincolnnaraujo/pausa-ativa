@@ -1,5 +1,6 @@
 package br.com.pausaativa.agenda.adapter.out.persistence;
 
+import br.com.pausaativa.agenda.domain.DuracaoDoBloco;
 import br.com.pausaativa.agenda.domain.Jornada;
 import br.com.pausaativa.agenda.domain.Marco;
 import br.com.pausaativa.agenda.domain.MetaDeAgua;
@@ -19,6 +20,7 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -42,6 +44,7 @@ class JornadaEntity {
     private StatusJornada status;
 
     private int metaAguaMl;
+    private int duracaoBlocoMin;
     private Instant iniciadaEm;
     private Instant finalizadaEm;
 
@@ -51,7 +54,6 @@ class JornadaEntity {
     private List<PausaEmbeddable> pausas = new ArrayList<>();
 
     @OneToMany(mappedBy = "jornada", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("categoria, sequencia")
     private List<MarcoEntity> marcos = new ArrayList<>();
 
     protected JornadaEntity() {}
@@ -61,6 +63,7 @@ class JornadaEntity {
         entidade.id = jornada.id();
         entidade.dataReferencia = jornada.dataReferencia();
         entidade.metaAguaMl = jornada.meta().mililitros();
+        entidade.duracaoBlocoMin = jornada.duracaoDoBloco().minutos();
         entidade.iniciadaEm = jornada.iniciadaEm();
         jornada.marcos().forEach(marco -> entidade.marcos.add(MarcoEntity.novo(marco, entidade)));
         entidade.atualizarCom(jornada);
@@ -86,15 +89,20 @@ class JornadaEntity {
         }
     }
 
+    /** Marcos na ordem do domínio (água, depois exercício); o banco ordenaria as categorias pelo nome. */
     Jornada paraDominio() {
         return Jornada.reconstituir(
                 id,
                 dataReferencia,
                 new MetaDeAgua(metaAguaMl),
+                new DuracaoDoBloco(duracaoBlocoMin),
                 iniciadaEm,
                 status,
                 finalizadaEm,
                 pausas.stream().map(PausaEmbeddable::paraDominio).toList(),
-                marcos.stream().map(MarcoEntity::paraDominio).toList());
+                marcos.stream()
+                        .map(MarcoEntity::paraDominio)
+                        .sorted(Comparator.comparing(Marco::categoria).thenComparingInt(Marco::sequencia))
+                        .toList());
     }
 }

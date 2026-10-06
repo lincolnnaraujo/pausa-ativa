@@ -24,6 +24,7 @@ import br.com.pausaativa.agenda.application.port.in.SituacaoDaJornada;
 import br.com.pausaativa.agenda.application.port.in.SituacaoDoMarco;
 import br.com.pausaativa.agenda.application.port.out.JornadaAlterada;
 import br.com.pausaativa.agenda.application.port.out.JornadaRepository;
+import br.com.pausaativa.agenda.domain.Categoria;
 import br.com.pausaativa.agenda.domain.JornadaJaIniciadaException;
 import br.com.pausaativa.agenda.domain.MarcoDisparado;
 import br.com.pausaativa.agenda.domain.MarcoEncerrado;
@@ -31,6 +32,10 @@ import br.com.pausaativa.agenda.domain.MarcoNaoEncontradoException;
 import br.com.pausaativa.agenda.domain.MetaDeAguaInvalidaException;
 import br.com.pausaativa.agenda.domain.RespostaDeMarcoRecusadaException;
 import br.com.pausaativa.agenda.domain.StatusJornada;
+import br.com.pausaativa.agenda.domain.StatusMarco;
+import br.com.pausaativa.treino.application.port.in.SalvarPerfil;
+import br.com.pausaativa.treino.domain.Nivel;
+import br.com.pausaativa.treino.domain.PerfilFisico;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
@@ -40,6 +45,7 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -111,9 +117,14 @@ class AgendaIntegracaoTest {
     @Autowired
     MeterRegistry metricas;
 
+    @Autowired
+    SalvarPerfil salvarPerfil;
+
+    /** Sem perfil, o dia não começa (Cenário 6 da H3). */
     @BeforeEach
     void comecarDoZero() {
         jdbc.execute("truncate jornada cascade");
+        salvarPerfil.salvar(new PerfilFisico(Set.of(), Nivel.INICIANTE, Set.of(), true));
         relogio.ajustarPara(as(HOJE, "09:00"));
     }
 
@@ -127,8 +138,22 @@ class AgendaIntegracaoTest {
         relogio.ajustarPara(as(HOJE, hora));
     }
 
-    private SituacaoDoMarco marco(SituacaoDaJornada situacao, int sequencia) {
-        return situacao.marcos().get(sequencia - 1);
+    private static SituacaoDoMarco agua(SituacaoDaJornada situacao, int sequencia) {
+        return marco(situacao, Categoria.HIDRATACAO, sequencia);
+    }
+
+    private static SituacaoDoMarco marco(SituacaoDaJornada situacao, Categoria categoria, int sequencia) {
+        return situacao.marcos().stream()
+                .filter(marco -> marco.categoria() == categoria && marco.sequencia() == sequencia)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private static List<StatusMarco> statusDaAgua(SituacaoDaJornada situacao) {
+        return situacao.marcos().stream()
+                .filter(marco -> marco.categoria() == Categoria.HIDRATACAO)
+                .map(SituacaoDoMarco::status)
+                .toList();
     }
 
     private SituacaoDaJornada atual() {
@@ -140,17 +165,20 @@ class AgendaIntegracaoTest {
     }
 
     @Test
-    void iniciarGravaOsDezesseisMarcosEAConsultaDevolveOMesmoEstado() {
-        SituacaoDaJornada iniciada = iniciarJornada.iniciar(3_000);
+    void iniciarGravaOsVinteEQuatroMarcosEAConsultaDevolveOMesmoEstado() {
+        SituacaoDaJornada iniciada = iniciarJornada.iniciar(3_000, 5);
 
         assertThat(iniciada.status()).isEqualTo(StatusJornada.EM_ANDAMENTO);
         assertThat(iniciada.dataReferencia()).isEqualTo(HOJE);
         assertThat(iniciada.iniciadaEm()).isEqualTo(OffsetDateTime.parse("2026-10-02T09:00:00-03:00"));
-        assertThat(iniciada.marcos()).hasSize(16).allSatisfy(marco -> {
-            assertThat(marco.status()).isEqualTo(AGENDADO);
-            assertThat(marco.volumeMl()).isEqualByComparingTo("187.5");
-        });
-        assertThat(contar("marco")).isEqualTo(16);
+        assertThat(iniciada.marcos())
+                .hasSize(24)
+                .allSatisfy(marco -> assertThat(marco.status()).isEqualTo(AGENDADO));
+        assertThat(iniciada.marcos())
+                .filteredOn(marco -> marco.categoria() == Categoria.HIDRATACAO)
+                .hasSize(16)
+                .allSatisfy(marco -> assertThat(marco.volumeMl()).isEqualByComparingTo("187.5"));
+        assertThat(contar("marco")).isEqualTo(24);
 
         relogio.avancar(Duration.ofHours(1));
         SituacaoDaJornada consultada = atual();
@@ -161,7 +189,7 @@ class AgendaIntegracaoTest {
 
     @Test
     void pausaRetomadaEFinalizacaoFicamGravadas() {
-        UUID id = iniciarJornada.iniciar(3_000).id();
+        UUID id = iniciarJornada.iniciar(3_000, 5).id();
 
         relogioAs("12:00");
         assertThat(pausarJornada.pausar(id).status()).isEqualTo(StatusJornada.PAUSADA);
@@ -178,19 +206,15 @@ class AgendaIntegracaoTest {
                 .isEqualTo(Duration.ofHours(5).toSeconds());
         // Sem tick neste teste, cada comando põe a jornada em dia: os marcos que já tinham vencido disparam e
         // expiram sem recebimento; os que ainda viriam (a partir do 10º, das 15:00) ficam não concluídos.
-        assertThat(finalizada.marcos().subList(0, 9))
-                .extracting(SituacaoDoMarco::status)
-                .containsOnly(NAO_ENTREGUE);
-        assertThat(finalizada.marcos().subList(9, 16))
-                .extracting(SituacaoDoMarco::status)
-                .containsOnly(NAO_CONCLUIDO);
+        assertThat(statusDaAgua(finalizada).subList(0, 9)).containsOnly(NAO_ENTREGUE);
+        assertThat(statusDaAgua(finalizada).subList(9, 16)).containsOnly(NAO_CONCLUIDO);
         assertThat(jdbc.queryForObject("select count(*) from pausa where fim is not null", Integer.class))
                 .isEqualTo(1);
     }
 
     @Test
     void finalizarDeNovoDevolveAMesmaSituacao() {
-        UUID id = iniciarJornada.iniciar(3_000).id();
+        UUID id = iniciarJornada.iniciar(3_000, 5).id();
         relogioAs("10:00");
         SituacaoDaJornada primeira = finalizarJornada.finalizar(id);
 
@@ -203,19 +227,19 @@ class AgendaIntegracaoTest {
 
     @Test
     void marcoDisparadoRecebidoEConcluidoFicaGravado() {
-        UUID id = iniciarJornada.iniciar(3_000).id();
+        UUID id = iniciarJornada.iniciar(3_000, 5).id();
         relogioAs("09:30");
         avancarAgenda.avancar();
-        UUID marco1 = marco(atual(), 1).id();
-        assertThat(marco(atual(), 1).status()).isEqualTo(PENDENTE);
+        UUID marco1 = agua(atual(), 1).id();
+        assertThat(agua(atual(), 1).status()).isEqualTo(PENDENTE);
 
         confirmarRecebimento.confirmar(marco1);
         relogioAs("09:31");
         SituacaoDaJornada respondida = responderMarco.concluir(marco1);
 
-        assertThat(marco(respondida, 1).status()).isEqualTo(CONCLUIDO);
+        assertThat(agua(respondida, 1).status()).isEqualTo(CONCLUIDO);
         assertThat(respondida.aguaIngeridaMl()).isEqualByComparingTo("187.5");
-        SituacaoDoMarco gravado = marco(atual(), 1);
+        SituacaoDoMarco gravado = agua(atual(), 1);
         assertThat(gravado.status()).isEqualTo(CONCLUIDO);
         assertThat(gravado.disparadoEm()).isEqualTo(OffsetDateTime.parse("2026-10-02T09:30:00-03:00"));
         assertThat(gravado.recebidoEm()).isEqualTo(OffsetDateTime.parse("2026-10-02T09:30:00-03:00"));
@@ -224,28 +248,28 @@ class AgendaIntegracaoTest {
 
     @Test
     void cenario6RespostaRepetidaNaoMudaNadaEOutraRespostaERecusada() {
-        UUID id = iniciarJornada.iniciar(3_000).id();
+        UUID id = iniciarJornada.iniciar(3_000, 5).id();
         relogioAs("09:30");
         avancarAgenda.avancar();
-        UUID marco1 = marco(atual(), 1).id();
+        UUID marco1 = agua(atual(), 1).id();
         relogioAs("09:31");
         responderMarco.concluir(marco1);
 
         relogioAs("09:32");
         SituacaoDaJornada repetida = responderMarco.concluir(marco1);
 
-        assertThat(marco(repetida, 1).respondidoEm()).isEqualTo(OffsetDateTime.parse("2026-10-02T09:31:00-03:00"));
+        assertThat(agua(repetida, 1).respondidoEm()).isEqualTo(OffsetDateTime.parse("2026-10-02T09:31:00-03:00"));
         assertThatThrownBy(() -> responderMarco.falhar(marco1)).isInstanceOf(RespostaDeMarcoRecusadaException.class);
-        assertThat(marco(atual(), 1).status()).isEqualTo(CONCLUIDO);
+        assertThat(agua(atual(), 1).status()).isEqualTo(CONCLUIDO);
     }
 
     @Test
     void umaJornadaPorDiaMesmoDepoisDeFinalizar() {
-        UUID id = iniciarJornada.iniciar(3_000).id();
+        UUID id = iniciarJornada.iniciar(3_000, 5).id();
 
-        assertThatThrownBy(() -> iniciarJornada.iniciar(3_000)).isInstanceOf(JornadaJaIniciadaException.class);
+        assertThatThrownBy(() -> iniciarJornada.iniciar(3_000, 5)).isInstanceOf(JornadaJaIniciadaException.class);
         finalizarJornada.finalizar(id);
-        assertThatThrownBy(() -> iniciarJornada.iniciar(3_000))
+        assertThatThrownBy(() -> iniciarJornada.iniciar(3_000, 5))
                 .isInstanceOf(JornadaJaIniciadaException.class)
                 .hasMessageContaining("2026-10-02");
         assertThat(contar("jornada")).isEqualTo(1);
@@ -254,10 +278,10 @@ class AgendaIntegracaoTest {
     @Test
     void iniciarODiaEncerraAJornadaEsquecidaDeOntem() {
         relogio.ajustarPara(as(HOJE.minusDays(1), "09:00"));
-        UUID deOntem = iniciarJornada.iniciar(3_000).id();
+        UUID deOntem = iniciarJornada.iniciar(3_000, 5).id();
 
         relogioAs("08:00");
-        SituacaoDaJornada deHoje = iniciarJornada.iniciar(2_000);
+        SituacaoDaJornada deHoje = iniciarJornada.iniciar(2_000, 5);
 
         assertThat(deHoje.dataReferencia()).isEqualTo(HOJE);
         assertThat(deHoje.metaAguaMl()).isEqualTo(2_000);
@@ -272,20 +296,20 @@ class AgendaIntegracaoTest {
     @Test
     void jornadaQueAtravessaAMeiaNoiteImpedeIniciarOutra() {
         relogioAs("22:00");
-        iniciarJornada.iniciar(3_000);
+        iniciarJornada.iniciar(3_000, 5);
 
         relogio.ajustarPara(as(HOJE.plusDays(1), "00:30"));
 
-        assertThatThrownBy(() -> iniciarJornada.iniciar(3_000)).isInstanceOf(JornadaJaIniciadaException.class);
+        assertThatThrownBy(() -> iniciarJornada.iniciar(3_000, 5)).isInstanceOf(JornadaJaIniciadaException.class);
     }
 
     @Test
     void cenario8JornadaEsquecidaEEncerradaNaSubidaDoBackend() {
         relogio.ajustarPara(as(HOJE.minusDays(1), "09:00"));
-        UUID id = iniciarJornada.iniciar(3_000).id();
+        UUID id = iniciarJornada.iniciar(3_000, 5).id();
         relogio.ajustarPara(as(HOJE.minusDays(1), "09:30"));
         avancarAgenda.avancar();
-        confirmarRecebimento.confirmar(marco(atual(), 1).id());
+        confirmarRecebimento.confirmar(agua(atual(), 1).id());
 
         relogioAs("08:00");
         contexto.publishEvent(
@@ -294,23 +318,25 @@ class AgendaIntegracaoTest {
         assertThat(consultarJornadaAtual.consultar()).isEmpty();
         assertThat(jdbc.queryForObject("select status from jornada where id = ?", String.class, id))
                 .isEqualTo("ENCERRADA_AUTOMATICAMENTE");
-        assertThat(jdbc.queryForList(
-                        "select status from marco where jornada_id = ? order by sequencia", String.class, id))
-                .first()
+        assertThat(jdbc.queryForObject(
+                        "select status from marco where jornada_id = ? and categoria = 'HIDRATACAO' and sequencia = 1",
+                        String.class,
+                        id))
                 .isEqualTo(FALHA.name());
+        // As outras 15 de água e as 8 de exercício.
         assertThat(jdbc.queryForObject(
                         "select count(*) from marco where jornada_id = ? and status = 'NAO_ENTREGUE'",
                         Integer.class,
                         id))
-                .isEqualTo(15);
+                .isEqualTo(23);
     }
 
     @Test
     void reinicioNoMesmoDiaMarcaComoNaoEntregueOQueVenceuComOBackendFora() {
-        UUID id = iniciarJornada.iniciar(3_000).id();
+        UUID id = iniciarJornada.iniciar(3_000, 5).id();
         relogioAs("09:30");
         avancarAgenda.avancar();
-        confirmarRecebimento.confirmar(marco(atual(), 1).id());
+        confirmarRecebimento.confirmar(agua(atual(), 1).id());
 
         relogioAs("10:45");
         contexto.publishEvent(
@@ -318,42 +344,42 @@ class AgendaIntegracaoTest {
 
         SituacaoDaJornada situacao = atual();
         assertThat(situacao.status()).isEqualTo(StatusJornada.EM_ANDAMENTO);
-        assertThat(situacao.marcos().subList(0, 4))
-                .extracting(SituacaoDoMarco::status)
-                .containsExactly(FALHA, NAO_ENTREGUE, NAO_ENTREGUE, AGENDADO);
+        assertThat(statusDaAgua(situacao).subList(0, 4)).containsExactly(FALHA, NAO_ENTREGUE, NAO_ENTREGUE, AGENDADO);
+        assertThat(marco(situacao, Categoria.EXERCICIO, 1).status()).isEqualTo(NAO_ENTREGUE);
+        assertThat(marco(situacao, Categoria.EXERCICIO, 1).bloco()).isNull();
     }
 
     @Test
     void doisIniciosSimultaneosGravamUmaJornadaSo() throws Exception {
-        List<Object> resultados = emParalelo(2, () -> iniciarJornada.iniciar(3_000));
+        List<Object> resultados = emParalelo(2, () -> iniciarJornada.iniciar(3_000, 5));
 
         assertThat(resultados).filteredOn(SituacaoDaJornada.class::isInstance).hasSize(1);
         assertThat(resultados)
                 .filteredOn(JornadaJaIniciadaException.class::isInstance)
                 .hasSize(1);
         assertThat(contar("jornada")).isEqualTo(1);
-        assertThat(contar("marco")).isEqualTo(16);
+        assertThat(contar("marco")).isEqualTo(24);
     }
 
     @Test
     void duasConclusoesSimultaneasDoMesmoMarcoSaoSerializadasPeloBloqueio() throws Exception {
-        UUID id = iniciarJornada.iniciar(3_000).id();
+        UUID id = iniciarJornada.iniciar(3_000, 5).id();
         relogioAs("09:30");
         avancarAgenda.avancar();
-        UUID marco1 = marco(atual(), 1).id();
+        UUID marco1 = agua(atual(), 1).id();
 
         List<Object> resultados = emParalelo(2, () -> responderMarco.concluir(marco1));
 
         assertThat(resultados).allSatisfy(resultado -> assertThat(resultado).isInstanceOf(SituacaoDaJornada.class));
         assertThat(resultados)
-                .extracting(resultado -> marco((SituacaoDaJornada) resultado, 1).status())
+                .extracting(resultado -> agua((SituacaoDaJornada) resultado, 1).status())
                 .containsOnly(CONCLUIDO);
         assertThat(atual().aguaIngeridaMl()).isEqualByComparingTo("187.5");
     }
 
     @Test
     void bancoRecusaMarcoDuplicadoESegundaJornadaAberta() {
-        UUID id = iniciarJornada.iniciar(3_000).id();
+        UUID id = iniciarJornada.iniciar(3_000, 5).id();
 
         assertThatThrownBy(() -> jdbc.update("""
                         insert into marco (id, jornada_id, categoria, sequencia, status,
@@ -363,8 +389,9 @@ class AgendaIntegracaoTest {
                 .isInstanceOf(DataIntegrityViolationException.class)
                 .hasMessageContaining("uk_marco_sequencia");
         assertThatThrownBy(() -> jdbc.update("""
-                        insert into jornada (id, versao, data_referencia, status, meta_agua_ml, iniciada_em)
-                        values (?, 0, date '2026-10-03', 'EM_ANDAMENTO', 3000, now())
+                        insert into jornada (id, versao, data_referencia, status, meta_agua_ml,
+                            duracao_bloco_min, iniciada_em)
+                        values (?, 0, date '2026-10-03', 'EM_ANDAMENTO', 3000, 5, now())
                         """, UUID.randomUUID()))
                 .isInstanceOf(DataIntegrityViolationException.class)
                 .hasMessageContaining("uk_jornada_aberta");
@@ -372,8 +399,8 @@ class AgendaIntegracaoTest {
 
     @Test
     void metaInvalidaNaoGravaNada() {
-        assertThatThrownBy(() -> iniciarJornada.iniciar(0)).isInstanceOf(MetaDeAguaInvalidaException.class);
-        assertThatThrownBy(() -> iniciarJornada.iniciar(6_001)).isInstanceOf(MetaDeAguaInvalidaException.class);
+        assertThatThrownBy(() -> iniciarJornada.iniciar(0, 5)).isInstanceOf(MetaDeAguaInvalidaException.class);
+        assertThatThrownBy(() -> iniciarJornada.iniciar(6_001, 5)).isInstanceOf(MetaDeAguaInvalidaException.class);
         assertThat(contar("jornada")).isZero();
     }
 
@@ -389,8 +416,9 @@ class AgendaIntegracaoTest {
     @Test
     void tickEncerraSozinhoAJornadaEsquecidaQuandoODiaVira() {
         relogio.ajustarPara(as(HOJE.minusDays(1), "09:00"));
-        UUID id = iniciarJornada.iniciar(3_000).id();
-        for (int meiaHora = 1; meiaHora <= 17; meiaHora++) {
+        UUID id = iniciarJornada.iniciar(3_000, 5).id();
+        // Até as 18:00, quando vence o 8º exercício (D6 da H3) e não sobra marco em aberto.
+        for (int meiaHora = 1; meiaHora <= 18; meiaHora++) {
             relogio.avancar(Duration.ofMinutes(30));
             avancarAgenda.avancar();
         }
@@ -406,10 +434,10 @@ class AgendaIntegracaoTest {
 
     @Test
     void comandoPoeAJornadaEmDiaAntesDeAgir() {
-        iniciarJornada.iniciar(3_000);
+        iniciarJornada.iniciar(3_000, 5);
         relogioAs("09:30");
         avancarAgenda.avancar();
-        UUID marco1 = marco(atual(), 1).id();
+        UUID marco1 = agua(atual(), 1).id();
 
         // Prazo venceu às 10:00, mas o tick ainda não rodou: concluir agora seria aceitar uma resposta atrasada.
         relogioAs("10:00:00.4");
@@ -421,7 +449,7 @@ class AgendaIntegracaoTest {
 
     @Test
     void tickPublicaOsEventosDosMarcosESemMudancaNaoPublicaNada() {
-        iniciarJornada.iniciar(3_000);
+        iniciarJornada.iniciar(3_000, 5);
         relogioAs("09:30");
         eventosPublicados.clear();
 
@@ -445,10 +473,10 @@ class AgendaIntegracaoTest {
 
     @Test
     void respostaRepetidaNaoPublicaNovaAlteracao() {
-        iniciarJornada.iniciar(3_000);
+        iniciarJornada.iniciar(3_000, 5);
         relogioAs("09:30");
         avancarAgenda.avancar();
-        UUID marco1 = marco(atual(), 1).id();
+        UUID marco1 = agua(atual(), 1).id();
         responderMarco.concluir(marco1);
         eventosPublicados.clear();
 
@@ -462,17 +490,18 @@ class AgendaIntegracaoTest {
         double disparadosAntes = contador("pausaativa.marcos.disparados");
         double falhasAntes = contador("pausaativa.marcos.encerrados", "status", "FALHA");
         long atrasosAntes = atrasosRegistrados();
-        iniciarJornada.iniciar(3_000);
+        iniciarJornada.iniciar(3_000, 5);
         relogioAs("09:30:02");
         avancarAgenda.avancar();
-        confirmarRecebimento.confirmar(marco(atual(), 1).id());
+        confirmarRecebimento.confirmar(agua(atual(), 1).id());
 
         relogioAs("10:00");
         avancarAgenda.avancar();
 
-        assertThat(contador("pausaativa.marcos.disparados")).isEqualTo(disparadosAntes + 2);
+        // Água 1 às 09:30; água 2 e exercício 1 às 10:00.
+        assertThat(contador("pausaativa.marcos.disparados")).isEqualTo(disparadosAntes + 3);
         assertThat(contador("pausaativa.marcos.encerrados", "status", "FALHA")).isEqualTo(falhasAntes + 1);
-        assertThat(atrasosRegistrados()).isEqualTo(atrasosAntes + 2);
+        assertThat(atrasosRegistrados()).isEqualTo(atrasosAntes + 3);
     }
 
     private long atrasosRegistrados() {
@@ -488,7 +517,7 @@ class AgendaIntegracaoTest {
 
     @Test
     void encerramentosDoFinalizarSaoPublicadosComoEventos() {
-        UUID id = iniciarJornada.iniciar(3_000).id();
+        UUID id = iniciarJornada.iniciar(3_000, 5).id();
         eventosPublicados.clear();
 
         finalizarJornada.finalizar(id);
@@ -496,7 +525,7 @@ class AgendaIntegracaoTest {
         assertThat(eventosPublicados.stream(JornadaAlterada.class))
                 .singleElement()
                 .satisfies(alteracao -> assertThat(alteracao.eventos())
-                        .hasSize(16)
+                        .hasSize(24)
                         .allSatisfy(evento -> assertThat(evento).isInstanceOf(MarcoEncerrado.class)));
     }
 

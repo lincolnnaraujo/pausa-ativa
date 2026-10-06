@@ -41,7 +41,8 @@ springdoc:
 
 pausa-ativa:
   agenda:
-    # Tempo trabalhado entre os lembretes de água. O modo demonstração (docker-compose.demo.yml) usa 1m.
+    # Tempo trabalhado entre os lembretes de água; o exercício usa o dobro (D9 da H3). O modo
+    # demonstração (docker-compose.demo.yml) usa 1m.
     intervalo: ${PAUSA_ATIVA_INTERVALO:30m}
     agendador:
       # Tick de 1 s e heartbeat do SSE. Desligado nos testes, que avançam a agenda à mão.

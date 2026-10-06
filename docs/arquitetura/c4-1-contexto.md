@@ -9,10 +9,9 @@ flowchart LR
     N["Notificações do Chrome<br/><i>Sistema de notificação do navegador</i>"]
     G["Grafana<br/><i>Painel de métricas</i>"]
 
-    U -->|"Inicia, pausa e finaliza a jornada,<br/>responde lembretes (v0.2.0)"| S
-    U -.->|"Faz exercícios, vê gráficos (H3, H4)"| S
-    S -->|"Lembretes de água (v0.2.0)"| N
-    S -.->|"Lembretes de exercício (H3)"| N
+    U -->|"Preenche o perfil físico; inicia, pausa<br/>e finaliza a jornada; responde lembretes"| S
+    U -.->|"Vê histórico e gráficos (H4)"| S
+    S -->|"Lembretes de água e<br/>blocos de exercício"| N
     N -->|"Mostra o lembrete"| U
     U -.->|"Consulta métricas (H5)"| G
     G -.->|"Lê métricas (H5)"| S
@@ -27,12 +26,12 @@ flowchart LR
 |---|---|---|---|
 | Usuário | Pessoa | Única pessoa que usa o sistema, no próprio computador | v0.1.0 |
 | Pausa Ativa | Sistema | Este sistema | v0.1.0 |
-| Notificações do Chrome | Sistema externo | Exibe os lembretes, mesmo com a aba fora de foco. Os botões de resposta ficam na página. | v0.2.0 |
+| Notificações do Chrome | Sistema externo | Exibe os lembretes, mesmo com a aba fora de foco. Na hora cheia, água e exercício vêm numa notificação só (v0.3.0). Os botões de resposta ficam na página. | v0.2.0 |
 | Grafana | Sistema externo | Painel de métricas técnicas e de negócio | H5 (planejado) |
 
 ## Restrições
 
 - Tudo roda localmente, via Docker Compose. Nada fica exposto fora de `127.0.0.1`.
-- Sem autenticação: o sistema assume um único usuário.
+- Sem autenticação: o sistema assume um único usuário, com um único perfil físico.
 - O Chrome é o único navegador garantido.
 - Os lembretes chegam pela aba aberta: sem ela, não há notificação, e o lembrete vira `NAO_ENTREGUE`.

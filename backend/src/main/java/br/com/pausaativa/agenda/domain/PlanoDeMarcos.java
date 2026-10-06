@@ -11,6 +11,7 @@ public record PlanoDeMarcos(Categoria categoria, Duration intervalo, int quantid
 
     public static final Duration INTERVALO_PADRAO = Duration.ofMinutes(30);
     public static final int MARCOS_DE_HIDRATACAO = 16;
+    public static final int MARCOS_DE_EXERCICIO = 8;
 
     public PlanoDeMarcos {
         if (intervalo.isNegative() || intervalo.isZero()) {
@@ -23,5 +24,13 @@ public record PlanoDeMarcos(Categoria categoria, Duration intervalo, int quantid
 
     public static PlanoDeMarcos hidratacao(Duration intervalo) {
         return new PlanoDeMarcos(Categoria.HIDRATACAO, intervalo, MARCOS_DE_HIDRATACAO);
+    }
+
+    /**
+     * O exercício dispara a cada dois intervalos da água (decisão D9 da spec H3): 60 min em uso normal,
+     * sempre na mesma hora cheia que um marco de água par.
+     */
+    public static PlanoDeMarcos exercicio(Duration intervaloDaAgua) {
+        return new PlanoDeMarcos(Categoria.EXERCICIO, intervaloDaAgua.multipliedBy(2), MARCOS_DE_EXERCICIO);
     }
 }

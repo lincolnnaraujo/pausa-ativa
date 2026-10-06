@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { guardarUltimaMeta, lerUltimaMeta, metaValida } from '@/preferencias'
+import {
+  guardarUltimaDuracao,
+  guardarUltimaMeta,
+  lerUltimaDuracao,
+  lerUltimaMeta,
+  metaValida,
+} from '@/preferencias'
 
 describe('preferências', () => {
   beforeEach(() => localStorage.clear())
@@ -14,6 +20,16 @@ describe('preferências', () => {
     expect(metaValida(6_001)).toBe(false)
     expect(metaValida(2_500.5)).toBe(false)
     expect(metaValida(Number.NaN)).toBe(false)
+  })
+
+  it('lembra a duração do bloco e, sem ela ou com valor inválido, sugere 5 min', () => {
+    expect(lerUltimaDuracao()).toBe(5)
+
+    guardarUltimaDuracao(10)
+    expect(lerUltimaDuracao()).toBe(10)
+
+    localStorage.setItem('pausa-ativa.duracao-bloco-min', '7')
+    expect(lerUltimaDuracao()).toBe(5)
   })
 
   it('lembra a última meta usada e, sem ela, sugere 3.000 ml', () => {

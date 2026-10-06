@@ -1,5 +1,5 @@
-# Modo demonstração: um lembrete de água por minuto de tempo trabalhado, para testar o dia inteiro em
-# cerca de 16 min (spec H2, seção 9).
+# Modo demonstração: um lembrete de água por minuto e um bloco de exercício a cada 2 min de tempo
+# trabalhado, para testar o dia inteiro em cerca de 16 min (spec H2, seção 9; spec H3, seção 9).
 #
 #   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --wait
 #   docker compose -f docker-compose.yml -f docker-compose.demo.yml down -v

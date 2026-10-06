@@ -1,7 +1,7 @@
 import { onScopeDispose, ref } from 'vue'
 
 import type { Marco } from '@/api/jornada'
-import { tituloDoMarco } from '@/formatacao'
+import { tituloDoLembrete } from '@/formatacao'
 
 /** `indisponivel`: o navegador não tem a API de notificações. */
 export type PermissaoDeNotificacao = NotificationPermission | 'indisponivel'
@@ -46,15 +46,22 @@ export function useNotificacoes() {
     }
   }
 
-  /** A `tag` é o id do marco: com várias abas abertas, o Chrome mostra uma notificação só. */
-  function notificar(marco: Marco) {
-    if (permissao.value !== 'granted') {
+  /**
+   * Uma notificação para os marcos que chegaram juntos: na hora cheia, água e exercício viram uma só,
+   * com a água primeiro (spec H3, seção 3.7). A `tag` junta os ids: com várias abas abertas, o Chrome
+   * mostra uma notificação só.
+   */
+  function notificar(marcos: Marco[]) {
+    if (permissao.value !== 'granted' || marcos.length === 0) {
       return
     }
+    const emOrdem = [...marcos].sort(
+      (a, b) => Number(a.categoria === 'EXERCICIO') - Number(b.categoria === 'EXERCICIO'),
+    )
     try {
-      const notificacao = new Notification(tituloDoMarco(marco.categoria), {
-        body: marco.mensagem,
-        tag: marco.id,
+      const notificacao = new Notification(tituloDoLembrete(emOrdem), {
+        body: emOrdem.map((marco) => marco.mensagem).join(' '),
+        tag: emOrdem.map((marco) => marco.id).join('+'),
       })
       notificacao.onclick = () => {
         window.focus()

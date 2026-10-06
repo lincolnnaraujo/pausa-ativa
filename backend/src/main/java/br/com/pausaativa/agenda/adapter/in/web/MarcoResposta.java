@@ -22,7 +22,9 @@ import java.util.UUID;
             "disparadoEm",
             "recebidoEm",
             "respondidoEm",
-            "mensagem"
+            "mensagem",
+            "podeAdiar",
+            "bloco"
         })
 record MarcoResposta(
         UUID id,
@@ -33,11 +35,18 @@ record MarcoResposta(
 
         StatusMarco status,
 
-        @Schema(description = "Volume exato: meta ÷ 16", example = "187.5")
+        @Schema(
+                description = "Volume exato: meta ÷ 16. Nulo no exercício.",
+                types = {"number", "null"},
+                example = "187.5")
         BigDecimal volumeMl,
 
-        @Schema(description = "Volume para exibir, arredondado para a dezena", example = "190")
-        int volumeAproximadoMl,
+        @Schema(
+                description = "Volume para exibir, arredondado para a dezena. Nulo no exercício.",
+                types = {"integer", "null"},
+                format = "int32",
+                example = "190")
+        Integer volumeAproximadoMl,
 
         @Schema(description = "Tempo trabalhado em que o marco dispara", example = "1800")
         long segundosTrabalhadosPrevistos,
@@ -58,7 +67,17 @@ record MarcoResposta(
         OffsetDateTime respondidoEm,
 
         @Schema(example = "Beba ~190 ml. Levante-se para buscar a água.")
-        String mensagem) {
+        String mensagem,
+
+        @Schema(
+                description = "Se o botão Adiar vale agora: só no exercício pendente que não compensa um"
+                        + " adiamento e não é o último do dia")
+        boolean podeAdiar,
+
+        @Schema(
+                description = "Bloco de exercício. Nulo na água e no exercício que ainda não disparou.",
+                types = {"object", "null"})
+        BlocoResposta bloco) {
 
     static MarcoResposta de(SituacaoDoMarco marco) {
         return new MarcoResposta(
@@ -72,6 +91,8 @@ record MarcoResposta(
                 marco.disparadoEm(),
                 marco.recebidoEm(),
                 marco.respondidoEm(),
-                marco.mensagem());
+                marco.mensagem(),
+                marco.podeAdiar(),
+                marco.bloco() == null ? null : BlocoResposta.de(marco.bloco()));
     }
 }

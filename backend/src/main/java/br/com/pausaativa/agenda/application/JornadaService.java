@@ -7,6 +7,8 @@ import br.com.pausaativa.agenda.application.port.in.PausarJornada;
 import br.com.pausaativa.agenda.application.port.in.RetomarJornada;
 import br.com.pausaativa.agenda.application.port.in.SituacaoDaJornada;
 import br.com.pausaativa.agenda.application.port.out.JornadaRepository;
+import br.com.pausaativa.agenda.application.port.out.MontadorDeBlocos;
+import br.com.pausaativa.agenda.domain.DuracaoDoBloco;
 import br.com.pausaativa.agenda.domain.Jornada;
 import br.com.pausaativa.agenda.domain.JornadaJaIniciadaException;
 import br.com.pausaativa.agenda.domain.MetaDeAgua;
@@ -24,26 +26,39 @@ import org.springframework.transaction.annotation.Transactional;
 class JornadaService implements IniciarJornada, PausarJornada, RetomarJornada, FinalizarJornada, ConsultarJornadaAtual {
 
     private final JornadaRepository repositorio;
+    private final MontadorDeBlocos montador;
+    private final AvancoDaJornada avanco;
     private final ConfiguracaoDaAgenda configuracao;
     private final PublicadorDeAlteracoes publicador;
     private final Clock clock;
 
     JornadaService(
             JornadaRepository repositorio,
+            MontadorDeBlocos montador,
+            AvancoDaJornada avanco,
             ConfiguracaoDaAgenda configuracao,
             PublicadorDeAlteracoes publicador,
             Clock clock) {
         this.repositorio = repositorio;
+        this.montador = montador;
+        this.avanco = avanco;
         this.configuracao = configuracao;
         this.publicador = publicador;
         this.clock = clock;
     }
 
-    /** Encerra antes a jornada esquecida; uma jornada ainda em uso, ou a de hoje já finalizada, impede (D3). */
+    /**
+     * Exige o perfil físico (D7 da H3). Encerra antes a jornada esquecida; uma jornada ainda em uso, ou a
+     * de hoje já finalizada, impede (D3 da H2).
+     */
     @Override
     @Transactional
-    public SituacaoDaJornada iniciar(int metaAguaMl) {
+    public SituacaoDaJornada iniciar(int metaAguaMl, int duracaoBlocoMin) {
         MetaDeAgua meta = new MetaDeAgua(metaAguaMl);
+        DuracaoDoBloco duracaoDoBloco = new DuracaoDoBloco(duracaoBlocoMin);
+        if (!montador.perfilPreenchido()) {
+            throw new PerfilAusenteException();
+        }
         Instant agora = clock.instant();
         LocalDate hoje = LocalDate.ofInstant(agora, clock.getZone());
 
@@ -63,7 +78,7 @@ class JornadaService implements IniciarJornada, PausarJornada, RetomarJornada, F
         }
 
         Jornada jornada =
-                Jornada.iniciar(UUID.randomUUID(), agora, clock.getZone(), meta, configuracao.planoDeHidratacao());
+                Jornada.iniciar(UUID.randomUUID(), agora, clock.getZone(), meta, duracaoDoBloco, configuracao.planos());
         repositorio.salvar(jornada);
         return publicador.publicar(jornada, agora);
     }
@@ -105,7 +120,7 @@ class JornadaService implements IniciarJornada, PausarJornada, RetomarJornada, F
         Jornada jornada = repositorio
                 .buscarComBloqueio(jornadaId)
                 .orElseThrow(() -> new JornadaNaoEncontradaException(jornadaId));
-        jornada.avancar(agora);
+        avanco.avancar(jornada, agora);
         operacao.accept(jornada, agora);
         repositorio.salvar(jornada);
         return publicador.publicar(jornada, agora);

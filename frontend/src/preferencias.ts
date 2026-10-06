@@ -1,6 +1,13 @@
-import { META_MAXIMA_ML, META_PADRAO_ML } from '@/api/jornada'
+import {
+  DURACAO_PADRAO_DO_BLOCO_MIN,
+  DURACOES_DO_BLOCO_MIN,
+  type DuracaoDoBlocoMin,
+  META_MAXIMA_ML,
+  META_PADRAO_ML,
+} from '@/api/jornada'
 
 const CHAVE_META = 'pausa-ativa.meta-agua-ml'
+const CHAVE_DURACAO = 'pausa-ativa.duracao-bloco-min'
 const CHAVE_SOM = 'pausa-ativa.som'
 
 /** Meta válida: inteiro de 1 a 6.000 ml (spec H2, seção 3.4). */
@@ -16,6 +23,16 @@ export function lerUltimaMeta(): number {
 
 export function guardarUltimaMeta(meta: number): void {
   guardar(CHAVE_META, String(meta))
+}
+
+/** A duração do bloco escolhida no último dia (spec H3, seção 8); sem ela, 5 min. */
+export function lerUltimaDuracao(): DuracaoDoBlocoMin {
+  const salva = Number(ler(CHAVE_DURACAO))
+  return DURACOES_DO_BLOCO_MIN.find((duracao) => duracao === salva) ?? DURACAO_PADRAO_DO_BLOCO_MIN
+}
+
+export function guardarUltimaDuracao(duracao: DuracaoDoBlocoMin): void {
+  guardar(CHAVE_DURACAO, String(duracao))
 }
 
 /** Som dos lembretes: ligado, a menos que a pessoa tenha desligado (spec H2, D7). */

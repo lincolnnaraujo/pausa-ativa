@@ -2,7 +2,7 @@
 
 Aplicação web que roda no seu computador e distribui hidratação e exercício curto ao longo da jornada de home office.
 
-> **Versão atual: v0.2.0 (jornada e hidratação).** Você inicia o dia, e a cada 30 min de trabalho o Chrome lembra de beber água. Exercícios e gráficos chegam nas próximas versões. Veja o [plano completo](docs/epico-pausa-ativa.md) e [o que mudou](docs/releases/v0.2.0.md).
+> **Versão atual: v0.3.0 (blocos de exercício).** Você inicia o dia, e a cada 30 min de trabalho o Chrome lembra de beber água. A cada hora, propõe um bloco curto de exercícios, montado para o seu perfil físico. Gráficos e histórico chegam nas próximas versões. Veja o [plano completo](docs/epico-pausa-ativa.md) e [o que mudou](docs/releases/v0.3.0.md).
 
 ## O que você precisa
 
@@ -43,29 +43,37 @@ Na primeira vez leva alguns minutos, porque o Docker baixa e monta as imagens. O
 
 ## Como usar
 
-1. **Comece o dia.** Confira a meta de água (padrão 3.000 ml) e clique em **Iniciar dia**. O Chrome pergunta se pode mostrar notificações: clique em **Permitir**.
-2. **Deixe a aba aberta.** Pode ficar em segundo plano, mas não feche: é por ela que os lembretes chegam.
-3. **A cada 30 min de trabalho**, chega um lembrete para beber ~190 ml de água (a meta dividida em 16), como notificação do Chrome e com um som curto. Nos lembretes da meia hora (0:30, 1:30…), aproveite para levantar e buscar a água.
-4. **Responda na página.** Clicar na notificação traz a aba para a frente. Lá, clique em **Concluir** se bebeu ou em **Falhar** se não deu.
-5. **No almoço, clique em Pausar.** O tempo trabalhado para, e os lembretes esperam. Na volta, clique em **Retomar**.
-6. **No fim do expediente, clique em Finalizar dia** e confirme. A tela mostra o resumo do dia.
+1. **Na primeira vez, preencha o perfil físico.** São quatro perguntas: articulações a poupar (joelho, ombro, punho, lombar, cervical), nível (iniciante ou intermediário), equipamentos que você tem (apoio de flexão, halteres de 2 kg) e se pode fazer exercícios no chão. Cadeira e mesa já contam como disponíveis. Sem o perfil, o dia não começa.
+2. **Comece o dia.** Confira a meta de água (padrão 3.000 ml), escolha blocos de exercício de **5 min** (padrão) ou **10 min** e clique em **Iniciar dia**. O Chrome pergunta se pode mostrar notificações: clique em **Permitir**.
+3. **Deixe a aba aberta.** Pode ficar em segundo plano, mas não feche: é por ela que os lembretes chegam.
+4. **A cada 30 min de trabalho**, chega um lembrete para beber ~190 ml de água (a meta dividida em 16), como notificação do Chrome e com um som curto. Nos lembretes da meia hora (0:30, 1:30…), aproveite para levantar e buscar a água.
+5. **A cada hora de trabalho**, chega também um bloco de exercícios: a lista, com quantidade e uma linha de como fazer cada um. Na hora cheia, água e exercício vêm numa notificação só, e a página mostra os dois cartões, cada um com os seus botões.
+6. **Responda na página.** Clicar na notificação traz a aba para a frente. Lá, clique em **Concluir** se fez, em **Falhar** se não deu, ou, no exercício, em **Adiar** (veja abaixo).
+7. **No almoço, clique em Pausar.** O tempo trabalhado para, e os lembretes esperam. Na volta, clique em **Retomar**.
+8. **No fim do expediente, clique em Finalizar dia** e confirme. A tela mostra o resumo do dia, por categoria.
+
+**Adiar um bloco de exercício.** O bloco adiado passa para a hora seguinte, e o bloco seguinte vem com 10 min para compensar. Concluir esse bloco conta como concluídos os dois; marcar falha conta os dois como falha. Só dá para adiar uma vez seguida, e o último bloco do dia não pode ser adiado: nesses casos, o botão não aparece.
 
 O que acontece com cada lembrete:
 
 | Situação | Quando |
 |---|---|
-| **Concluído** | Você clicou em Concluir. Entra na água do dia. |
+| **Concluído** | Você clicou em Concluir. Na água, entra na água do dia. |
 | **Falha** | Você clicou em Falhar, ou o lembrete chegou e ficou sem resposta até o seguinte. |
+| **Adiado** | Você adiou o bloco de exercício. Ele fica com a situação do bloco seguinte. |
 | **Não entregue** | O lembrete não chegou: a aba estava fechada ou o servidor estava fora. Não conta contra você. |
 | **Não concluído** | O dia foi finalizado antes da hora do lembrete. |
 
 - **Uma jornada por dia.** Depois de finalizar, o próximo dia começa amanhã.
 - **Esqueceu o dia aberto?** A aplicação encerra sozinha a jornada que ficou de um dia para o outro, e a tela volta a mostrar **Iniciar dia**.
+- **Mudar o perfil:** **Editar perfil**, na tela de início, ou **Editar perfil físico**, no rodapé durante o dia. A mudança vale para os próximos blocos; os que já saíram não mudam.
 - **Som:** a caixa **Tocar um som nos lembretes**, no rodapé, liga e desliga. A escolha fica salva no navegador.
+
+> Este app não substitui orientação médica. Os exercícios e as quantidades são pontos de partida.
 
 ### Modo demonstração
 
-Para ver o dia inteiro em 16 min, um lembrete por minuto, sem mexer na aplicação de uso diário:
+Para ver o dia inteiro em 16 min, com um lembrete de água por minuto e um bloco de exercício a cada 2 min, sem mexer na aplicação de uso diário:
 
 ```sh
 docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build --wait
@@ -79,7 +87,7 @@ docker compose -f docker-compose.yml -f docker-compose.demo.yml down -v
 
 ## Conferir se está funcionando
 
-A página mostra **Iniciar dia** (ou a jornada em andamento) e, no rodapé, **Conectado ao servidor**, com a versão.
+A página mostra o perfil físico (na primeira vez), **Iniciar dia** ou a jornada em andamento e, no rodapé, **Conectado ao servidor**, com a versão.
 
 Se quiser conferir pelo terminal:
 
@@ -99,6 +107,8 @@ Os três serviços (`postgres`, `backend` e `frontend`) devem aparecer como `hea
 | **Apagar todos os dados** (não tem volta) | `docker compose down -v` |
 
 A aplicação volta sozinha quando o Docker Desktop abre, por exemplo depois de reiniciar o computador.
+
+**Vindo da v0.2.0?** Os dados continuam. Na primeira vez, a tela pede o perfil físico. Uma jornada que estava aberta na atualização continua só com água até o fim do dia; os blocos de exercício começam no próximo dia.
 
 ## Se algo der errado
 
@@ -123,7 +133,13 @@ O servidor ainda está iniciando ou parou. Veja o estado com `docker compose ps`
 Depois de recarregar a página, o Chrome só libera o som depois de um clique. A página avisa, e basta clicar em qualquer lugar dela. Confira também se a caixa **Tocar um som nos lembretes** está marcada.
 
 **Não aparece "Iniciar dia"**
-Já houve uma jornada hoje, e é uma por dia. A tela mostra o resumo dela.
+Se a tela mostra **Seu perfil físico**, preencha e salve: sem o perfil, o dia não começa. Se mostra o resumo, já houve uma jornada hoje, e é uma por dia.
+
+**O botão Adiar não aparece**
+O bloco já compensa um adiado (só dá para adiar uma vez seguida) ou é o último do dia. Conclua ou marque falha.
+
+**Mudei o perfil e o bloco na tela não mudou**
+O bloco é montado na hora em que chega e não muda depois. O perfil novo vale a partir do próximo bloco.
 
 **Troquei a senha do `.env` (ou baixei o projeto de novo) e o `backend` não sobe**
 O banco guarda a senha usada na **primeira** subida e ignora mudanças depois disso. Volte a senha antiga no `.env` ou, se puder perder os dados, apague o banco com `docker compose down -v` e suba de novo.

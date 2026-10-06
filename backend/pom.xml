@@ -12,7 +12,7 @@
 
     <groupId>br.com.pausaativa</groupId>
     <artifactId>pausa-ativa-backend</artifactId>
-    <version>0.2.0</version>
+    <version>0.3.0</version>
     <name>pausa-ativa-backend</name>
     <description>Backend do Pausa Ativa: monólito modular hexagonal (Agenda, Treino, Histórico)</description>
 

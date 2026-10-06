@@ -27,7 +27,7 @@ interface Opcoes {
 
 /** Faz a requisição e devolve a resposta 2xx; qualquer outra vira um dos erros acima. */
 export async function requisitar(
-  metodo: 'GET' | 'POST',
+  metodo: 'GET' | 'POST' | 'PUT',
   caminho: string,
   { corpo, tempoLimiteMs = TEMPO_LIMITE_MS }: Opcoes = {},
 ): Promise<Response> {

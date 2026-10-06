@@ -44,15 +44,15 @@ describe('API da jornada', () => {
     await expect(buscarJornadaAtual()).resolves.toBeNull()
   })
 
-  it('inicia o dia enviando a meta em JSON', async () => {
+  it('inicia o dia enviando a meta e a duração do bloco em JSON', async () => {
     const fetchFalso = responderCom(Response.json(JORNADA, { status: 201 }))
 
-    await expect(iniciarJornada(2_500)).resolves.toEqual(JORNADA)
+    await expect(iniciarJornada(2_500, 10)).resolves.toEqual(JORNADA)
     expect(fetchFalso).toHaveBeenCalledWith(
       '/api/v1/jornadas',
       expect.objectContaining({
         method: 'POST',
-        body: '{"metaAguaMl":2500}',
+        body: '{"metaAguaMl":2500,"duracaoBlocoMin":10}',
         headers: {
           Accept: 'application/json, application/problem+json',
           'Content-Type': 'application/json',
@@ -104,7 +104,7 @@ describe('API da jornada', () => {
       ),
     )
 
-    await expect(iniciarJornada(0)).rejects.toThrow(new OperacaoRecusadaError(400, 'Bad Request'))
+    await expect(iniciarJornada(0, 5)).rejects.toThrow(new OperacaoRecusadaError(400, 'Bad Request'))
   })
 
   it.each([

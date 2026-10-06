@@ -1,7 +1,7 @@
 import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { comMarco, umaJornada } from '@/__tests__/fabrica'
+import { comMarco, umaJornada, umBloco, umExercicio } from '@/__tests__/fabrica'
 import {
   EventSourceFalso,
   instalarNavegadorFalso,
@@ -23,6 +23,16 @@ vi.mock('@/api/jornada', async (importOriginal) => ({
 vi.mock('@/api/sistema', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api/sistema')>()),
   buscarStatus: vi.fn(),
+}))
+
+vi.mock('@/api/perfil', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api/perfil')>()),
+  buscarPerfil: vi.fn().mockResolvedValue({
+    articulacoesPoupadas: [],
+    nivel: 'INICIANTE',
+    equipamentos: [],
+    aceitaChao: true,
+  }),
 }))
 
 enableAutoUnmount(afterEach)
@@ -118,10 +128,60 @@ describe('JornadaView em tempo real', () => {
       const amostras = tonsTocados().length
 
       EventSourceFalso.ultima().emitir('marco-disparado', MARCO_4)
+      EventSourceFalso.ultima().emitir('jornada-atualizada', COM_PENDENTE)
 
       expect(localStorage.getItem('pausa-ativa.som')).toBe('desligado')
       expect(NotificationFalsa.criadas).toHaveLength(1)
       expect(tonsTocados()).toHaveLength(amostras)
+    })
+
+    it('na hora cheia, água e exercício viram uma notificação e um som só (Cenário 2 da H3)', async () => {
+      const exercicio = umExercicio(2, {
+        status: 'PENDENTE',
+        disparadoEm: '2026-10-02T11:00:00-03:00',
+        mensagem: 'Bloco de 5 min: 2 exercícios.',
+        podeAdiar: true,
+        bloco: umBloco(),
+      })
+      const wrapper = await montar(EM_ANDAMENTO)
+      await conectar()
+      const amostras = tonsTocados().length
+      const fonte = EventSourceFalso.ultima()
+
+      fonte.emitir('marco-disparado', MARCO_4)
+      fonte.emitir('marco-disparado', exercicio)
+      expect(NotificationFalsa.criadas).toHaveLength(0)
+      fonte.emitir('jornada-atualizada', {
+        ...COM_PENDENTE,
+        marcos: [...COM_PENDENTE.marcos, exercicio],
+      })
+      await flushPromises()
+
+      expect(NotificationFalsa.criadas).toHaveLength(1)
+      expect(NotificationFalsa.criadas[0]!.title).toBe('Hora da água e do exercício 💧🏃')
+      expect(NotificationFalsa.criadas[0]!.options).toEqual({
+        body: 'Beba ~190 ml. Bloco de 5 min: 2 exercícios.',
+        tag: 'marco-4+exercicio-2',
+      })
+      expect(tonsTocados().length - amostras).toBe(1)
+      expect(wrapper.findAll('[data-testid="marco-pendente"]')).toHaveLength(2)
+      expect(confirmarRecebimento).toHaveBeenCalledWith('exercicio-2')
+    })
+
+    it('se a atualização da jornada se perder, anuncia o lote depois de 1 s', async () => {
+      await montar(EM_ANDAMENTO)
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      try {
+        EventSourceFalso.ultima().emitir('marco-disparado', MARCO_4)
+        vi.advanceTimersByTime(999)
+        expect(NotificationFalsa.criadas).toHaveLength(0)
+
+        vi.advanceTimersByTime(1)
+
+        expect(NotificationFalsa.criadas.map((n) => n.options.tag)).toEqual(['marco-4'])
+      } finally {
+        vi.useRealTimers()
+      }
     })
 
     it('se a confirmação falhar, tenta de novo na próxima atualização', async () => {
@@ -235,7 +295,7 @@ describe('JornadaView em tempo real', () => {
       await flushPromises()
 
       expect(NotificationFalsa.requestPermission).toHaveBeenCalledOnce()
-      expect(iniciarJornada).toHaveBeenCalledWith(3_000)
+      expect(iniciarJornada).toHaveBeenCalledWith(3_000, 5)
     })
 
     it('não concedida: o aviso fixo tem um botão que pede a permissão e some quando ela é dada', async () => {

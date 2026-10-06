@@ -2,8 +2,10 @@ import { computed, onScopeDispose, ref, shallowRef } from 'vue'
 
 import { OperacaoRecusadaError, ServidorIndisponivelError } from '@/api/http'
 import {
+  adiarMarco,
   buscarJornadaAtual,
   concluirMarco,
+  type DuracaoDoBlocoMin,
   falharMarco,
   finalizarJornada,
   iniciarJornada,
@@ -11,7 +13,7 @@ import {
   pausarJornada,
   retomarJornada,
 } from '@/api/jornada'
-import { guardarUltimaMeta } from '@/preferencias'
+import { guardarUltimaDuracao, guardarUltimaMeta } from '@/preferencias'
 
 /** Intervalo padrão entre lembretes; outro valor indica o modo demonstração (spec H2, seção 9). */
 export const INTERVALO_PADRAO_SEGUNDOS = 30 * 60
@@ -121,10 +123,14 @@ export function useJornada() {
     }
   }
 
-  async function iniciar(metaAguaMl: number) {
-    if (await executar(() => iniciarJornada(metaAguaMl))) {
+  /** @returns se o dia começou; a meta e a duração ficam guardadas para o próximo dia */
+  async function iniciar(metaAguaMl: number, duracaoBlocoMin: DuracaoDoBlocoMin): Promise<boolean> {
+    const iniciou = await executar(() => iniciarJornada(metaAguaMl, duracaoBlocoMin))
+    if (iniciou) {
       guardarUltimaMeta(metaAguaMl)
+      guardarUltimaDuracao(duracaoBlocoMin)
     }
+    return iniciou
   }
 
   /** Comando sobre a jornada da tela; sem jornada carregada, não há o que fazer. */
@@ -153,10 +159,12 @@ export function useJornada() {
     finalizar: () => naJornada(finalizarJornada),
     concluir: (marcoId: string) => executar(() => concluirMarco(marcoId)),
     falhar: (marcoId: string) => executar(() => falharMarco(marcoId)),
+    adiar: (marcoId: string) => executar(() => adiarMarco(marcoId)),
   }
 }
 
-function mensagemDeErro(falha: unknown): string {
+/** Texto para a tela: o motivo do backend, ou uma explicação quando o servidor não responde. */
+export function mensagemDeErro(falha: unknown): string {
   if (falha instanceof OperacaoRecusadaError) {
     return falha.message
   }

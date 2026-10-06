@@ -74,29 +74,38 @@ Fontes:
 
 **Treino**
 
-- Formulário inicial: articulações a poupar (joelho, ombro, punho, lombar, cervical), nível (iniciante, intermediário), equipamentos (apoio de flexão, halteres de 2 kg).
-- Seleção por **regras determinísticas**: filtra o catálogo por restrição, equipamento e nível; alterna grupos musculares entre marcos; monta o bloco até preencher a duração.
+- Formulário inicial: articulações a poupar (joelho, ombro, punho, lombar, cervical), nível (iniciante, intermediário), equipamentos (apoio de flexão, halteres de 2 kg) e se pode fazer **exercícios no chão**. Cadeira e mesa são consideradas disponíveis no home office.
+- Seleção por **regras determinísticas**: filtra o catálogo por restrição, equipamento, nível e chão; alterna grupos musculares entre marcos; monta o bloco até preencher a duração.
+- **Prescrição por repetições**, maior no nível intermediário. Exercícios que se medem em tempo (prancha, marcha, mobilidade, alongamentos) usam segundos. "Por lado" vale para cada lado. Como a duração do bloco vira estimativa, a spec da H3 define quanto vale cada repetição e cada troca de exercício.
+- **Nível:** o intermediário recebe todos os exercícios, com a quantidade da coluna "Intermediário". Os exercícios sem quantidade de iniciante (—) são só do intermediário.
+- **Reserva sem restrição** (Cenário 7 da H3): marcha estacionária, mobilidade torácica e os dois alongamentos.
 
-Catálogo inicial (rascunho para revisão do usuário):
+Catálogo inicial (revisado pelo usuário em 2026-10-02):
 
-| Exercício | Grupo | Equipamento | Evitar se poupa |
-|---|---|---|---|
-| Agachamento livre | Pernas | — | Joelho |
-| Sentar e levantar da cadeira | Pernas | Cadeira | — |
-| Afundo alternado | Pernas | — | Joelho |
-| Elevação de panturrilha | Pernas | — | — |
-| Ponte de glúteo | Posterior | — | — |
-| Flexão na parede | Peito | — | Ombro |
-| Flexão inclinada na mesa | Peito | Mesa | Ombro, punho |
-| Flexão com apoio | Peito | Apoio de flexão | Ombro |
-| Prancha | Core | — | Ombro, punho, lombar |
-| Bird-dog | Core | — | Punho, joelho |
-| Remada curvada | Costas | Halteres 2 kg | Lombar |
-| Desenvolvimento de ombros | Ombros | Halteres 2 kg | Ombro, cervical |
-| Elevação lateral | Ombros | Halteres 2 kg | Ombro |
-| Rosca direta | Braços | Halteres 2 kg | — |
-| Marcha estacionária | Cardio leve | — | — |
-| Mobilidade cervical e torácica | Mobilidade | — | — |
+| Exercício | Grupo | Iniciante | Intermediário | Equipamento | No chão | Evitar se poupa |
+|---|---|---|---|---|---|---|
+| Sentar e levantar da cadeira | Pernas | 10 | 15 | Cadeira | | — |
+| Agachamento livre | Pernas | 10 | 15 | — | | Joelho |
+| Afundo alternado | Pernas | — | 8 por lado | — | | Joelho |
+| Elevação de panturrilha | Pernas | 15 | 20 | — | | — |
+| Ponte de glúteo | Posterior | 12 | 15 | — | Sim | — |
+| Extensão de quadril em pé, apoiado na mesa | Posterior | 10 por lado | 12 por lado | Mesa | | — |
+| Flexão na parede | Peito | 10 | 15 | — | | Ombro, punho |
+| Flexão inclinada na mesa | Peito | 8 | 12 | Mesa | | Ombro, punho |
+| Flexão com apoio | Peito | — | 8 | Apoio de flexão | Sim | Ombro |
+| Prancha | Core | 20 s | 40 s | — | Sim | Ombro, punho, lombar |
+| Bird-dog | Core | 6 por lado | 10 por lado | — | Sim | Punho, joelho |
+| Remada curvada | Costas | 12 | 15 | Halteres 2 kg | | Lombar |
+| Anjo na parede | Costas | 8 | 12 | — | | Ombro |
+| Retração escapular em pé (segurar 2 s) | Costas | 12 | 15 | — | | — |
+| Desenvolvimento de ombros | Ombros | 10 | 12 | Halteres 2 kg | | Ombro, cervical |
+| Elevação lateral | Ombros | 10 | 12 | Halteres 2 kg | | Ombro, cervical |
+| Rosca direta | Braços | 12 | 15 | Halteres 2 kg | | Punho |
+| Marcha estacionária | Cardio leve | 60 s | 90 s | — | | — |
+| Mobilidade torácica (rotação do tronco) | Mobilidade | 8 por lado | 10 por lado | — | | — |
+| Mobilidade cervical | Mobilidade | 30 s | 45 s | — | | Cervical |
+| Alongamento de flexores do quadril em pé | Mobilidade | 30 s por lado | 30 s por lado | — | | — |
+| Alongamento de punhos e antebraços | Mobilidade | 30 s | 30 s | — | | — |
 
 ## Decisões de Arquitetura
 
@@ -108,6 +117,7 @@ Catálogo inicial (rascunho para revisão do usuário):
 | Backend | Java 25, Spring Boot 4.x, Maven, Flyway |
 | Banco | PostgreSQL em container, sem porta exposta ao host |
 | Frontend | Vue 3, Vite, TypeScript, servido por nginx |
+| Identidade visual | Paleta **Sereno & Balanceado**, tema escuro, definida pelo usuário em [`identidadevisual/`](../identidadevisual/) (2026-10-05). Tokens CSS em `frontend/src/assets/main.css`, aplicados na H3 |
 | Comunicação | REST (comandos e consultas) + SSE (backend → frontend para disparo de marcos) |
 | Notificação | Notification API do Chrome com aba fixada, alerta sonoro configurável |
 | Relógio | Backend é o agendador único; tempo acessado por `java.time.Clock` injetado, fuso `America/Sao_Paulo`, persistência em UTC |
@@ -255,7 +265,7 @@ Cada história é uma release. Ordem de entrega: 1 → 2 → 3 → 4 → 5.
 
 ### História 3 — [FEATURE] Montar e executar blocos de exercício (release v0.3.0)
 
-**Descrição:** formulário de perfil físico, catálogo de exercícios via migração, seleção por regras, marcos de exercício a cada 60 min com Concluir, Adiar e Falhar, notificação combinada na hora cheia.
+**Descrição:** formulário de perfil físico, catálogo de exercícios via migração, seleção por regras, marcos de exercício a cada 60 min com Concluir, Adiar e Falhar, notificação combinada na hora cheia. Também aplica a identidade visual Sereno & Balanceado em todas as telas (incluída em 2026-10-05).
 
 **Critérios de Aceitação**
 
@@ -292,15 +302,20 @@ Cada história é uma release. Ordem de entrega: 1 → 2 → 3 → 4 → 5.
 #### Cenário 7: restrições eliminam o catálogo (erro)
 - **Dado** um perfil cujas restrições deixam menos exercícios que o necessário
 - **Quando** o bloco é montado
-- **Então** ele é preenchido com marcha estacionária e mobilidade, que não têm restrição
+- **Então** ele é preenchido com os exercícios de reserva (marcha estacionária, mobilidade torácica e alongamentos), que não têm restrição
 
-**Dependências:** História 2; revisão do catálogo pelo usuário.
+#### Cenário 8: identidade visual
+- **Dado** a aplicação aberta no Chrome
+- **Quando** navego pelas telas de perfil, jornada e resumo
+- **Então** elas seguem a paleta Sereno & Balanceado em tema escuro, com água em azul céu, exercício em teal e coral só em alertas, e todo texto tem contraste de pelo menos 4,5:1 com o fundo
+
+**Dependências:** História 2; revisão do catálogo pelo usuário; definição da identidade visual.
 
 ---
 
 ### História 4 — [FEATURE] Visualizar histórico e gráficos (release v0.4.0)
 
-**Descrição:** agregações por dia, semana e mês, por categoria; tela de resumo ao finalizar o dia; edição de registros no mesmo dia.
+**Descrição:** agregações por dia, semana e mês, por categoria; tela de resumo ao finalizar o dia; edição de registros no mesmo dia. Os gráficos usam a paleta da identidade visual (água em azul céu, exercício em teal, falha em coral).
 
 **Critérios de Aceitação**
 
@@ -436,13 +451,14 @@ Estimativa em story points foi dispensada pelo usuário.
 - [ ] Docker Desktop no Windows
 - [ ] Repositório no GitHub com Actions habilitado
 - [ ] Chrome com permissão de notificação para `http://127.0.0.1:38742` (a permissão vale por origem, e a porta faz parte dela)
-- [ ] Revisão do catálogo de exercícios pelo usuário
+- [x] Revisão do catálogo de exercícios pelo usuário (2026-10-02)
+- [x] Definição da identidade visual pelo usuário (2026-10-05, pasta `identidadevisual/`)
 
 ## Notas Adicionais
 
 - **Limitações conhecidas:** com o Chrome fechado ou o modo "Não incomodar" do Windows ativo, a notificação não aparece. O status `NAO_ENTREGUE` cobre o primeiro caso; o segundo não é detectável e pode virar `FALHA`.
 - **Fora de escopo:** autenticação, acesso por celular, E2E com Playwright, geração de treino por LLM, reabertura de jornada.
-- **Melhorias futuras:** Push API com service worker para funcionar com a aba fechada; streaks; progressão de carga no catálogo; importação de feriados.
+- **Melhorias futuras:** Push API com service worker para funcionar com a aba fechada; streaks; progressão de carga no catálogo; importação de feriados; paleta para o tema claro (a H3 entrega só o escuro, decisão D10).
 
 ## ⚠️ Perguntas Pendentes para Refinamento
 
@@ -450,4 +466,4 @@ Estimativa em story points foi dispensada pelo usuário.
 2. ✅ **Depois de 8 h trabalhadas:** os marcos param (16 + 8) e a jornada segue aberta até Finalizar dia. A meta de água está calibrada para 8 h. Confirmado pelo usuário em 2026-10-01.
 3. ✅ **Frequência do exercício:** o exercício fica a cada 60 min, e o lembrete de água da meia hora (marcos ímpares) orienta o usuário a se levantar para buscar a água. Assim há uma pausa a cada 30 min sem lembrete extra. Confirmado pelo usuário em 2026-10-01.
 4. **Meta de 3 L no expediente:** fica acima das referências para bebidas do dia inteiro. Mantida por decisão do usuário; rever após as primeiras semanas de uso.
-5. **Catálogo e restrições:** a tabela é rascunho e precisa da revisão do usuário antes da História 3.
+5. ✅ **Catálogo e restrições:** revisado pelo usuário em 2026-10-02 (seção "Treino"). Ele escolheu prescrição por repetições conforme o nível e a pergunta sobre exercícios no chão no perfil. O catálogo ganhou exercícios de costas sem equipamento, alongamentos de escritório e extensão de quadril em pé. Flexão na parede e rosca direta passaram a evitar punho, e a elevação lateral, cervical. A mobilidade foi separada em torácica (reserva) e cervical. As quantidades por nível foram propostas pelo Claude e podem ser ajustadas na spec da H3.

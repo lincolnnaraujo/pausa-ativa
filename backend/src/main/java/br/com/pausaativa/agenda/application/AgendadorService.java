@@ -15,11 +15,14 @@ class AgendadorService implements AvancarAgenda {
     private static final Logger log = LoggerFactory.getLogger(AgendadorService.class);
 
     private final JornadaRepository repositorio;
+    private final AvancoDaJornada avanco;
     private final PublicadorDeAlteracoes publicador;
     private final Clock clock;
 
-    AgendadorService(JornadaRepository repositorio, PublicadorDeAlteracoes publicador, Clock clock) {
+    AgendadorService(
+            JornadaRepository repositorio, AvancoDaJornada avanco, PublicadorDeAlteracoes publicador, Clock clock) {
         this.repositorio = repositorio;
+        this.avanco = avanco;
         this.publicador = publicador;
         this.clock = clock;
     }
@@ -35,7 +38,7 @@ class AgendadorService implements AvancarAgenda {
                 mudou = jornada.encerrarAutomaticamente(agora);
                 log.info("Jornada {} de {} encerrada automaticamente", jornada.id(), jornada.dataReferencia());
             } else {
-                mudou = jornada.avancar(agora).houveMudanca();
+                mudou = avanco.avancar(jornada, agora).houveMudanca();
             }
             if (mudou) {
                 repositorio.salvar(jornada);

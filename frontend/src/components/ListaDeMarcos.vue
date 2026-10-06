@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Jornada, Marco } from '@/api/jornada'
-import { horario, rotuloDoStatus } from '@/formatacao'
+import { horario, rotuloDaCategoria, rotuloDoStatus } from '@/formatacao'
 
 const props = defineProps<{ jornada: Jornada }>()
 
@@ -20,6 +20,18 @@ function horarioDoMarco(marco: Marco): string {
   }
   return '—'
 }
+
+/** Água: o volume. Exercício: o bloco, depois que ele foi montado no disparo. */
+function detalheDoMarco(marco: Marco): string {
+  if (marco.categoria === 'HIDRATACAO') {
+    return `~${marco.volumeAproximadoMl} ml`
+  }
+  if (marco.bloco === null) {
+    return 'Bloco de exercício'
+  }
+  const quantidade = marco.bloco.itens.length
+  return `${marco.bloco.duracaoMin} min · ${quantidade} ${quantidade === 1 ? 'exercício' : 'exercícios'}`
+}
 </script>
 
 <template>
@@ -35,13 +47,16 @@ function horarioDoMarco(marco: Marco): string {
         <thead>
           <tr>
             <th scope="col">
-              #
-            </th>
-            <th scope="col">
               Horário
             </th>
             <th scope="col">
-              Água
+              Lembrete
+            </th>
+            <th
+              scope="col"
+              class="detalhe"
+            >
+              Detalhe
             </th>
             <th scope="col">
               Situação
@@ -53,10 +68,15 @@ function horarioDoMarco(marco: Marco): string {
             v-for="marco in jornada.marcos"
             :key="marco.id"
             :data-status="marco.status"
+            :data-categoria="marco.categoria"
           >
-            <td>{{ marco.sequencia }}</td>
             <td>{{ horarioDoMarco(marco) }}</td>
-            <td>~{{ marco.volumeAproximadoMl }} ml</td>
+            <td class="categoria">
+              {{ rotuloDaCategoria(marco.categoria) }} {{ marco.sequencia }}
+            </td>
+            <td class="detalhe">
+              {{ detalheDoMarco(marco) }}
+            </td>
             <td>
               <span
                 class="status"
@@ -103,16 +123,39 @@ tbody tr:last-child td {
   border-bottom: 0;
 }
 
+/* Marcador da categoria; o ícone e o nome dizem o mesmo em texto. */
+.categoria {
+  border-left: 3px solid var(--agua);
+  white-space: nowrap;
+}
+
+tr[data-categoria='EXERCICIO'] .categoria {
+  border-left-color: var(--exercicio);
+}
+
+/*
+ * No celular, as quatro colunas não cabem e a situação ficaria fora da tela. O detalhe sai: o volume e
+ * o bloco aparecem no cartão do lembrete.
+ */
+@media (max-width: 30rem) {
+  .detalhe {
+    display: none;
+  }
+}
+
 .status {
   font-size: 0.875rem;
 }
 
-.agendado {
+/* Coral só na falha. Não entregue e não concluído ficam fora da taxa: não são falha. */
+.agendado,
+.nao_entregue,
+.nao_concluido,
+.adiado {
   color: var(--texto-suave);
 }
 
 .pendente {
-  color: var(--destaque);
   font-weight: 600;
 }
 
@@ -120,9 +163,7 @@ tbody tr:last-child td {
   color: var(--sucesso);
 }
 
-.falha,
-.nao_entregue,
-.nao_concluido {
+.falha {
   color: var(--erro);
 }
 </style>

@@ -1,4 +1,5 @@
 import type { Marco, StatusMarco } from '@/api/jornada'
+import type { Articulacao, Equipamento, Nivel, Perfil } from '@/api/perfil'
 
 /** Fuso de negócio (spec H2, seção 3.4). Os horários da tela não dependem do fuso do computador. */
 export const FUSO = 'America/Sao_Paulo'
@@ -48,6 +49,7 @@ const ROTULOS: Record<StatusMarco, string> = {
   FALHA: 'Falha',
   NAO_ENTREGUE: 'Não entregue',
   NAO_CONCLUIDO: 'Não concluído',
+  ADIADO: 'Adiado: resolvido pelo próximo bloco',
 }
 
 export function rotuloDoStatus(status: StatusMarco): string {
@@ -56,9 +58,75 @@ export function rotuloDoStatus(status: StatusMarco): string {
 
 const TITULOS: Record<Marco['categoria'], string> = {
   HIDRATACAO: 'Hora da água 💧',
+  EXERCICIO: 'Hora do exercício 🏃',
 }
 
 /** Título do lembrete, no cartão e na notificação. */
 export function tituloDoMarco(categoria: Marco['categoria']): string {
   return TITULOS[categoria]
+}
+
+/**
+ * Título da notificação de um lote de marcos: o da categoria, ou o combinado quando água e exercício
+ * chegam juntos na hora cheia (spec H3, seção 3.7).
+ */
+export function tituloDoLembrete(marcos: Marco[]): string {
+  const categorias = new Set(marcos.map((marco) => marco.categoria))
+  const [categoria] = categorias
+  return categorias.size === 1 && categoria !== undefined
+    ? tituloDoMarco(categoria)
+    : 'Hora da água e do exercício 💧🏃'
+}
+
+const CATEGORIAS: Record<Marco['categoria'], string> = {
+  HIDRATACAO: '💧 Água',
+  EXERCICIO: '🏃 Exercício',
+}
+
+/** Categoria com ícone, para listas e tabelas: a cor nunca é o único sinal. */
+export function rotuloDaCategoria(categoria: Marco['categoria']): string {
+  return CATEGORIAS[categoria]
+}
+
+/** Duração estimada do bloco: 278 → "4 min 38 s"; 300 → "5 min"; 45 → "45 s". */
+export function duracaoCurta(segundos: number): string {
+  const minutos = Math.floor(segundos / 60)
+  const resto = segundos % 60
+  if (minutos === 0) {
+    return `${resto} s`
+  }
+  return resto === 0 ? `${minutos} min` : `${minutos} min ${resto} s`
+}
+
+export const ROTULOS_DE_ARTICULACAO: Record<Articulacao, string> = {
+  JOELHO: 'Joelho',
+  OMBRO: 'Ombro',
+  PUNHO: 'Punho',
+  LOMBAR: 'Lombar',
+  CERVICAL: 'Cervical',
+}
+
+export const ROTULOS_DE_EQUIPAMENTO: Record<Equipamento, string> = {
+  APOIO_DE_FLEXAO: 'Apoio de flexão',
+  HALTERES_2KG: 'Halteres de 2 kg',
+}
+
+export const ROTULOS_DE_NIVEL: Record<Nivel, string> = {
+  INICIANTE: 'Iniciante',
+  INTERMEDIARIO: 'Intermediário',
+}
+
+const formatoDeLista = new Intl.ListFormat('pt-BR', { type: 'conjunction' })
+
+/** Uma linha para lembrar o perfil antes de iniciar o dia: "Iniciante · poupa joelho e ombro · …". */
+export function resumoDoPerfil(perfil: Perfil): string {
+  const minusculas = (rotulos: string[]) => formatoDeLista.format(rotulos.map((r) => r.toLowerCase()))
+  const articulacoes = perfil.articulacoesPoupadas.map((a) => ROTULOS_DE_ARTICULACAO[a])
+  const equipamentos = perfil.equipamentos.map((e) => ROTULOS_DE_EQUIPAMENTO[e])
+  return [
+    ROTULOS_DE_NIVEL[perfil.nivel],
+    articulacoes.length > 0 ? `poupa ${minusculas(articulacoes)}` : 'nada a poupar',
+    equipamentos.length > 0 ? minusculas(equipamentos) : 'sem equipamento',
+    perfil.aceitaChao ? 'com exercícios no chão' : 'sem exercícios no chão',
+  ].join(' · ')
 }
