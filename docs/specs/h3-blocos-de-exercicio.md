@@ -109,7 +109,7 @@ O bloco fica gravado no marco no momento do disparo **(D1)**, com nome, quantida
 | Regra | Definição |
 |---|---|
 | Quem pode | Só um marco de exercício `PENDENTE`. A hidratação não tem Adiar. |
-| Limite | Uma vez por cadeia: o marco seguinte a um `ADIADO` não pode ser adiado (Cenário 5; 409 com a mensagem "Este bloco já compensa um adiamento: conclua ou marque falha"). |
+| Limite | Uma vez por cadeia: o marco seguinte a um `ADIADO` não pode ser adiado (Cenário 5; 409 com a mensagem "Este bloco já compensa um adiamento: conclua ou marque falha."). |
 | Último marco | O 8º não pode ser adiado: não há bloco seguinte **(D5)**. |
 | Efeito | O marco vira `ADIADO`, sem prazo próprio. O bloco seguinte tem 10 min e avisa que compensa o adiado. |
 | Resolução | O `ADIADO` segue o destino do marco seguinte. Concluído → os dois `CONCLUIDO` (Cenário 4). Falha → os dois `FALHA`. Não entregue ou não concluído → o adiado fica igual **(D4)**. |
@@ -296,7 +296,7 @@ Detalhes decididos na T7:
 
 - **Notificação combinada.** Os `marco-disparado` entram num lote, fechado pelo `jornada-atualizada` seguinte. Se ele se perder, o lote é anunciado depois de 1 s. O lote vira uma notificação e um som. Com água e exercício, o título é "Hora da água e do exercício 💧🏃", o corpo junta as mensagens com a água primeiro e a `tag` junta os ids com "+". Na reconexão, os pendentes que ninguém recebeu também saem num lote só.
 - **Cartão do exercício.** Mostra os exercícios do bloco (nome, quantidade em teal e instrução) e "Cerca de 4 min 38 s, contando as trocas de exercício". O Adiar é um botão secundário, entre Concluir e Falhar, e só aparece com `podeAdiar`. O bloco que compensa um adiado avisa: "concluir ou marcar falha vale para os dois".
-- **Lista do dia.** Colunas Horário, Lembrete ("💧 Água 2", "🏃 Exercício 1"), Detalhe ("~190 ml" na água; "5 min · 6 exercícios" no exercício disparado, "Bloco de exercício" antes) e Situação. O adiado aparece como "Adiado: resolvido pelo próximo bloco". Uma borda azul céu ou teal marca a categoria, sem ser o único sinal.
+- **Lista do dia.** Colunas Horário, Lembrete ("💧 Água 2", "🏃 Exercício 1"), Detalhe ("~190 ml" na água; "5 min · 6 exercícios" no exercício disparado, "Bloco de exercício" antes) e Situação. O adiado aparece como "Adiado: resolvido pelo próximo bloco". Uma borda azul céu ou teal marca a categoria, sem ser o único sinal. Em telas de até 30rem, a coluna Detalhe sai para a Situação caber (ajuste da T8, seção 11.1).
 - **Resumo.** Tabela de situações por categoria; a coluna do exercício só aparece se a jornada tem exercício (as da v0.2.0 não têm).
 - **Modo demonstração.** A faixa diz "água a cada 1 min e exercício a cada 2 min".
 
@@ -391,6 +391,34 @@ Também da seção "Cenários de Teste" do épico, nesta história:
 - Adiamento dobra o próximo bloco e resolve os dois marcos juntos.
 - A seleção é determinística: mesma entrada, mesmo bloco.
 
+### 11.1 Resultado da verificação ponta a ponta (T8, 2026-10-06)
+
+A verificação usou um Chrome real (headless, dirigido pelo Playwright) contra o compose em modo demonstração, com o banco limpo. O teste percorreu uma jornada só, com os cenários encadeados no tempo, e terminou com **47 de 48 verificações OK** em 8 min. A que falhou era do próprio roteiro: ele comparava a mensagem do segundo adiamento com o texto da seção 3.5, que estava sem o ponto final. A API devolveu o 409 com a mensagem certa, a mesma do código e dos testes, e a seção 3.5 foi corrigida. O roteiro ficou fora do repositório. As APIs de notificação e de áudio eram as reais; o roteiro só gravava as chamadas.
+
+| Cenário | O que se viu |
+|---|---|
+| 6. Perfil ausente | Com o banco limpo, `POST /jornadas` devolve 409 ("Preencha o perfil físico antes de iniciar o dia…") e não cria jornada. A tela abre em "Seu perfil físico", sem Cancelar e com os padrões da seção 3.1 marcados. Depois de salvar, aparece o Iniciar dia com o resumo do perfil e 5 min marcado |
+| 2. Notificação combinada | Água 2 e exercício 1 disparados no mesmo milissegundo. Uma notificação só, "Hora da água e do exercício 💧🏃", com "Beba ~190 ml. Bloco de 5 min: 6 exercícios." e a `tag` com os dois ids unidos por "+"; um som. Dois cartões ("2 de 16" e "1 de 8"). Concluir a água deixa o exercício pendente |
+| 1. Restrição | Perfil que poupa joelho, sem equipamento. Bloco 1: sentar e levantar, flexão na parede, anjo na parede, prancha, ponte de glúteo e mobilidade torácica, 278 s, o exemplo da seção 3.3. Bloco 2 (10 min, 590 s): 11 exercícios, nenhum de joelho nem de halteres |
+| 3. Adiar | O exercício 1 vira `ADIADO`, e a lista mostra "Adiado: resolvido pelo próximo bloco". O exercício 2 tem 10 min, `compensaAdiamento` e o aviso no cartão |
+| 5. Segundo adiamento | O cartão do exercício 2 não tem Adiar; `POST /adiamento` devolve 409 com a mensagem |
+| 4. Adiado e concluído | Concluir o exercício 2 deixa os dois `CONCLUIDO`, na API e na lista |
+| 7. Catálogo eliminado | O perfil foi trocado durante o dia pelo "Editar perfil físico" (o bloco 2, já disparado, não mudou): todas as articulações, sem equipamento e sem chão. Bloco 3 (5 min): só exercícios sem restrição. Bloco 4 (10 min, 597 s, o exemplo da T1): os 8 elegíveis uma vez, depois a reserva repetida (mobilidade torácica e alongamento de punhos) |
+| 8. Identidade visual | Com o sistema em tema claro, a página continua escura (fundo `#1A2238`, texto `#F0F8FF`, `color-scheme: dark`). Capturas comparadas com o mockup, abaixo |
+
+Também conferido no navegador:
+
+- **Falha resolve os dois:** marcar falha no exercício 4, que compensava o 3, deixou os dois em `FALHA`.
+- **Resumo:** depois de finalizar, a coluna do exercício mostra 2 concluídos, 2 falhas e 4 não concluídos, igual à API. A lista tem as 24 linhas em ordem de horário, com a água antes do exercício na hora cheia.
+- **Comparação com o mockup (Cenário 8):** o fundo azul-escuro, o cartão um tom acima, o botão principal em pílula teal com texto escuro, os títulos de cartão em caixa alta, a água em azul céu e o coral pontual (Falhar, falha na lista e avisos) seguem o mockup. Ficam de fora, como previsto na seção 2, o menu lateral, o avatar, as ilustrações e os gráficos. A fonte é a do sistema (seção 8.1).
+
+**Ajustes feitos na T8.** Duas falhas de layout apareceram nas capturas em 400 px:
+
+- **Lista do dia.** Com a coluna Detalhe e o rótulo "🏃 Exercício 1" sem quebra, ambos da T7, a tabela ficou mais larga que a tela, e a Situação só aparecia rolando para o lado. Até 30rem de largura, a coluna Detalhe sai: o volume e o bloco já aparecem no cartão do lembrete. Medido de novo no Chrome: a tabela tem 318 px numa caixa de 318 px em 400 px, e em 760 px o Detalhe continua visível.
+- **Meta de água.** O painel quebrava "3.000" numa linha e "ml" na outra. Agora o número da meta e a unidade ficam juntos.
+
+**Observação.** O rodapé ainda mostra a versão 0.2.0. Ela sobe para 0.3.0 na T9, com a documentação, como na v0.2.0.
+
 ## 12. Plano de entrega em etapas
 
 Branch `feat/h3-blocos-de-exercicio`. A execução para ao fim de cada etapa, e a próxima sessão retoma pela primeira etapa sem ✅.
@@ -404,7 +432,7 @@ Branch `feat/h3-blocos-de-exercicio`. A execução para ao fim de cada etapa, e 
 | T5 | Frontend: identidade visual Sereno & Balanceado nas telas da H2 (seção 8.1): tokens, tema escuro, botões, cores por categoria | Teste de contraste dos tokens; lint, tipos e testes verdes | ✅ 2026-10-05 (21 testes novos; 147 no frontend, 99,4% das linhas). Detalhes no fim da seção 8.1. |
 | T6 | Frontend: perfil (formulário, edição, obrigatório) e duração do bloco ao iniciar | Lint, tipos e testes verdes, cobertura ≥ 80% | ✅ 2026-10-05 (17 testes novos; 164 no frontend, 99% das linhas). Cenário 6 no frontend; detalhes na seção 8. |
 | T7 | Frontend: cartão do exercício, Adiar, notificação combinada, lista e resumo por categoria | Idem | ✅ 2026-10-05 (11 testes novos; 175 no frontend, 99,1% das linhas). Cenários 2 a 5 no frontend; detalhes na seção 8. |
-| T8 | Verificação ponta a ponta no Chrome, em modo demonstração | Cenários 1 a 8 conferidos | Pendente |
+| T8 | Verificação ponta a ponta no Chrome, em modo demonstração | Cenários 1 a 8 conferidos | ✅ 2026-10-06 (Chrome headless, 47 de 48 verificações; a outra era do roteiro; seção 11.1). Dois ajustes de layout em 400 px, conferidos de novo no Chrome (6 de 6); 175 testes no frontend. |
 | T9 | README, C4 (incluindo o nginx 1.31 que entrou depois da v0.2.0), release notes, PR e CI | Aceite do usuário; merge e tag `v0.3.0` | Pendente |
 
 A T5 vem antes das telas novas para que o perfil e o cartão do exercício já nasçam com os tokens da identidade, sem retrabalho.
