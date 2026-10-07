@@ -88,6 +88,15 @@ function existe(wrapper: VueWrapper, testid: string) {
   return wrapper.find(`[data-testid="${testid}"]`).exists()
 }
 
+/** O "Ver como tabela" do gráfico da categoria. */
+function botaoDaTabela(wrapper: VueWrapper, categoria: string) {
+  return wrapper.get(`[data-testid="dias-${categoria}"] button.alternar-tabela`)
+}
+
+async function abrirTabela(wrapper: VueWrapper, categoria: string) {
+  await botaoDaTabela(wrapper, categoria).trigger('click')
+}
+
 describe('HistoricoView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -132,8 +141,35 @@ describe('HistoricoView', () => {
       expect(exercicio.get('[data-testid="meta"]').text()).toBe('Meta de 80%: não atingida')
     })
 
+    it('cada categoria tem o seu gráfico, e a tabela equivalente abre com Ver como tabela', async () => {
+      const wrapper = await montar()
+
+      expect(existe(wrapper, 'grafico-HIDRATACAO')).toBe(true)
+      expect(existe(wrapper, 'grafico-EXERCICIO')).toBe(true)
+      expect(wrapper.find('svg title').text()).toBe('Água, 5 – 11 out 2026')
+      expect(botaoDaTabela(wrapper, 'HIDRATACAO').text()).toBe('Ver como tabela')
+      expect(botaoDaTabela(wrapper, 'HIDRATACAO').attributes('aria-expanded')).toBe('false')
+      expect(existe(wrapper, 'tabela-HIDRATACAO')).toBe(false)
+
+      await abrirTabela(wrapper, 'HIDRATACAO')
+
+      expect(botaoDaTabela(wrapper, 'HIDRATACAO').attributes('aria-expanded')).toBe('true')
+      expect(existe(wrapper, 'tabela-HIDRATACAO')).toBe(true)
+      expect(existe(wrapper, 'tabela-EXERCICIO')).toBe(false)
+
+      // Fica aberta ao trocar de período.
+      await porRotulo(wrapper, 'Período anterior').trigger('click')
+      await flushPromises()
+      expect(existe(wrapper, 'tabela-HIDRATACAO')).toBe(true)
+
+      await abrirTabela(wrapper, 'HIDRATACAO')
+      expect(existe(wrapper, 'tabela-HIDRATACAO')).toBe(false)
+    })
+
     it('a tabela tem um dia por linha até hoje, com hoje em andamento', async () => {
       const wrapper = await montar()
+      await abrirTabela(wrapper, 'HIDRATACAO')
+      await abrirTabela(wrapper, 'EXERCICIO')
 
       const linhas = wrapper.findAll('[data-testid="tabela-HIDRATACAO"] tbody tr')
       expect(linhas.map((linha) => linha.attributes('data-data'))).toEqual([
@@ -239,10 +275,11 @@ describe('HistoricoView', () => {
 
       expect(texto(wrapper, 'historico-vazio')).toBe('Nenhuma jornada nesta semana.')
       expect(existe(wrapper, 'resumo-HIDRATACAO')).toBe(false)
+      expect(wrapper.find('svg').exists()).toBe(false)
       expect(wrapper.find('table').exists()).toBe(false)
     })
 
-    it('categoria sem lembretes no período avisa no lugar da tabela, como nas jornadas da v0.2.0', async () => {
+    it('categoria sem lembretes no período avisa no lugar do gráfico, como nas jornadas da v0.2.0', async () => {
       const semana: Historico = {
         ...umaSemana(),
         categorias: [umResumo('HIDRATACAO', { concluidos: 14, falhas: 2, taxa: 87.5 }), umResumo('EXERCICIO')],
@@ -263,7 +300,8 @@ describe('HistoricoView', () => {
       expect(texto(wrapper, 'dias-EXERCICIO')).toBe('🏃 Exercício: sem dados nesta semana')
       expect(wrapper.get('[data-testid="resumo-EXERCICIO"] [data-testid="taxa"]').text()).toBe('sem dados')
       expect(wrapper.find('[data-testid="resumo-EXERCICIO"] [data-testid="meta"]').exists()).toBe(false)
-      expect(existe(wrapper, 'tabela-HIDRATACAO')).toBe(true)
+      expect(existe(wrapper, 'grafico-EXERCICIO')).toBe(false)
+      expect(existe(wrapper, 'grafico-HIDRATACAO')).toBe(true)
     })
 
     it('na tabela, um dia sem jornada diz isso, sem zeros', async () => {
@@ -272,6 +310,7 @@ describe('HistoricoView', () => {
       vi.mocked(buscarHistorico).mockResolvedValue(semana)
 
       const wrapper = await montar()
+      await abrirTabela(wrapper, 'HIDRATACAO')
 
       const terca = wrapper.get('[data-testid="tabela-HIDRATACAO"] tr[data-data="2026-10-06"]')
       expect(terca.get('th').text()).toBe('ter 06/10')
@@ -281,9 +320,21 @@ describe('HistoricoView', () => {
   })
 
   describe('dia', () => {
+    it('clicar na coluna do gráfico abre o dia', async () => {
+      const wrapper = await montar()
+      vi.mocked(buscarHistorico).mockResolvedValue(umDiaDoHistorico())
+
+      await wrapper.get('[data-testid="grafico-EXERCICIO"] button[data-data="2026-10-06"]').trigger('click')
+      await flushPromises()
+
+      expect(buscarHistorico).toHaveBeenLastCalledWith('DIA', '2026-10-06')
+      expect(buscarJornadaDoDia).toHaveBeenCalledWith('2026-10-06')
+    })
+
     it('abre o dia pela tabela, com o resumo e a jornada (Cenário 1)', async () => {
       const wrapper = await montar()
       vi.mocked(buscarHistorico).mockResolvedValue(umDiaDoHistorico())
+      await abrirTabela(wrapper, 'HIDRATACAO')
 
       await botao(wrapper, 'seg 05/10').trigger('click')
       await flushPromises()

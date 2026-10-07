@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
+import type { Categoria } from '@/api/historico'
 import FiltrosDoHistorico from '@/components/FiltrosDoHistorico.vue'
+import GraficoDoPeriodo from '@/components/GraficoDoPeriodo.vue'
 import ListaDeMarcos from '@/components/ListaDeMarcos.vue'
 import ResumoDaCategoria from '@/components/ResumoDaCategoria.vue'
 import TabelaDoPeriodo from '@/components/TabelaDoPeriodo.vue'
@@ -81,6 +83,18 @@ function semDados(categoria: string): boolean {
         ),
     ) ?? true
   )
+}
+
+/**
+ * A tabela equivalente de cada gráfico, com os mesmos números, um dia por linha: a dica de valores nunca
+ * é o único caminho para um número (spec H4, seção 8.1). Fica aberta ao trocar de período.
+ */
+const tabelasAbertas = ref(new Set<Categoria>())
+
+function alternarTabela(categoria: Categoria) {
+  if (!tabelasAbertas.value.delete(categoria)) {
+    tabelasAbertas.value.add(categoria)
+  }
 }
 
 const jornadaEmAndamento = computed(
@@ -223,12 +237,29 @@ const jornadaEmAndamento = computed(
             >
               {{ rotuloDaCategoria(resumo.categoria) }}: sem dados {{ nestePeriodo(historico.periodo) }}
             </p>
-            <TabelaDoPeriodo
-              v-else
-              :categoria="resumo.categoria"
-              :dias="historico.dias"
-              @abrir-dia="abrirDia"
-            />
+            <template v-else>
+              <GraficoDoPeriodo
+                :resumo="resumo"
+                :dias="historico.dias"
+                :periodo="historico.periodo"
+                :rotulo-do-periodo="rotuloDoPeriodo(historico.periodo, historico.inicio)"
+                @abrir-dia="abrirDia"
+              />
+              <button
+                type="button"
+                class="link alternar-tabela"
+                :aria-expanded="tabelasAbertas.has(resumo.categoria)"
+                @click="alternarTabela(resumo.categoria)"
+              >
+                Ver como tabela
+              </button>
+              <TabelaDoPeriodo
+                v-if="tabelasAbertas.has(resumo.categoria)"
+                :categoria="resumo.categoria"
+                :dias="historico.dias"
+                @abrir-dia="abrirDia"
+              />
+            </template>
           </section>
         </template>
       </template>
@@ -279,7 +310,22 @@ p.cartao {
   margin: 0;
 }
 
-/* No celular, a tabela de dias fica com a largura do respiro lateral do cartão. */
+.alternar-tabela {
+  align-self: flex-start;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.dias {
+  display: flex;
+  flex-direction: column;
+}
+
+.dias .rolagem {
+  margin-top: 0.5rem;
+}
+
+/* No celular, o gráfico e a tabela de dias ficam com a largura do respiro lateral do cartão. */
 @media (max-width: 30rem) {
   .dias {
     padding-inline: 0.75rem;

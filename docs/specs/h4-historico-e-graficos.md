@@ -283,6 +283,18 @@ O cinza do não concluído foi escolhido entre três candidatos: `#6B7A9E` ficav
 
 **Como desenhar (D8).** SVG em componentes Vue próprios, sem biblioteca. As colunas empilhadas são simples, as cores vêm dos tokens, e o jsdom consegue testar o que o componente desenha.
 
+Detalhes decididos na T6:
+
+- **Foco e toque.** Um SVG com `role="img"` esconde os filhos do leitor de tela, então as colunas não podem ser focáveis dentro dele. Por cima do desenho fica uma camada de botões transparentes, um por dia com jornada, cada um ocupando a faixa inteira do dia. O botão recebe o foco pelo Tab, mostra a dica, abre o dia no clique e fecha a dica com Esc. O rótulo dele traz a descrição completa do dia ("seg 05/10: taxa de 85,7%, meta atingida. Concluído 12, falha 2, não entregue 2, não concluído 0. Abrir o dia."); a dica visual fica `aria-hidden`, para não ser lida duas vezes.
+- **Dica.** Flutua acima do gráfico, sem cobrir as colunas, centrada no dia e presa às bordas, e não captura o mouse. Mostra o dia, a taxa (com "✓ na meta"), as quatro situações com as amostras de cor e, hoje, os lembretes em aberto.
+- **Em aberto.** Fica fora da pilha, porque ainda não tem destino, e aparece só na dica.
+- **Escala.** É fixa por categoria (16 na água, 8 no exercício), e não a do maior dia do período: dois períodos se comparam pela altura.
+- **Geometria.** Fica num módulo puro (`grafico.ts`), em pixels. O componente mede a caixa com `ResizeObserver` e desenha em escala 1:1, para a coluna ter no máximo 24 px de verdade.
+- **Eixo.** Na semana, o dia da semana e o número. No mês, só o dia 1 e os múltiplos de 5 quando a faixa do dia tem menos de 18 px, o que vale em 760 e em 400 px.
+- **Legenda.** Além das quatro situações, explica o ✓: "Dia na meta de 80%".
+- **Tabela equivalente.** **Ver como tabela** (com `aria-expanded`) abre a tabela da T5 abaixo do gráfico, e ela continua aberta ao trocar de período. A legenda dela fica só para o leitor de tela, porque o gráfico já tem o título.
+- **No Chrome, com os dados de exemplo:** o desenho mediu 526 px em 760 e 342 px em 400, igual à caixa. O mês coube sem rolar. A dica apareceu pelo mouse e pelo Tab, e o Esc a fechou. O clique numa coluna abriu o dia, e o console não registrou erros.
+
 ## 9. Modo demonstração
 
 Na demonstração, o histórico começaria vazio, e cada dia de demonstração vira uma jornada só. Por isso, a demonstração ganha **dados de exemplo (D10)**: com `PAUSA_ATIVA_DEMO_HISTORICO=true`, ligada só no `docker-compose.demo.yml`, o backend cria na subida jornadas fictícias nos 45 dias anteriores a hoje, se o banco ainda não tiver nenhuma jornada passada.
@@ -340,7 +352,7 @@ Branch `feat/h4-historico-e-graficos`. A execução para ao fim de cada etapa, e
 | T3 | Agenda e Histórico: migração `V5`, consulta agregada por dia, `GET /historico`, `GET /jornadas?data=`, `POST /correcao`, métricas | Integração com Postgres; mês com um ano de dados em menos de 500 ms; contrato e tipos TS atualizados | ✅ 2026-10-06 (19 testes novos; 242 no backend; Histórico com 100% das linhas, Agenda com 99,0%). Cenários 1 a 6 pela API; o mês com um ano de dados ficou abaixo de 500 ms em todas as 11 consultas. Detalhes na seção 6. |
 | T4 | Modo demonstração: dados de exemplo (seção 9) | A demonstração sobe com 45 dias de histórico; o compose de uso diário, sem nenhum | ✅ 2026-10-07 (11 testes novos, 254 no backend; Agenda com 98,8% das linhas). A demonstração recriada com `down -v` subiu com 29 jornadas em 45 dias, e hoje ficou livre. O compose de uso diário não define a variável, e o padrão é desligado. Detalhes na seção 9. |
 | T5 | Frontend: abas Hoje e Histórico, filtros, resumo do período, visão do dia com os blocos, estado vazio | Lint, tipos e testes verdes, cobertura ≥ 80% | ✅ 2026-10-07 (frontend com 242 testes e 99,5% das linhas; lint e tipos limpos). Conferido no Chrome em 760 e 400 px com os dados de exemplo. Detalhes na seção 8. |
-| T6 | Frontend: gráficos em SVG (seção 8.1), legenda, dica de valores pelo mouse e pelo teclado, tabela equivalente, tokens novos no teste da identidade | Idem | Pendente |
+| T6 | Frontend: gráficos em SVG (seção 8.1), legenda, dica de valores pelo mouse e pelo teclado, tabela equivalente, tokens novos no teste da identidade | Idem | ✅ 2026-10-07 (frontend com 273 testes e 99,6% das linhas; lint e tipos limpos). Conferido no Chrome em 760 e 400 px com os dados de exemplo. Detalhes na seção 8.1. |
 | T7 | Frontend: taxa e meta no resumo de fechamento; Corrigir e "editado" na lista | Idem; Cenários 3 a 5 no frontend | Pendente |
 | T8 | Verificação ponta a ponta no Chrome, em modo demonstração com os dados de exemplo | Cenários 1 a 6 e os 500 ms conferidos; capturas em 760 e 400 px | Pendente |
 | T9 | README, C4 (Histórico por dentro), release notes, PR e CI | Aceite do usuário; merge e tag `v0.4.0` | Pendente |

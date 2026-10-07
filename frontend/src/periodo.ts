@@ -120,6 +120,12 @@ export function rotuloDoPeriodo(tipo: TipoDePeriodo, data: string): string {
   }
 }
 
+/** O dia da semana abreviado e o número do dia: `{ semana: 'seg', numero: 28 }`, para o eixo dos gráficos. */
+export function partesDoDia(data: string): { semana: string; numero: number } {
+  const dia = paraDate(data)
+  return { semana: DIAS_DA_SEMANA_CURTOS[dia.getUTCDay()]!, numero: dia.getUTCDate() }
+}
+
 /** "seg 28/09": o dia numa linha de tabela. */
 export function diaCurto(data: string): string {
   const dia = paraDate(data)

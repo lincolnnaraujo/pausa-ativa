@@ -111,10 +111,14 @@ table {
   font-variant-numeric: tabular-nums;
 }
 
+/* O gráfico acima já tem o título; a legenda da tabela fica para o leitor de tela. */
 caption {
-  margin-bottom: 0.25rem;
-  font-weight: 600;
-  text-align: left;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 th,

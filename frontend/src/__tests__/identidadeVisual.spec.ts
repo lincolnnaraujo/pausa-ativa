@@ -105,6 +105,18 @@ describe('identidade visual', () => {
     expect(contraste(cor('borda-campo'), cor('fundo-cartao'))).toBeGreaterThanOrEqual(3)
   })
 
+  it('os gráficos usam a cor da situação: o cinza claro do não entregue e o médio do não concluído', () => {
+    expect(cor('nao-entregue')).toBe(cor('texto-suave'))
+    expect(cor('nao-concluido')).toBe('#7684a8')
+  })
+
+  it.each(['agua', 'exercicio', 'erro', 'nao-entregue', 'nao-concluido'])(
+    'as marcas dos gráficos em --%s têm pelo menos 3:1 com o cartão (WCAG 1.4.11)',
+    (marca) => {
+      expect(contraste(cor(marca), cor('fundo-cartao'))).toBeGreaterThanOrEqual(3)
+    },
+  )
+
   it('nenhum componente tem cor fixa: todas vêm dos tokens', () => {
     const comCorFixa = componentes
       .filter(({ fonte }) => /#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i.test(fonte))
