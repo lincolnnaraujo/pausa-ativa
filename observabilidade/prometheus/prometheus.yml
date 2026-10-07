@@ -1,0 +1,12 @@
+# Prometheus do Pausa Ativa (spec H5, seção 3.1): coleta as métricas do backend pela rede interna do
+# compose. O /actuator/prometheus não chega ao host: o nginx do frontend devolve 404 para ele.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: pausa-ativa
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["backend:8080"]

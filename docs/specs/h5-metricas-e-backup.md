@@ -38,6 +38,14 @@ Ao fim desta release, o usuário:
 | Saúde | Healthcheck em `/-/ready`. O backend não depende do Prometheus: com ele fora, a aplicação segue igual. Com o backend fora, a métrica `up` vira 0, e o painel mostra isso. |
 | Reinício do backend | Os contadores voltam a zero a cada subida. O painel usa `increase()` e `rate()`, que tratam o recomeço. |
 
+Detalhes decididos na T2:
+
+- **Imagem.** `prom/prometheus:v3.15.0`, a estável mais recente em 2026-10-07. A imagem só publica a tag completa, sem `v3.15`, e o Dependabot do compose acompanha as próximas.
+- **Configuração.** O `command` repete o arquivo de configuração e o caminho dos dados, que a imagem já define, e acrescenta a retenção. O healthcheck usa o `wget` do BusyBox da imagem, a cada 5 s.
+- **Demonstração.** Nada muda no `docker-compose.demo.yml`: o Prometheus não tem porta, e o projeto `pausa-ativa-demo` tem volume próprio.
+- **CI.** O passo do nginx confere que o `/actuator/prometheus` responde 404 no host. Um passo novo consulta o Prometheus pela rede interna até ver o alvo `up` e a faixa de 200 ms do histograma das requisições, por até 60 s.
+- **Medido na demonstração:** o alvo `up`, 492 séries com a tag `application`, 33 MiB de memória, nenhuma porta 9090 no host. O passo novo do CI rodou contra a demonstração num container com `jq`, e o workflow passou no `actionlint` (com `shellcheck`). No GitHub, o CI só roda com o pull request aberto.
+
 ### 3.2 Grafana e o painel
 
 | Item | Definição |
@@ -185,7 +193,7 @@ Branch `feat/h5-metricas-e-backup`. A execução para ao fim de cada etapa, e a 
 | # | Etapa | Pronto quando | Status |
 |---|---|---|---|
 | T1 | Backend: histogramas e faixas das métricas de tempo, tag `application` | `verify` verde; teste de integração lendo o `/actuator/prometheus` | ✅ 2026-10-07 (4 testes novos; 258 no backend). Detalhes na seção 5. |
-| T2 | Prometheus no compose e na demonstração: configuração, volume, retenção, limite de memória e healthcheck | `docker compose up -d --wait` com o alvo `up`; o CI confere | Pendente |
+| T2 | Prometheus no compose e na demonstração: configuração, volume, retenção, limite de memória e healthcheck | `docker compose up -d --wait` com o alvo `up`; o CI confere | ✅ 2026-10-07 (na demonstração: alvo `up`, 492 séries, 33 MiB). Detalhes na seção 3.1. |
 | T3 | Grafana: fonte de dados e painel provisionados, acesso anônimo, sem internet, em português e com a paleta | O painel abre sem login com dados; o CI confere o painel e as consultas | Pendente |
 | T4 | Backup e restauração: scripts, serviços `backup` e `restauracao`, `BACKUP_DIR`, `shellcheck` | Cenários 2 e 3 no CI, com a demonstração | Pendente |
 | T5 | Verificação ponta a ponta: Grafana no Chrome com um dia ao vivo, backup e restauração no PowerShell, banco parado, memória dos cinco containers | Cenários 1 a 3 conferidos, com capturas | Pendente |

@@ -113,6 +113,31 @@ jobs:
           curl -fsS "$base/api/v1/sistema/status" | tee /dev/stderr | grep -q '"aplicacao":"pausa-ativa"'
           echo
           curl -fsS "$base/actuator/health" | tee /dev/stderr | grep -q '"status":"UP"'
+          echo
+          # O resto do Actuator, inclusive o /actuator/prometheus, não chega ao host.
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$base/actuator/prometheus")" = 404
+
+      # Cenário 1 da H5: o Prometheus coleta o backend pela rede interna, com os histogramas da spec H5,
+      # seção 5. A requisição do passo anterior já gerou a faixa de 200 ms; a coleta é a cada 15 s.
+      - name: Conferir a coleta do Prometheus
+        run: |
+          set -euo pipefail
+          consultar() {
+            docker compose exec -T prometheus wget -qO- \
+              "http://localhost:9090/api/v1/query?query=$(jq -rn --arg q "$1" '$q | @uri')" \
+              | jq -r '.data.result[0].value[1] // "0"'
+          }
+          for _ in $(seq 1 12); do
+            alvo=$(consultar 'up{job="pausa-ativa"}')
+            faixas=$(consultar 'count(http_server_requests_seconds_bucket{application="pausa-ativa",le="0.2"})')
+            if [ "$alvo" = "1" ] && [ "$faixas" != "0" ]; then
+              echo "Backend coletado, com a faixa de 200 ms em $faixas séries"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::O Prometheus não coletou o backend: up=$alvo, séries com a faixa de 200 ms=$faixas"
+          exit 1
 
       - name: Logs dos containers (em caso de falha)
         if: failure()
