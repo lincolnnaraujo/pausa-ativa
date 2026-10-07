@@ -24,6 +24,9 @@ public interface JornadaRepository {
 
     boolean existeNoDia(LocalDate dia);
 
+    /** Se há jornada de algum dia anterior a {@code dia}. */
+    boolean existeAntesDe(LocalDate dia);
+
     /**
      * Quantos marcos de cada categoria estão em cada situação, por dia, nas jornadas de {@code de} a
      * {@code ate} (inclusive), em ordem de data. A contagem é feita no banco: o histórico não carrega

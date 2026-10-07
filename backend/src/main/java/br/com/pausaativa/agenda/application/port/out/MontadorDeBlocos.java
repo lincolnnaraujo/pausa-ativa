@@ -13,6 +13,9 @@ public interface MontadorDeBlocos {
     /** Exercícios do bloco, na ordem em que devem ser feitos, com o perfil atual. */
     List<ExercicioProposto> montar(PedidoDeBloco pedido);
 
+    /** Como {@link #montar}, com um perfil de exemplo: os dados de exemplo da demonstração (spec H4, seção 9). */
+    List<ExercicioProposto> montarDeExemplo(PedidoDeBloco pedido);
+
     /**
      * @param numeroDoMarco sequência do marco de exercício, de 1 a 8
      * @param propostosNoDia códigos dos exercícios dos blocos anteriores do dia, do mais antigo para o

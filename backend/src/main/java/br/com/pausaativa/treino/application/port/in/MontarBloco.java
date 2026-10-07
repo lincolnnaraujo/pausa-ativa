@@ -14,6 +14,12 @@ public interface MontarBloco {
     BlocoMontado montar(Pedido pedido);
 
     /**
+     * Monta com um perfil de exemplo, sem ler nem gravar o perfil do usuário: serve aos dados de exemplo
+     * da demonstração, criados antes de o usuário preencher o perfil (spec H4, seção 9).
+     */
+    BlocoMontado montarDeExemplo(Pedido pedido);
+
+    /**
      * @param numeroDoMarco 1 a 8
      * @param usadosNoDia códigos dos exercícios dos blocos anteriores do dia, do mais antigo para o
      *     mais recente

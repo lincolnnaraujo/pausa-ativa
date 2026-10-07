@@ -280,6 +280,18 @@ Na demonstração, o histórico começaria vazio, e cada dia de demonstração v
 - As jornadas são montadas pelo próprio domínio da Agenda, com o instante de cada passo passado como parâmetro, como nos testes. Os blocos de exercício usam um perfil de exemplo.
 - Hoje fica livre para a jornada ao vivo. O compose de uso diário nunca liga essa propriedade.
 
+Detalhes decididos na T4:
+
+- **Gatilho.** O adapter `agenda.adapter.in.demonstracao.HistoricoDeExemploNaSubida` só existe com `pausa-ativa.demonstracao.historico=true` (a variável `PAUSA_ATIVA_DEMO_HISTORICO`) e chama a porta `CriarHistoricoDeExemplo` na subida. Uma falha só gera um aviso no log: a demonstração sobe sem histórico.
+- **Quando cria.** Só se o banco não tem jornada de um dia anterior a hoje. Para recriar, `down -v`.
+- **Tipos de dia.** Cada dia útil segue um ciclo de 11 dias: comum, falta, finalizado cedo (entre 4 e 6 h trabalhadas), sem finalizar (o agendador encerra a jornada à meia-noite, como no uso real) e aba fechada (uma ou duas horas à tarde sem confirmar o recebimento, e os lembretes desse trecho ficam não entregues). Como 11 é primo com 7, cada tipo cai em pelo menos dois dias úteis de qualquer janela de 45 dias, qualquer que seja hoje.
+- **Meta.** A chance de concluir segue um ciclo de seis semanas, com duas abaixo da meta. O exercício fica dez pontos abaixo da água, 7% dos exercícios adiáveis são adiados e 20% dos dias têm blocos de 10 min. As respostas chegam de 1 a 10 min depois do lembrete; sem resposta, o prazo vence e o lembrete recebido vira falha.
+- **Determinismo.** A sorte de cada dia sai de uma semente fixa somada à data: uma data gera sempre o mesmo dia, em qualquer subida. Só os identificadores mudam.
+- **Intervalo.** Os dias de exemplo usam 30 min entre lembretes, mesmo na demonstração de 1 min, para imitar dias de verdade.
+- **Perfil de exemplo.** O Treino ganhou `MontarBloco.montarDeExemplo`: monta o bloco com um perfil fixo (intermediário, sem articulações poupadas nem equipamento, com exercícios no chão), sem ler nem gravar o perfil do usuário, e sem o log de cada bloco. A demonstração continua pedindo o perfil antes do primeiro dia (Cenário 6 da H3).
+- **Sem publicar.** As jornadas de exemplo são gravadas sem `jornada-atualizada` e sem passar pelas métricas de uso.
+- **Na demonstração de 2026-10-07:** 29 jornadas de 23/08 a 06/10, criadas em 1,3 s na subida. A semana de 28/09 fica abaixo da meta, e a consulta do mês responde em cerca de 10 ms.
+
 ## 10. Observabilidade
 
 | Métrica | Tipo | Tags |
@@ -314,7 +326,7 @@ Branch `feat/h4-historico-e-graficos`. A execução para ao fim de cada etapa, e
 | T1 | Histórico, domínio: períodos, taxa (truncamento e meta exata), resumo do período, dias na meta, dias sem jornada | Cenários 1, 2 e 6 cobertos em Java puro | ✅ 2026-10-06 (30 testes; domínio do Histórico com 99,2% das linhas e 90,7% dos ramos; 208 no backend). Detalhes na seção 4. |
 | T2 | Agenda, domínio: correção (Concluído ↔ Falha, prazo do dia, par adiado, `editadoEm`, `podeCorrigir`) | Cenários 4 e 5 cobertos em Java puro | ✅ 2026-10-06 (15 testes novos no `JornadaTest`; 223 no backend; domínio da Agenda com 99,3% das linhas e 97,2% dos ramos). D4 a D6 no domínio; detalhes na seção 3.3. |
 | T3 | Agenda e Histórico: migração `V5`, consulta agregada por dia, `GET /historico`, `GET /jornadas?data=`, `POST /correcao`, métricas | Integração com Postgres; mês com um ano de dados em menos de 500 ms; contrato e tipos TS atualizados | ✅ 2026-10-06 (19 testes novos; 242 no backend; Histórico com 100% das linhas, Agenda com 99,0%). Cenários 1 a 6 pela API; o mês com um ano de dados ficou abaixo de 500 ms em todas as 11 consultas. Detalhes na seção 6. |
-| T4 | Modo demonstração: dados de exemplo (seção 9) | A demonstração sobe com 45 dias de histórico; o compose de uso diário, sem nenhum | Pendente |
+| T4 | Modo demonstração: dados de exemplo (seção 9) | A demonstração sobe com 45 dias de histórico; o compose de uso diário, sem nenhum | ✅ 2026-10-07 (11 testes novos, 254 no backend; Agenda com 98,8% das linhas). A demonstração recriada com `down -v` subiu com 29 jornadas em 45 dias, e hoje ficou livre. O compose de uso diário não define a variável, e o padrão é desligado. Detalhes na seção 9. |
 | T5 | Frontend: abas Hoje e Histórico, filtros, resumo do período, visão do dia com os blocos, estado vazio | Lint, tipos e testes verdes, cobertura ≥ 80% | Pendente |
 | T6 | Frontend: gráficos em SVG (seção 8.1), legenda, dica de valores pelo mouse e pelo teclado, tabela equivalente, tokens novos no teste da identidade | Idem | Pendente |
 | T7 | Frontend: taxa e meta no resumo de fechamento; Corrigir e "editado" na lista | Idem; Cenários 3 a 5 no frontend | Pendente |

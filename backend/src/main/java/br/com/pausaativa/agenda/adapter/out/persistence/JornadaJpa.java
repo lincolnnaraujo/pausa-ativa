@@ -33,6 +33,8 @@ interface JornadaJpa extends JpaRepository<JornadaEntity, UUID> {
 
     boolean existsByDataReferencia(LocalDate dataReferencia);
 
+    boolean existsByDataReferenciaBefore(LocalDate dataReferencia);
+
     /** Agrega no banco: um mês devolve no máximo 31 dias × 2 categorias × 7 situações (spec H4, seção 4). */
     @Query("""
             select new br.com.pausaativa.agenda.application.port.out.ContagemDoDia(

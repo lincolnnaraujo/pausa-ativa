@@ -56,6 +56,11 @@ class JornadaRepositoryJpa implements JornadaRepository {
     }
 
     @Override
+    public boolean existeAntesDe(LocalDate dia) {
+        return jpa.existsByDataReferenciaBefore(dia);
+    }
+
+    @Override
     public List<ContagemDoDia> contarPorDia(LocalDate de, LocalDate ate) {
         return jpa.contarPorDia(de, ate);
     }
