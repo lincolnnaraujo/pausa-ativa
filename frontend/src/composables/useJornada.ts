@@ -5,6 +5,7 @@ import {
   adiarMarco,
   buscarJornadaAtual,
   concluirMarco,
+  corrigirMarco,
   type DuracaoDoBlocoMin,
   falharMarco,
   finalizarJornada,
@@ -12,6 +13,7 @@ import {
   type Jornada,
   pausarJornada,
   retomarJornada,
+  type StatusCorrigido,
 } from '@/api/jornada'
 import { guardarUltimaDuracao, guardarUltimaMeta } from '@/preferencias'
 
@@ -160,6 +162,7 @@ export function useJornada() {
     concluir: (marcoId: string) => executar(() => concluirMarco(marcoId)),
     falhar: (marcoId: string) => executar(() => falharMarco(marcoId)),
     adiar: (marcoId: string) => executar(() => adiarMarco(marcoId)),
+    corrigir: (marcoId: string, correta: StatusCorrigido) => executar(() => corrigirMarco(marcoId, correta)),
   }
 }
 

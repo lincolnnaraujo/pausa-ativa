@@ -248,6 +248,18 @@ Detalhes decididos na T5:
 - **Resumo de fechamento.** A nota que prometia o resumo "numa próxima versão" agora aponta para a aba Histórico.
 - **No Chrome, com os dados de exemplo:** as trocas entre semana e mês levaram menos de 50 ms, e nenhuma tela transbordou em 400 px.
 
+Detalhes decididos na T7:
+
+- **Resumo de fechamento.** Busca o dia no Histórico (`GET /historico?periodo=DIA`) e busca de novo quando alguma situação do dia muda, por exemplo numa correção depois de finalizar. A tabela do resumo termina com duas linhas: **Taxa de sucesso** e **Meta de 80%** ("atingida ✓", "não atingida" ou "sem dados"). Se o Histórico não responder, o resumo mostra o resto.
+- **Corrigir.** Fica na célula da situação, só na lista da aba Hoje: a do Histórico é só para leitura, mesmo no dia de hoje. A confirmação aparece no lugar do botão. O foco vai para o **Sim** e, depois de Sim ou Cancelar, volta para o Corrigir; o Esc cancela. O Corrigir nunca fica desabilitado, porque só abre a confirmação; quem espera o servidor e a conexão é o Sim.
+- **Editado.** "· editado" aparece ao lado da situação nas duas abas, com "Corrigido às HH:mm" ao passar o mouse.
+- **Recusa.** Se o servidor recusar (409 depois da meia-noite), a tela mostra o motivo e busca a jornada de novo, já sem o Corrigir.
+- **No Chrome, com um dia ao vivo na demonstração, em 400 px:**
+  - corrigir a água 1 de concluído para falha levou a "Falha · editado", com o foco no Sim e depois de volta no Corrigir;
+  - o resumo de fechamento mostrou a taxa e a meta de cada categoria;
+  - corrigir a água 2 depois de finalizar levou a taxa da água de 0,0% para 50,0%;
+  - o Histórico de hoje mostrou os dois "editado" sem nenhum Corrigir, e nada transbordou.
+
 ### 8.1 Gráficos
 
 As escolhas seguem um método de visualização com checagens calculadas, e não escolhidas a olho. As cores foram validadas com um script de daltonismo e contraste sobre o cartão (`#243156`).
@@ -353,7 +365,7 @@ Branch `feat/h4-historico-e-graficos`. A execução para ao fim de cada etapa, e
 | T4 | Modo demonstração: dados de exemplo (seção 9) | A demonstração sobe com 45 dias de histórico; o compose de uso diário, sem nenhum | ✅ 2026-10-07 (11 testes novos, 254 no backend; Agenda com 98,8% das linhas). A demonstração recriada com `down -v` subiu com 29 jornadas em 45 dias, e hoje ficou livre. O compose de uso diário não define a variável, e o padrão é desligado. Detalhes na seção 9. |
 | T5 | Frontend: abas Hoje e Histórico, filtros, resumo do período, visão do dia com os blocos, estado vazio | Lint, tipos e testes verdes, cobertura ≥ 80% | ✅ 2026-10-07 (frontend com 242 testes e 99,5% das linhas; lint e tipos limpos). Conferido no Chrome em 760 e 400 px com os dados de exemplo. Detalhes na seção 8. |
 | T6 | Frontend: gráficos em SVG (seção 8.1), legenda, dica de valores pelo mouse e pelo teclado, tabela equivalente, tokens novos no teste da identidade | Idem | ✅ 2026-10-07 (frontend com 273 testes e 99,6% das linhas; lint e tipos limpos). Conferido no Chrome em 760 e 400 px com os dados de exemplo. Detalhes na seção 8.1. |
-| T7 | Frontend: taxa e meta no resumo de fechamento; Corrigir e "editado" na lista | Idem; Cenários 3 a 5 no frontend | Pendente |
+| T7 | Frontend: taxa e meta no resumo de fechamento; Corrigir e "editado" na lista | Idem; Cenários 3 a 5 no frontend | ✅ 2026-10-07 (frontend com 284 testes e 99,6% das linhas; lint e tipos limpos). Cenários 3 a 5 cobertos na tela Hoje e conferidos no Chrome com um dia ao vivo na demonstração. Detalhes na seção 8. |
 | T8 | Verificação ponta a ponta no Chrome, em modo demonstração com os dados de exemplo | Cenários 1 a 6 e os 500 ms conferidos; capturas em 760 e 400 px | Pendente |
 | T9 | README, C4 (Histórico por dentro), release notes, PR e CI | Aceite do usuário; merge e tag `v0.4.0` | Pendente |
 

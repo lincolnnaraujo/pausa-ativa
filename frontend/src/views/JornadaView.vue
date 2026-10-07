@@ -44,6 +44,7 @@ const {
   concluir,
   falhar,
   adiar,
+  corrigir,
 } = useJornada()
 const {
   perfil,
@@ -298,7 +299,12 @@ onMounted(carregarTudo)
         v-else
         :jornada="jornada"
       />
-      <ListaDeMarcos :jornada="jornada" />
+      <ListaDeMarcos
+        :jornada="jornada"
+        corrigivel
+        :desabilitado="desabilitado"
+        @corrigir="corrigir"
+      />
     </template>
 
     <div class="preferencias">

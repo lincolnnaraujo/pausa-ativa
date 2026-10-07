@@ -7,6 +7,7 @@ import {
   buscarJornadaAtual,
   concluirMarco,
   confirmarRecebimento,
+  corrigirMarco,
   falharMarco,
   finalizarJornada,
   iniciarJornada,
@@ -72,6 +73,16 @@ describe('API da jornada', () => {
 
     await expect(comando('j/1')).resolves.toEqual(JORNADA)
     expect(fetchFalso).toHaveBeenCalledWith(caminho, expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('corrige um lembrete enviando a situação certa em JSON', async () => {
+    const fetchFalso = responderCom(Response.json(JORNADA))
+
+    await expect(corrigirMarco('marco/1', 'FALHA')).resolves.toEqual(JORNADA)
+    expect(fetchFalso).toHaveBeenCalledWith(
+      '/api/v1/marcos/marco%2F1/correcao',
+      expect.objectContaining({ method: 'POST', body: '{"status":"FALHA"}' }),
+    )
   })
 
   it('confirma o recebimento de um marco (204, sem corpo)', async () => {

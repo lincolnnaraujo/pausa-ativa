@@ -7,6 +7,8 @@ export type Marco = components['schemas']['Marco']
 export type Bloco = components['schemas']['Bloco']
 export type StatusJornada = Jornada['status']
 export type StatusMarco = Marco['status']
+/** O que uma correção aceita: concluído vira falha, ou o contrário (spec H4, D4). */
+export type StatusCorrigido = components['schemas']['Correcao']['status']
 
 /** Regras da meta de água (spec H2, seção 3.4; D4). */
 export const META_PADRAO_ML = 3_000
@@ -50,6 +52,17 @@ export const concluirMarco = (id: string) => comando(`/api/v1/marcos/${encodeURI
 export const falharMarco = (id: string) => comando(`/api/v1/marcos/${encodeURIComponent(id)}/falha`)
 /** Só o exercício pendente com `podeAdiar`; o bloco seguinte passa a ter 10 min (spec H3, seção 3.5). */
 export const adiarMarco = (id: string) => comando(`/api/v1/marcos/${encodeURIComponent(id)}/adiamento`)
+
+/**
+ * Troca a resposta de um lembrete com `podeCorrigir`, até o fim do dia da jornada (spec H4, seção 3.3).
+ * Num par adiado, o backend corrige os dois. Fora do dia, 409.
+ */
+export async function corrigirMarco(id: string, status: StatusCorrigido): Promise<Jornada> {
+  const resposta = await requisitar('POST', `/api/v1/marcos/${encodeURIComponent(id)}/correcao`, {
+    corpo: { status },
+  })
+  return (await resposta.json()) as Jornada
+}
 
 /** Avisa que o lembrete chegou à tela. Sem isso, o prazo vencido vira NAO_ENTREGUE em vez de FALHA. */
 export async function confirmarRecebimento(id: string): Promise<void> {

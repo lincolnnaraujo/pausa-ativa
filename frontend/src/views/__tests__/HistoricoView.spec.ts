@@ -389,10 +389,14 @@ describe('HistoricoView', () => {
       )
     })
 
-    it('hoje em andamento aparece marcado (D11)', async () => {
+    it('hoje em andamento aparece marcado (D11), e a lista é só para leitura, com o editado', async () => {
       vi.mocked(buscarHistorico).mockResolvedValue({ ...umDiaDoHistorico(), inicio: '2026-10-07', fim: '2026-10-07' })
       vi.mocked(buscarJornadaDoDia).mockResolvedValue(
-        umaJornada({ dataReferencia: '2026-10-07', status: 'PAUSADA', pausadaDesde: '2026-10-07T12:00:00-03:00' }),
+        comMarco(
+          umaJornada({ dataReferencia: '2026-10-07', status: 'PAUSADA', pausadaDesde: '2026-10-07T12:00:00-03:00' }),
+          1,
+          { status: 'FALHA', podeCorrigir: true, editadoEm: '2026-10-07T09:40:00-03:00' },
+        ),
       )
       const wrapper = await montar()
 
@@ -401,6 +405,8 @@ describe('HistoricoView', () => {
 
       expect(buscarHistorico).toHaveBeenLastCalledWith('DIA', '2026-10-07')
       expect(texto(wrapper, 'fim-do-dia')).toBe('em andamento')
+      expect(texto(wrapper, 'editado')).toBe('· editado')
+      expect(wrapper.findAll('button').map((b) => b.text())).not.toContain('Corrigir')
     })
 
     it('a jornada encerrada automaticamente diz isso no fim', async () => {
