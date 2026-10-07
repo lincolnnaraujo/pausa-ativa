@@ -1,0 +1,734 @@
+{
+  "uid": "pausa-ativa",
+  "title": "Pausa Ativa",
+  "description": "Lembretes e saúde da aplicação (spec H5, seção 3.2). A taxa de sucesso oficial fica na aba Histórico da aplicação.",
+  "tags": ["pausa-ativa"],
+  "editable": false,
+  "graphTooltip": 1,
+  "schemaVersion": 41,
+  "version": 1,
+  "time": { "from": "now/d", "to": "now" },
+  "timezone": "America/Sao_Paulo",
+  "weekStart": "monday",
+  "refresh": "30s",
+  "timepicker": { "refresh_intervals": ["10s", "30s", "1m", "5m", "15m"] },
+  "annotations": { "list": [] },
+  "templating": { "list": [] },
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Lembretes",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "💧 Água por situação",
+      "description": "Lembretes de água encerrados em cada intervalo, pela resposta original. Concluído e falha fazem a taxa; não entregue e não concluído ficam fora dela. As correções aparecem em Respostas corrigidas e não mudam as barras: a taxa oficial fica na aba Histórico da aplicação.",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "interval": "1h",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "round(sum(increase(pausaativa_marcos_encerrados_total{categoria=\"HIDRATACAO\",status=\"CONCLUIDO\"}[$__interval] offset -$__interval)))",
+          "legendFormat": "Concluído",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "round(sum(increase(pausaativa_marcos_encerrados_total{categoria=\"HIDRATACAO\",status=\"FALHA\"}[$__interval] offset -$__interval)))",
+          "legendFormat": "Falha",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "round(sum(increase(pausaativa_marcos_encerrados_total{categoria=\"HIDRATACAO\",status=\"NAO_ENTREGUE\"}[$__interval] offset -$__interval)))",
+          "legendFormat": "Não entregue",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "D",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "round(sum(increase(pausaativa_marcos_encerrados_total{categoria=\"HIDRATACAO\",status=\"NAO_CONCLUIDO\"}[$__interval] offset -$__interval)))",
+          "legendFormat": "Não concluído",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "min": 0,
+          "color": { "mode": "fixed", "fixedColor": "#87ceeb" },
+          "custom": {
+            "drawStyle": "bars",
+            "barAlignment": 1,
+            "fillOpacity": 100,
+            "lineWidth": 0,
+            "showPoints": "never",
+            "stacking": { "mode": "normal", "group": "A" },
+            "axisLabel": "lembretes",
+            "axisSoftMin": 0
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Falha" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#ff8c69" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Não entregue" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#a8b5cc" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Não concluído" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#7684a8" } }]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "showLegend": true, "displayMode": "list", "placement": "bottom", "calcs": ["sum"] },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "🏃 Exercício por situação",
+      "description": "Blocos de exercício encerrados em cada intervalo, pela resposta original. Um par adiado conta os dois blocos. As correções aparecem em Respostas corrigidas e não mudam as barras.",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "interval": "1h",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "round(sum(increase(pausaativa_marcos_encerrados_total{categoria=\"EXERCICIO\",status=\"CONCLUIDO\"}[$__interval] offset -$__interval)))",
+          "legendFormat": "Concluído",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "round(sum(increase(pausaativa_marcos_encerrados_total{categoria=\"EXERCICIO\",status=\"FALHA\"}[$__interval] offset -$__interval)))",
+          "legendFormat": "Falha",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "round(sum(increase(pausaativa_marcos_encerrados_total{categoria=\"EXERCICIO\",status=\"NAO_ENTREGUE\"}[$__interval] offset -$__interval)))",
+          "legendFormat": "Não entregue",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "D",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "round(sum(increase(pausaativa_marcos_encerrados_total{categoria=\"EXERCICIO\",status=\"NAO_CONCLUIDO\"}[$__interval] offset -$__interval)))",
+          "legendFormat": "Não concluído",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "min": 0,
+          "color": { "mode": "fixed", "fixedColor": "#20b2aa" },
+          "custom": {
+            "drawStyle": "bars",
+            "barAlignment": 1,
+            "fillOpacity": 100,
+            "lineWidth": 0,
+            "showPoints": "never",
+            "stacking": { "mode": "normal", "group": "A" },
+            "axisLabel": "blocos",
+            "axisSoftMin": 0
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Falha" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#ff8c69" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Não entregue" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#a8b5cc" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Não concluído" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#7684a8" } }]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "showLegend": true, "displayMode": "list", "placement": "bottom", "calcs": ["sum"] },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "No período",
+      "description": "Contagens no intervalo escolhido no alto da tela. Os números recomeçam a cada subida do backend, mas o Prometheus soma os trechos.",
+      "gridPos": { "h": 5, "w": 10, "x": 0, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "round(sum(increase(pausaativa_marcos_disparados_total[$__range])))",
+          "legendFormat": "Lembretes disparados",
+          "range": false,
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "round(sum(increase(pausaativa_blocos_montados_total[$__range])))",
+          "legendFormat": "Blocos montados",
+          "range": false,
+          "instant": true
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "round(sum(increase(pausaativa_marcos_adiados_total[$__range])))",
+          "legendFormat": "Blocos adiados",
+          "range": false,
+          "instant": true
+        },
+        {
+          "refId": "D",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "round(sum(increase(pausaativa_marcos_corrigidos_total[$__range])))",
+          "legendFormat": "Respostas corrigidas",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "fixed", "fixedColor": "#f0f8ff" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "text": { "titleSize": 13, "valueSize": 32 }
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Atraso do disparo",
+      "description": "Tempo entre o instante calculado do lembrete e o disparo, no intervalo escolhido. O épico pede até 5 s. O p95 é estimado pelas faixas do histograma, e por isso pode passar um pouco do maior atraso medido.",
+      "gridPos": { "h": 5, "w": 9, "x": 10, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le) (increase(pausaativa_marcos_atraso_disparo_seconds_bucket[$__range]))) > 0",
+          "legendFormat": "p95",
+          "range": false,
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "max_over_time(max(pausaativa_marcos_atraso_disparo_seconds_max)[$__range:]) > 0",
+          "legendFormat": "Maior",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#20b2aa", "value": null },
+              { "color": "#ff8c69", "value": 5 }
+            ]
+          },
+          "noValue": "sem disparos"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "text": { "titleSize": 13, "valueSize": 32 }
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Abas abertas",
+      "description": "Abas da aplicação abertas agora. Sem nenhuma, os lembretes não chegam e viram não entregues.",
+      "gridPos": { "h": 5, "w": 5, "x": 19, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(pausaativa_sse_conexoes)",
+          "legendFormat": "Abas",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#ff8c69", "value": null },
+              { "color": "#20b2aa", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      }
+    },
+    {
+      "id": 7,
+      "type": "row",
+      "title": "Aplicação",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
+      "panels": []
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Backend",
+      "description": "Se o Prometheus consegue ler as métricas do backend.",
+      "gridPos": { "h": 8, "w": 4, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "max(up{job=\"pausa-ativa\"})",
+          "legendFormat": "Backend",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#ff8c69", "value": null },
+              { "color": "#20b2aa", "value": 1 }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "Fora do ar", "index": 0 },
+                "1": { "text": "No ar", "index": 1 }
+              }
+            }
+          ],
+          "noValue": "Sem dados"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto"
+      }
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Operações da API no período (p95)",
+      "description": "Tempo de resposta de cada rota no intervalo escolhido, da mais lenta para a mais rápida: 95% das respostas saíram abaixo dele. O épico pede menos de 200 ms nas operações de lembrete. O stream de eventos fica de fora, porque fica aberto o dia todo. O p95 é estimado pelas faixas do histograma.",
+      "gridPos": { "h": 8, "w": 10, "x": 4, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le, method, uri) (increase(http_server_requests_seconds_bucket{uri=~\"/api/v1/.+\",uri!=\"/api/v1/eventos\"}[$__range]))) > 0",
+          "format": "table",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "indexByName": { "method": 0, "uri": 1, "Value": 2 },
+            "renameByName": { "method": "Método", "uri": "Rota", "Value": "p95" }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "align": "auto", "cellOptions": { "type": "auto" } },
+          "noValue": "Nenhuma requisição no período"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "p95" },
+            "properties": [
+              { "id": "unit", "value": "s" },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+              { "id": "color", "value": { "mode": "thresholds" } },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "#20b2aa", "value": null },
+                    { "color": "#ff8c69", "value": 0.2 }
+                  ]
+                }
+              },
+              { "id": "custom.width", "value": 110 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Método" },
+            "properties": [{ "id": "custom.width", "value": 80 }]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [{ "displayName": "p95", "desc": true }],
+        "footer": { "show": false }
+      }
+    },
+    {
+      "id": 10,
+      "type": "bargauge",
+      "title": "Consulta do histórico no período (p95)",
+      "description": "Tempo para montar cada visão do histórico no intervalo escolhido. O épico pede menos de 500 ms na agregação mensal.",
+      "gridPos": { "h": 8, "w": 10, "x": 14, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le, periodo) (increase(pausaativa_historico_consultas_seconds_bucket[$__range]))) > 0",
+          "legendFormat": "{{periodo}}",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "max": 1,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#20b2aa", "value": null },
+              { "color": "#ff8c69", "value": 0.5 }
+            ]
+          },
+          "noValue": "Nenhuma consulta no período"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "DIA" },
+            "properties": [{ "id": "displayName", "value": "Dia" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "SEMANA" },
+            "properties": [{ "id": "displayName", "value": "Semana" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "MES" },
+            "properties": [{ "id": "displayName", "value": "Mês" }]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "valueMode": "color",
+        "showUnfilled": true,
+        "namePlacement": "top",
+        "sizing": "auto",
+        "minVizHeight": 16,
+        "maxVizHeight": 24
+      }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Memória da JVM",
+      "description": "O heap máximo é 75% do limite de 512 MB do container do backend.",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(jvm_memory_used_bytes{area=\"heap\"})",
+          "legendFormat": "Heap em uso",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(jvm_memory_max_bytes{area=\"heap\"} > 0)",
+          "legendFormat": "Heap máximo",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(jvm_memory_used_bytes{area=\"nonheap\"})",
+          "legendFormat": "Fora do heap",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "color": { "mode": "fixed", "fixedColor": "#87ceeb" },
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Heap máximo" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "#ff8c69" } },
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } },
+              { "id": "custom.fillOpacity", "value": 0 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Fora do heap" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#20b2aa" } }]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "showLegend": true, "displayMode": "list", "placement": "bottom", "calcs": [] },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "CPU do processo",
+      "description": "Uso de CPU do backend.",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "max(process_cpu_usage)",
+          "legendFormat": "CPU",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "color": { "mode": "fixed", "fixedColor": "#87ceeb" },
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "showLegend": false, "displayMode": "list", "placement": "bottom", "calcs": [] },
+        "tooltip": { "mode": "single", "sort": "none" }
+      }
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Pausas do GC",
+      "description": "Fração do tempo em que a JVM parou para coletar lixo.",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(jvm_gc_pause_seconds_sum[$__rate_interval]))",
+          "legendFormat": "Tempo em pausa",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "color": { "mode": "fixed", "fixedColor": "#20b2aa" },
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "showLegend": false, "displayMode": "list", "placement": "bottom", "calcs": [] },
+        "tooltip": { "mode": "single", "sort": "none" }
+      }
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Erros da API",
+      "description": "Respostas com erro do servidor (5xx) por minuto. As recusas de regra (4xx) não entram.",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 32 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "(sum(rate(http_server_requests_seconds_count{outcome=\"SERVER_ERROR\"}[$__rate_interval])) * 60) or vector(0)",
+          "legendFormat": "Respostas 5xx por minuto",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": { "mode": "fixed", "fixedColor": "#ff8c69" },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "axisSoftMax": 1
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "showLegend": false, "displayMode": "list", "placement": "bottom", "calcs": [] },
+        "tooltip": { "mode": "single", "sort": "none" }
+      }
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Conexões do banco",
+      "description": "Conexões do pool do backend com o Postgres. Conexões esperando indicam o banco lento ou o pool pequeno.",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 32 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(hikaricp_connections_active)",
+          "legendFormat": "Em uso",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(hikaricp_connections_idle)",
+          "legendFormat": "Ociosas",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(hikaricp_connections_pending)",
+          "legendFormat": "Esperando",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "min": 0,
+          "color": { "mode": "fixed", "fixedColor": "#87ceeb" },
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 0, "showPoints": "never" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Ociosas" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#20b2aa" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Esperando" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#ff8c69" } }]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "showLegend": true, "displayMode": "list", "placement": "bottom", "calcs": [] },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      }
+    }
+  ]
+}

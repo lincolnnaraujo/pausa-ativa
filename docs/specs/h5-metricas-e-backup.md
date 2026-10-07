@@ -55,7 +55,7 @@ Detalhes decididos na T2:
 | Provisionamento | A fonte de dados (Prometheus, com `uid` fixo) e o painel são arquivos do repositório, carregados na subida. Mudar o painel é mudar o JSON. |
 | Sem internet | Desligados o relatório de uso, a busca de atualizações, o feed de notícias e a instalação de plugins: o épico diz que nada depende de serviço externo. |
 | Aparência | Tema escuro, interface em português e as cores da identidade Sereno & Balanceado nas séries **(D10)** |
-| Recursos | Limite de memória de 256 MB, conferido na verificação (T5); volume `grafana-dados` para o banco interno do Grafana |
+| Recursos | Limite de memória de 512 MB (medido na T3: com 256 MB, o Grafana 13 vivia no limite); volume `grafana-dados` para o banco interno do Grafana |
 
 **Painel "Pausa Ativa".** O intervalo padrão é "hoje" (`now/d` até agora), e o seletor de tempo do Grafana troca para a semana ou o mês.
 
@@ -75,6 +75,22 @@ Detalhes decididos na T2:
 | | Conexões do banco | Conexões do Hikari ativas, ociosas e esperando | `hikaricp.connections.*` | — |
 
 Cores das situações, iguais às dos gráficos do Histórico: concluído na cor da categoria (azul céu na água, teal no exercício), falha em coral, não entregue em cinza claro e não concluído em cinza médio. Os valores vêm dos tokens de `frontend/src/assets/main.css`, copiados para o JSON do painel.
+
+Detalhes decididos na T3:
+
+- **Imagem.** `grafana/grafana:13.2.3`, a estável mais recente em 2026-10-07, fixada na tag completa, como o Prometheus.
+- **Arquivos.** As pastas de `observabilidade/grafana/provisioning` têm os nomes que o Grafana exige (`datasources`, `dashboards`, e `plugins` e `alerting` vazias, para o log não acusar erro). O painel fica em `observabilidade/grafana/paineis/pausa-ativa.json`, montado em `/etc/grafana/paineis`.
+- **Página inicial.** O endereço raiz abre o painel: o Grafana o carrega como página inicial (`/d/default-home-dashboard/home`). O painel também tem o endereço fixo `/d/pausa-ativa`.
+- **Sem internet.** Ficam desligados o relatório de uso, as buscas de atualização do Grafana e dos plugins, os links de feedback, o feed de notícias, os snapshots externos e a pré-instalação de plugins.
+- **Sem alertas.** O motor de alertas também fica desligado, porque alertas estão fora desta versão.
+- **Memória.** O Grafana 13 usa uns 250 MB de memória própria. Com o limite de 256 MB, ele vivia no limite, e o kernel reclamava memória o tempo todo. Com 512 MB, estabilizou em uns 340 MiB, sem aperto.
+- **Séries que nascem zeradas.** O Micrometer só cria um medidor no primeiro evento, e a série já nasce valendo 1: o `increase()` do painel perdia esse primeiro evento depois de cada subida do backend. Agora a Agenda (contadores dos lembretes e dos blocos, e o atraso do disparo) e o Histórico (tempo da consulta de cada período) criam as séries zeradas na subida.
+- **Barras da hora corrente.** O Grafana alinha o fim da consulta ao último intervalo cheio, então a hora corrente só apareceria quando terminasse. Cada barra mede o intervalo que começa no seu instante (`increase(...[$__interval] offset -$__interval)`), e a hora corrente aparece enquanto acontece.
+- **Atraso do disparo.** Sem disparos no período, o painel diz "sem disparos". O p95 é estimado pelas faixas do histograma e pode passar um pouco do maior atraso medido; a descrição do painel diz isso.
+- **Operações da API em tabela.** Com muitas rotas, as barras ficavam ilegíveis. A tabela fica ordenada pelo p95, com a cor do limite na célula.
+- **D5 na prática.** As barras contam a resposta original: um lembrete corrigido de concluído para falha continua como concluído na barra, e a correção aparece em "Respostas corrigidas". A descrição dos painéis manda para a aba Histórico, que tem a taxa oficial.
+- **CI.** Um passo novo confere o Grafana, o painel provisionado com os 15 painéis aberto sem login, e roda as 27 consultas do painel no Prometheus, com as variáveis do Grafana trocadas por valores fixos. Testado localmente contra a demonstração; uma consulta quebrada de propósito foi recusada, então o passo pega erro de verdade.
+- **Na demonstração, com um dia ao vivo:** água com 2 concluídos, 1 falha e 13 não concluídos, e exercício com 1, 1 e 6, iguais ao que foi feito. Atraso do disparo abaixo de 1 s, backend no ar e todas as rotas abaixo de 200 ms.
 
 ### 3.3 Backup
 
@@ -170,7 +186,7 @@ O backup e a restauração também funcionam na demonstração, com `-f docker-c
 - O Grafana só escuta em `127.0.0.1`. Sem login, qualquer programa do próprio computador pode ler o painel, como já acontece com a aplicação.
 - O Prometheus e o Actuator completo continuam sem porta no host.
 - Os backups ficam fora do git (`backups/` no `.gitignore` desde a H1). Eles têm os dados da aplicação e nenhuma senha.
-- A stack sobe de três para cinco containers. A soma dos limites passa de 512 MB (backend) para 1 GB. O uso real é medido na T5.
+- A stack sobe de três para cinco containers. A soma dos limites de memória passa de 512 MB (backend) para 1,28 GB (backend e Grafana com 512 MB, Prometheus com 256 MB). Na demonstração, a T3 mediu uns 380 MB a mais de uso real: o Grafana com uns 340 MiB e o Prometheus com uns 37 MiB. A T5 confere de novo.
 
 ## 8. Critérios de aceitação: como cada um é verificado
 
@@ -194,7 +210,7 @@ Branch `feat/h5-metricas-e-backup`. A execução para ao fim de cada etapa, e a 
 |---|---|---|---|
 | T1 | Backend: histogramas e faixas das métricas de tempo, tag `application` | `verify` verde; teste de integração lendo o `/actuator/prometheus` | ✅ 2026-10-07 (4 testes novos; 258 no backend). Detalhes na seção 5. |
 | T2 | Prometheus no compose e na demonstração: configuração, volume, retenção, limite de memória e healthcheck | `docker compose up -d --wait` com o alvo `up`; o CI confere | ✅ 2026-10-07 (na demonstração: alvo `up`, 492 séries, 33 MiB). Detalhes na seção 3.1. |
-| T3 | Grafana: fonte de dados e painel provisionados, acesso anônimo, sem internet, em português e com a paleta | O painel abre sem login com dados; o CI confere o painel e as consultas | Pendente |
+| T3 | Grafana: fonte de dados e painel provisionados, acesso anônimo, sem internet, em português e com a paleta | O painel abre sem login com dados; o CI confere o painel e as consultas | ✅ 2026-10-07 (2 testes novos, 260 no backend; painel conferido no Chrome com um dia ao vivo na demonstração). Detalhes na seção 3.2. |
 | T4 | Backup e restauração: scripts, serviços `backup` e `restauracao`, `BACKUP_DIR`, `shellcheck` | Cenários 2 e 3 no CI, com a demonstração | Pendente |
 | T5 | Verificação ponta a ponta: Grafana no Chrome com um dia ao vivo, backup e restauração no PowerShell, banco parado, memória dos cinco containers | Cenários 1 a 3 conferidos, com capturas | Pendente |
 | T6 | README, C4 (Prometheus e Grafana deixam de ser planejados), release notes, PR e CI | Aceite do usuário; merge e tag `v0.5.0` | Pendente |
@@ -215,7 +231,7 @@ Lacunas que o épico não decidia. A recomendação vem primeiro.
 
 | # | Decisão | Recomendação | Alternativa |
 |---|---|---|---|
-| D1 | Quando o Prometheus e o Grafana sobem | **Sempre, com a aplicação** (`docker compose up`), como o épico desenha a stack. Custo: até ~500 MB a mais de limite de memória | Num perfil opcional (`--profile observabilidade`), ligado só quando quiser ver o painel |
+| D1 | Quando o Prometheus e o Grafana sobem | **Sempre, com a aplicação** (`docker compose up`), como o épico desenha a stack. Custo estimado na spec: até ~500 MB a mais de limite de memória. Medido na T3: 768 MB a mais de limite e uns 380 MB a mais de uso real | Num perfil opcional (`--profile observabilidade`), ligado só quando quiser ver o painel |
 | D2 | Portas | **Grafana em `127.0.0.1:38744`** (demonstração: `38745`); **Prometheus sem porta**, lido só pelo Grafana | Expor também o Prometheus em `127.0.0.1`, para consultas avulsas |
 | D3 | Acesso ao Grafana | **Anônimo, como leitor, sem login.** O painel é código: mudar é mudar o JSON | Login de administrador, com a senha no `.env`, para editar o painel pela tela |
 | D4 | Quanto tempo de métricas guardar | **90 dias ou 1 GB.** O histórico de negócio fica no banco, sem limite | O padrão do Prometheus, 15 dias |

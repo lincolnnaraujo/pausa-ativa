@@ -139,6 +139,31 @@ jobs:
           echo "::error::O Prometheus não coletou o backend: up=$alvo, séries com a faixa de 200 ms=$faixas"
           exit 1
 
+      # Cenário 1 da H5: o Grafana abre, sem login, o painel provisionado, e cada consulta do painel roda no
+      # Prometheus sem erro. As variáveis do Grafana viram valores fixos só para a consulta de teste.
+      - name: Conferir o painel do Grafana
+        run: |
+          set -euo pipefail
+          porta=$(grep '^GRAFANA_PORT=' .env | cut -d= -f2)
+          grafana="http://127.0.0.1:${porta}"
+          curl -fsS "$grafana/api/health" | jq -e '.database == "ok"' > /dev/null
+          curl -fsS "$grafana/api/dashboards/uid/pausa-ativa" \
+            | jq -e '.meta.provisioned and (.dashboard.panels | length) == 15' > /dev/null
+          consultas=0
+          # O $__interval e os outros são variáveis do Grafana, literais no sed, e não do shell.
+          # shellcheck disable=SC2016
+          while IFS= read -r expr; do
+            resposta=$(docker compose exec -T prometheus wget -qO- \
+              "http://localhost:9090/api/v1/query?query=$(jq -rn --arg q "$expr" '$q | @uri')" < /dev/null || true)
+            if ! echo "$resposta" | jq -e '.status == "success"' > /dev/null 2>&1; then
+              echo "::error::Consulta do painel com erro: $expr"
+              exit 1
+            fi
+            consultas=$((consultas + 1))
+          done < <(jq -r '.panels[].targets[]?.expr' observabilidade/grafana/paineis/pausa-ativa.json \
+            | sed -e 's/\$__rate_interval/1m/g' -e 's/\$__interval/1h/g' -e 's/\$__range/1h/g')
+          echo "Painel provisionado e aberto sem login; as $consultas consultas rodam no Prometheus"
+
       - name: Logs dos containers (em caso de falha)
         if: failure()
         run: docker compose logs --no-color

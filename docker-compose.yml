@@ -1,8 +1,8 @@
 # Pausa Ativa: sobe a aplicação inteira com `docker compose up -d --wait`.
 # Antes, copie o .env.example para .env. A aplicação abre em http://127.0.0.1:${FRONTEND_PORT}.
 #
-# Só o frontend tem porta no host, e só em 127.0.0.1. O nginx do frontend encaminha /api/ e
-# /actuator/health para o backend; o Postgres e o Prometheus ficam acessíveis apenas na rede interna.
+# Só o frontend e o Grafana têm porta no host, e só em 127.0.0.1. O nginx do frontend encaminha /api/
+# e /actuator/health para o backend; o Postgres e o Prometheus ficam acessíveis apenas na rede interna.
 
 name: pausa-ativa
 
@@ -70,6 +70,49 @@ services:
       timeout: 3s
       retries: 12
 
+  # Painel "Pausa Ativa" em http://127.0.0.1:${GRAFANA_PORT} (spec H5, seção 3.2). A fonte de dados e o
+  # painel vêm dos arquivos de observabilidade/grafana; o acesso é anônimo, só de leitura, sem login (D3).
+  grafana:
+    image: grafana/grafana:13.2.3
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-38744}:3000"
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_AUTH_BASIC_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/paineis/pausa-ativa.json
+      # Tema escuro e português, como a aplicação (D10).
+      GF_USERS_DEFAULT_THEME: dark
+      GF_USERS_DEFAULT_LANGUAGE: pt-BR
+      # Nada sai para a internet: o épico não depende de serviço externo.
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_ANALYTICS_FEEDBACK_LINKS_ENABLED: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_SNAPSHOTS_EXTERNAL_ENABLED: "false"
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+      # Sem alertas nesta versão (spec H5, seção 2): o motor de alertas só gastaria memória.
+      GF_UNIFIED_ALERTING_ENABLED: "false"
+    volumes:
+      - ./observabilidade/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observabilidade/grafana/paineis:/etc/grafana/paineis:ro
+      - grafana-dados:/var/lib/grafana
+    # O Grafana 13 usa uns 250 MB só de memória própria: com 256 MB, vivia no limite.
+    mem_limit: 512m
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+
 volumes:
   pgdata:
   prometheus-dados:
+  grafana-dados:

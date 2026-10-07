@@ -115,6 +115,17 @@ class MetricasPrometheusTest {
     }
 
     @Test
+    void oTempoDaConsultaDeCadaPeriodoJaExisteDesdeASubida() throws Exception {
+        String texto = metricas();
+
+        for (String periodo : List.of("DIA", "SEMANA", "MES")) {
+            assertThat(texto)
+                    .contains("pausaativa_historico_consultas_seconds_count{application=\"pausa-ativa\",periodo=\""
+                            + periodo + "\"}");
+        }
+    }
+
+    @Test
     void todaSerieDaAplicacaoLevaATag() throws Exception {
         List<String> series = Arrays.stream(metricas().split("\n"))
                 .filter(linha -> linha.startsWith("pausaativa_") || linha.startsWith("jvm_memory_used_bytes"))

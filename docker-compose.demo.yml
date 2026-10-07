@@ -7,7 +7,8 @@
 #   docker compose -f docker-compose.yml -f docker-compose.demo.yml down -v
 #
 # Roda como outro projeto, com banco e porta próprios: uma jornada de teste não ocupa o dia de hoje na
-# aplicação real (é uma jornada por dia). Abre em http://127.0.0.1:38743.
+# aplicação real (é uma jornada por dia). Abre em http://127.0.0.1:38743, e o painel de métricas, em
+# http://127.0.0.1:38745.
 
 name: pausa-ativa-demo
 
@@ -20,3 +21,9 @@ services:
   frontend:
     ports: !override
       - "127.0.0.1:${FRONTEND_PORT_DEMO:-38743}:8080"
+
+  # O painel da demonstração (spec H5, seção 6): começa vazio e enche com o dia ao vivo, porque o histórico
+  # de exemplo não passa pelas métricas.
+  grafana:
+    ports: !override
+      - "127.0.0.1:${GRAFANA_PORT_DEMO:-38745}:3000"

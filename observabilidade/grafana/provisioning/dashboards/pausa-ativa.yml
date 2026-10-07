@@ -1,0 +1,13 @@
+# Onde o Grafana procura os painéis (spec H5, seção 3.2). O painel é código: muda-se o JSON, e não pela
+# tela, que não salva mudanças nele.
+
+apiVersion: 1
+
+providers:
+  - name: pausa-ativa
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/paineis
