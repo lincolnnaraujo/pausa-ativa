@@ -1,6 +1,6 @@
 # Spec H4: Visualizar histórico e gráficos (release v0.4.0)
 
-> **Status:** aprovada pelo usuário em 2026-10-06, com as recomendações D1 a D11 da seção 13. Implementada e em aceite; progresso na seção 12.
+> **Status:** aprovada pelo usuário em 2026-10-06, com as recomendações D1 a D11 da seção 13. Entregue em 2026-10-07 como v0.4.0, com aceite do usuário; progresso na seção 12.
 > **Origem:** História 4 de [`docs/epico-pausa-ativa.md`](../epico-pausa-ativa.md).
 > **Depende de:** H2 (v0.2.0) e H3 (v0.3.0), entregue em 2026-10-06.
 > **Data:** 2026-10-06.
@@ -383,7 +383,7 @@ Branch `feat/h4-historico-e-graficos`. A execução para ao fim de cada etapa, e
 | T6 | Frontend: gráficos em SVG (seção 8.1), legenda, dica de valores pelo mouse e pelo teclado, tabela equivalente, tokens novos no teste da identidade | Idem | ✅ 2026-10-07 (frontend com 273 testes e 99,6% das linhas; lint e tipos limpos). Conferido no Chrome em 760 e 400 px com os dados de exemplo. Detalhes na seção 8.1. |
 | T7 | Frontend: taxa e meta no resumo de fechamento; Corrigir e "editado" na lista | Idem; Cenários 3 a 5 no frontend | ✅ 2026-10-07 (frontend com 284 testes e 99,6% das linhas; lint e tipos limpos). Cenários 3 a 5 cobertos na tela Hoje e conferidos no Chrome com um dia ao vivo na demonstração. Detalhes na seção 8. |
 | T8 | Verificação ponta a ponta no Chrome, em modo demonstração com os dados de exemplo | Cenários 1 a 6 e os 500 ms conferidos; capturas em 760 e 400 px | ✅ 2026-10-07 (todas as conferências OK; trocas de período abaixo de 60 ms na tela e o mês abaixo de 12 ms na API). Resultado na seção 11. |
-| T9 | README, C4 (Histórico por dentro), release notes, PR e CI | Aceite do usuário; merge e tag `v0.4.0` | Em aceite (2026-10-07): documentação, versão 0.4.0 e PR prontos; faltam o aceite, o merge e a tag |
+| T9 | README, C4 (Histórico por dentro), release notes, PR e CI | Aceite do usuário; merge e tag `v0.4.0` | ✅ 2026-10-07 (aceite do usuário, merge do PR #7, tag `v0.4.0`) |
 
 ## 13. Decisões para o usuário confirmar
 
