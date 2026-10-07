@@ -9,7 +9,7 @@ flowchart TB
     subgraph host["Computador do usuário (Docker Compose)"]
         FE["<b>frontend</b><br/>Vue 3 + TypeScript, servido por nginx<br/><i>Página e proxy para a API</i>"]
         BE["<b>backend</b><br/>Spring Boot 4, Java 25<br/><i>API REST, regras de negócio, agendador</i>"]
-        DB[("<b>postgres</b><br/>PostgreSQL 18<br/><i>Jornadas, pausas, marcos,<br/>perfil e catálogo</i>")]
+        DB[("<b>postgres</b><br/>PostgreSQL 18<br/><i>Jornadas, pausas, marcos,<br/>perfil e catálogo;<br/>o histórico sai daqui</i>")]
         PR["<b>prometheus</b><br/><i>Coleta métricas</i>"]
         GR["<b>grafana</b><br/><i>Painéis</i>"]
     end
@@ -51,13 +51,14 @@ O contrato REST é o [`docs/api/openapi.json`](../api/openapi.json):
 |---|---|
 | Sistema | `GET /api/v1/sistema/status` |
 | Perfil | `GET /api/v1/perfil` (204 enquanto não preenchido) e `PUT /api/v1/perfil` |
-| Jornada | `GET /api/v1/jornadas/atual`, `POST /api/v1/jornadas` (409 sem perfil) e `POST /api/v1/jornadas/{id}/` + `pausa`, `retomada` ou `finalizacao` |
-| Marco | `POST /api/v1/marcos/{id}/` + `conclusao`, `falha`, `adiamento` (só exercício) ou `recebimento` |
+| Jornada | `GET /api/v1/jornadas/atual`, `GET /api/v1/jornadas?data=` (a jornada de um dia; 204 sem jornada), `POST /api/v1/jornadas` (409 sem perfil) e `POST /api/v1/jornadas/{id}/` + `pausa`, `retomada` ou `finalizacao` |
+| Marco | `POST /api/v1/marcos/{id}/` + `conclusao`, `falha`, `adiamento` (só exercício), `recebimento` ou `correcao` (corpo `{status}`; 409 fora do dia) |
+| Histórico | `GET /api/v1/historico?periodo=DIA\|SEMANA\|MES&data=` (400 com data futura) |
 | Eventos | `GET /api/v1/eventos` (SSE) |
 
 Erros em Problem Details (RFC 9457), com a mensagem em português no `detail`. Os tipos do frontend são gerados desse contrato.
 
-**Modo demonstração.** O `docker-compose.demo.yml` sobe a mesma stack como outro projeto (`pausa-ativa-demo`), com banco próprio, porta `127.0.0.1:38743`, um lembrete de água por minuto e um bloco de exercício a cada 2 min (`PAUSA_ATIVA_INTERVALO=1m`; o exercício usa o dobro do intervalo).
+**Modo demonstração.** O `docker-compose.demo.yml` sobe a mesma stack como outro projeto (`pausa-ativa-demo`), com banco próprio, porta `127.0.0.1:38743`, um lembrete de água por minuto e um bloco de exercício a cada 2 min (`PAUSA_ATIVA_INTERVALO=1m`; o exercício usa o dobro do intervalo). Com `PAUSA_ATIVA_DEMO_HISTORICO=true`, o backend cria na subida 45 dias de histórico de exemplo, se o banco não tiver jornada de dia anterior. O compose de uso diário não liga nenhuma das duas.
 
 ## Saúde do backend
 

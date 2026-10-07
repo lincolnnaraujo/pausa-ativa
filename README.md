@@ -2,7 +2,7 @@
 
 Aplicação web que roda no seu computador e distribui hidratação e exercício curto ao longo da jornada de home office.
 
-> **Versão atual: v0.3.0 (blocos de exercício).** Você inicia o dia, e a cada 30 min de trabalho o Chrome lembra de beber água. A cada hora, propõe um bloco curto de exercícios, montado para o seu perfil físico. Gráficos e histórico chegam nas próximas versões. Veja o [plano completo](docs/epico-pausa-ativa.md) e [o que mudou](docs/releases/v0.3.0.md).
+> **Versão atual: v0.4.0 (histórico e gráficos).** Você inicia o dia, e a cada 30 min de trabalho o Chrome lembra de beber água. A cada hora, propõe um bloco curto de exercícios, montado para o seu perfil físico. A aba Histórico mostra a taxa de sucesso por dia, semana e mês, com gráficos. Veja o [plano completo](docs/epico-pausa-ativa.md) e [o que mudou](docs/releases/v0.4.0.md).
 
 ## O que você precisa
 
@@ -50,7 +50,8 @@ Na primeira vez leva alguns minutos, porque o Docker baixa e monta as imagens. O
 5. **A cada hora de trabalho**, chega também um bloco de exercícios: a lista, com quantidade e uma linha de como fazer cada um. Na hora cheia, água e exercício vêm numa notificação só, e a página mostra os dois cartões, cada um com os seus botões.
 6. **Responda na página.** Clicar na notificação traz a aba para a frente. Lá, clique em **Concluir** se fez, em **Falhar** se não deu, ou, no exercício, em **Adiar** (veja abaixo).
 7. **No almoço, clique em Pausar.** O tempo trabalhado para, e os lembretes esperam. Na volta, clique em **Retomar**.
-8. **No fim do expediente, clique em Finalizar dia** e confirme. A tela mostra o resumo do dia, por categoria.
+8. **No fim do expediente, clique em Finalizar dia** e confirme. A tela mostra o resumo do dia, por categoria, com a taxa de sucesso e a meta de 80%.
+9. **Veja como foram os dias na aba Histórico** (abaixo).
 
 **Adiar um bloco de exercício.** O bloco adiado passa para a hora seguinte, e o bloco seguinte vem com 10 min para compensar. Concluir esse bloco conta como concluídos os dois; marcar falha conta os dois como falha. Só dá para adiar uma vez seguida, e o último bloco do dia não pode ser adiado: nesses casos, o botão não aparece.
 
@@ -64,6 +65,8 @@ O que acontece com cada lembrete:
 | **Não entregue** | O lembrete não chegou: a aba estava fechada ou o servidor estava fora. Não conta contra você. |
 | **Não concluído** | O dia foi finalizado antes da hora do lembrete. |
 
+**Corrigir um lembrete de hoje.** Clicou em Concluir sem querer, ou fez e marcou falha? Na lista **Lembretes do dia**, clique em **Corrigir** ao lado da situação e confirme na própria linha. O lembrete fica marcado "editado". Vale até a meia-noite do dia, mesmo com o dia finalizado, e só entre Concluído e Falha. Num bloco adiado, a correção vale para os dois blocos.
+
 - **Uma jornada por dia.** Depois de finalizar, o próximo dia começa amanhã.
 - **Esqueceu o dia aberto?** A aplicação encerra sozinha a jornada que ficou de um dia para o outro, e a tela volta a mostrar **Iniciar dia**.
 - **Mudar o perfil:** **Editar perfil**, na tela de início, ou **Editar perfil físico**, no rodapé durante o dia. A mudança vale para os próximos blocos; os que já saíram não mudam.
@@ -71,15 +74,24 @@ O que acontece com cada lembrete:
 
 > Este app não substitui orientação médica. Os exercícios e as quantidades são pontos de partida.
 
+### Histórico e gráficos
+
+A aba **Histórico**, no topo, mostra como foram os dias. A aba **Hoje** continua funcionando por baixo: os lembretes chegam do mesmo jeito, e a aba mostra "Hoje · 1" quando um espera resposta.
+
+- **Escolha o período:** **Dia**, **Semana** (segunda a domingo) ou **Mês**, e ande com **‹** e **›**. **Voltar para hoje** traz o período de hoje.
+- **Taxa de sucesso:** concluídos ÷ (concluídos + falhas), separada para a água e para o exercício. Não entregue e não concluído ficam fora da conta, e um dia sem jornada não conta como falha. A **meta** é chegar a 80%. Na semana e no mês, "Dias na meta: 3 de 4" diz em quantos dias você chegou lá.
+- **Gráficos:** uma coluna por dia, com as situações empilhadas, e um ✓ nos dias na meta. Passe o mouse (ou use o Tab) numa coluna para ver os números, e clique para abrir o dia. **Ver como tabela** mostra os mesmos números.
+- **O dia:** a água, o horário de cada lembrete e, clicando num exercício, o bloco que foi proposto.
+
 ### Modo demonstração
 
-Para ver o dia inteiro em 16 min, com um lembrete de água por minuto e um bloco de exercício a cada 2 min, sem mexer na aplicação de uso diário:
+Para ver o dia inteiro em 16 min, com um lembrete de água por minuto e um bloco de exercício a cada 2 min, sem mexer na aplicação de uso diário. Na primeira subida, a demonstração também cria 45 dias de histórico de exemplo, para o Histórico ter o que mostrar:
 
 ```sh
 docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build --wait
 ```
 
-Abra **http://127.0.0.1:38743**. A demonstração tem banco próprio; para apagá-lo ao terminar:
+Abra **http://127.0.0.1:38743**. A demonstração tem banco próprio, e o histórico de exemplo só é criado com o banco vazio de dias anteriores. Para apagá-lo ao terminar (e ter o histórico de exemplo de novo na próxima subida):
 
 ```sh
 docker compose -f docker-compose.yml -f docker-compose.demo.yml down -v
@@ -87,7 +99,7 @@ docker compose -f docker-compose.yml -f docker-compose.demo.yml down -v
 
 ## Conferir se está funcionando
 
-A página mostra o perfil físico (na primeira vez), **Iniciar dia** ou a jornada em andamento e, no rodapé, **Conectado ao servidor**, com a versão.
+A página mostra as abas **Hoje** e **Histórico**; em Hoje, o perfil físico (na primeira vez), **Iniciar dia** ou a jornada em andamento e, no rodapé, **Conectado ao servidor**, com a versão.
 
 Se quiser conferir pelo terminal:
 
@@ -108,7 +120,9 @@ Os três serviços (`postgres`, `backend` e `frontend`) devem aparecer como `hea
 
 A aplicação volta sozinha quando o Docker Desktop abre, por exemplo depois de reiniciar o computador.
 
-**Vindo da v0.2.0?** Os dados continuam. Na primeira vez, a tela pede o perfil físico. Uma jornada que estava aberta na atualização continua só com água até o fim do dia; os blocos de exercício começam no próximo dia.
+**Vindo da v0.3.0?** Os dados continuam, e os dias anteriores já aparecem no Histórico.
+
+**Vindo da v0.2.0?** Os dados continuam. Na primeira vez, a tela pede o perfil físico. Uma jornada que estava aberta na atualização continua só com água até o fim do dia; os blocos de exercício começam no próximo dia. No Histórico, os dias da v0.2.0 mostram o exercício como "sem dados".
 
 ## Se algo der errado
 
@@ -137,6 +151,12 @@ Se a tela mostra **Seu perfil físico**, preencha e salve: sem o perfil, o dia n
 
 **O botão Adiar não aparece**
 O bloco já compensa um adiado (só dá para adiar uma vez seguida) ou é o último do dia. Conclua ou marque falha.
+
+**O botão Corrigir não aparece**
+Só se corrige um lembrete de hoje que está **Concluído** ou com **Falha**, e só na aba Hoje: a lista do Histórico é só para leitura. Não entregue e não concluído não se corrigem, e depois da meia-noite o dia anterior fica como está.
+
+**O Histórico diz que um dia "ainda não chegou"**
+A tela usa o relógio do computador para saber que dia é hoje. Confira se a data e a hora do computador estão certas e recarregue a página.
 
 **Mudei o perfil e o bloco na tela não mudou**
 O bloco é montado na hora em que chega e não muda depois. O perfil novo vale a partir do próximo bloco.
