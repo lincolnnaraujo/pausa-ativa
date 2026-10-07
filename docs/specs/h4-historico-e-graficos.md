@@ -353,6 +353,22 @@ Também da seção "Cenários de Teste" do épico, nesta história:
 - A taxa de sucesso ignora `NAO_ENTREGUE` e `NAO_CONCLUIDO`.
 - Requisito não funcional: agregação mensal em menos de 500 ms.
 
+**Resultado da verificação no Chrome (T8, 2026-10-07).** Feita na demonstração recriada com `down -v`, que subiu de novo com as mesmas 29 jornadas de exemplo. O Chrome rodou sem janela, com dublês de `Notification` e `AudioContext` que registram as chamadas, em 760 e 400 px. Cada cenário comparou a tela com a API.
+
+| Conferência | Resultado |
+|---|---|
+| Cenário 6 | Voltando sete semanas, 17 a 23 de agosto mostra só "Nenhuma jornada nesta semana.", sem taxa, gráfico nem tabela; a API também não tem jornada |
+| Cenário 1 | 29/09, aberto pela coluna do gráfico: água 56,2% e exercício 57,1%, com as situações iguais às da API |
+| Cenário 5 | No dia de exemplo, nenhum Corrigir e `podeCorrigir` falso nos 24 lembretes; a API responde 409 "Só dá para corrigir os lembretes de hoje." e nada muda |
+| Cenário 2 | Três idas e voltas entre semana e mês, com as quantidades iguais às da API; trocas na tela de 47 a 58 ms e o mês na API de 7 a 11 ms |
+| Histórico aberto com lembrete (D9) | O primeiro lembrete chegou com notificação e som, "Hoje · 1" na aba e a faixa à vista, e o Histórico buscou a semana de novo sozinho |
+| Hora cheia | Água 2 e exercício 1 vieram numa notificação só, "Hora da água e do exercício 💧🏃" |
+| Cenário 4 | "Marcar como falha?" e depois "Falha · editado"; a água do dia foi de 50,0% para 0,0%, e o Histórico do dia mostrou o mesmo, com "editado" e sem Corrigir |
+| Cenário 3 | Finalizado pela tela: água 0,0% / não atingida e exercício 100,0% / atingida ✓, iguais à API |
+| Celular e console | Nenhuma tela transbordou em 760 nem em 400 px (resumo, semanas, dia, mês com tabela e vazio), e o console não registrou erros |
+
+Enquanto o único lembrete de hoje está pendente, a coluna de hoje fica vazia no gráfico: "em aberto" não entra na pilha (T6) e aparece na dica e na tabela.
+
 ## 12. Plano de entrega em etapas
 
 Branch `feat/h4-historico-e-graficos`. A execução para ao fim de cada etapa, e a próxima sessão retoma pela primeira etapa sem ✅.
@@ -366,7 +382,7 @@ Branch `feat/h4-historico-e-graficos`. A execução para ao fim de cada etapa, e
 | T5 | Frontend: abas Hoje e Histórico, filtros, resumo do período, visão do dia com os blocos, estado vazio | Lint, tipos e testes verdes, cobertura ≥ 80% | ✅ 2026-10-07 (frontend com 242 testes e 99,5% das linhas; lint e tipos limpos). Conferido no Chrome em 760 e 400 px com os dados de exemplo. Detalhes na seção 8. |
 | T6 | Frontend: gráficos em SVG (seção 8.1), legenda, dica de valores pelo mouse e pelo teclado, tabela equivalente, tokens novos no teste da identidade | Idem | ✅ 2026-10-07 (frontend com 273 testes e 99,6% das linhas; lint e tipos limpos). Conferido no Chrome em 760 e 400 px com os dados de exemplo. Detalhes na seção 8.1. |
 | T7 | Frontend: taxa e meta no resumo de fechamento; Corrigir e "editado" na lista | Idem; Cenários 3 a 5 no frontend | ✅ 2026-10-07 (frontend com 284 testes e 99,6% das linhas; lint e tipos limpos). Cenários 3 a 5 cobertos na tela Hoje e conferidos no Chrome com um dia ao vivo na demonstração. Detalhes na seção 8. |
-| T8 | Verificação ponta a ponta no Chrome, em modo demonstração com os dados de exemplo | Cenários 1 a 6 e os 500 ms conferidos; capturas em 760 e 400 px | Pendente |
+| T8 | Verificação ponta a ponta no Chrome, em modo demonstração com os dados de exemplo | Cenários 1 a 6 e os 500 ms conferidos; capturas em 760 e 400 px | ✅ 2026-10-07 (todas as conferências OK; trocas de período abaixo de 60 ms na tela e o mês abaixo de 12 ms na API). Resultado na seção 11. |
 | T9 | README, C4 (Histórico por dentro), release notes, PR e CI | Aceite do usuário; merge e tag `v0.4.0` | Pendente |
 
 ## 13. Decisões para o usuário confirmar
