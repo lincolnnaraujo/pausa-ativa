@@ -1,6 +1,6 @@
 # Spec H5: Operar com métricas e backup (release v0.5.0)
 
-> **Status:** em revisão pelo usuário. As decisões que o épico não tomava estão na seção 11, com a recomendação primeiro.
+> **Status:** aprovada pelo usuário em 2026-10-07, com as recomendações D1 a D12 da seção 11. Em implementação; progresso na seção 9.
 > **Origem:** História 5 de [`docs/epico-pausa-ativa.md`](../epico-pausa-ativa.md).
 > **Depende de:** H2 (v0.2.0). As métricas que o painel mostra vêm da H2 à H4, entregue em 2026-10-07.
 > **Data:** 2026-10-07.
@@ -145,6 +145,12 @@ E todas ganham a tag `application="pausa-ativa"`. A configuração fica no `appl
 
 O `/actuator/prometheus` continua fora do host: só o Prometheus, na rede interna, o lê.
 
+Detalhes decididos na T1:
+
+- **Mínimo de 1 ms no `http.server.requests`.** As chaves de `management.metrics.distribution` valem por prefixo, e a do `http.server.requests` também pega o `http.server.requests.active`, de tarefas longas, cujo mínimo padrão é de 2 min. Com o teto de 5 s abaixo desse mínimo, o Micrometer recusava a configuração na primeira requisição. O teste novo pegou o problema antes de ele chegar à aplicação.
+- **Testes de integração com as métricas de produção.** O `@TesteDeIntegracao` ganhou o `@AutoConfigureMetrics`, porque o Spring Boot desliga o `/actuator/prometheus` nos testes. Ganhou também o `@AutoConfigureMockMvc`, que oferece um `MockMvcTester` com os filtros da aplicação: o `http.server.requests` é medido por um filtro, e o `MockMvcTester.from(contexto)` não passa por ele. Todos os testes de integração continuam num contexto só.
+- **Teste.** O `MetricasPrometheusTest` faz uma requisição, uma consulta do Histórico e um disparo, lê o `/actuator/prometheus` e confere as faixas de 200 ms, 1 s, 5 s e 500 ms, os tetos e a tag `application` nas séries.
+
 ## 6. Modo demonstração
 
 O `docker-compose.demo.yml` sobe os cinco serviços no projeto `pausa-ativa-demo`, com o Grafana em `127.0.0.1:38745`. Com um lembrete por minuto, o painel mostra um dia inteiro em 16 min. O histórico de exemplo da H4 não passa pelas métricas, então o painel começa vazio e enche com o dia ao vivo.
@@ -178,7 +184,7 @@ Branch `feat/h5-metricas-e-backup`. A execução para ao fim de cada etapa, e a 
 
 | # | Etapa | Pronto quando | Status |
 |---|---|---|---|
-| T1 | Backend: histogramas e faixas das métricas de tempo, tag `application` | `verify` verde; teste de integração lendo o `/actuator/prometheus` | Pendente |
+| T1 | Backend: histogramas e faixas das métricas de tempo, tag `application` | `verify` verde; teste de integração lendo o `/actuator/prometheus` | ✅ 2026-10-07 (4 testes novos; 258 no backend). Detalhes na seção 5. |
 | T2 | Prometheus no compose e na demonstração: configuração, volume, retenção, limite de memória e healthcheck | `docker compose up -d --wait` com o alvo `up`; o CI confere | Pendente |
 | T3 | Grafana: fonte de dados e painel provisionados, acesso anônimo, sem internet, em português e com a paleta | O painel abre sem login com dados; o CI confere o painel e as consultas | Pendente |
 | T4 | Backup e restauração: scripts, serviços `backup` e `restauracao`, `BACKUP_DIR`, `shellcheck` | Cenários 2 e 3 no CI, com a demonstração | Pendente |
