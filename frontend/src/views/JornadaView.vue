@@ -18,6 +18,12 @@ import { usePerfil } from '@/composables/usePerfil'
 import { useSom } from '@/composables/useSom'
 import { intervalo } from '@/formatacao'
 
+/**
+ * A tela fica montada mesmo com o Histórico à vista (D9 da spec H4): eventos, notificações e som não
+ * param. Ela conta ao App os pendentes, para a aba, e cada mudança da jornada, para o Histórico.
+ */
+const emit = defineEmits<{ pendentes: [quantidade: number]; atualizada: [] }>()
+
 const {
   jornada,
   carga,
@@ -111,6 +117,7 @@ const { estado: conexao } = useEventos({
   aoAtualizarJornada(atualizada) {
     aplicar(atualizada)
     anunciarLote()
+    emit('atualizada')
   },
   /**
    * Eventos podem ter se perdido antes da conexão abrir ou durante a queda: busca a situação real.
@@ -126,6 +133,11 @@ const { estado: conexao } = useEventos({
 })
 
 watch(pendentes, (marcos) => marcos.forEach(confirmar))
+watch(
+  () => pendentes.value.length,
+  (quantidade) => emit('pendentes', quantidade),
+  { immediate: true },
+)
 
 const desconectado = computed(() => conexao.value === 'reconectando')
 const desabilitado = computed(() => ocupado.value || desconectado.value)
@@ -179,14 +191,10 @@ onMounted(carregarTudo)
 </script>
 
 <template>
-  <main class="pagina">
-    <header>
-      <h1>Pausa Ativa</h1>
-      <p class="subtitulo">
-        Hidratação e exercício ao longo da jornada.
-      </p>
-    </header>
-
+  <main
+    class="tela"
+    data-testid="hoje"
+  >
     <p
       v-if="desconectado"
       class="faixa-reconectando"
@@ -316,27 +324,10 @@ onMounted(carregarTudo)
 </template>
 
 <style scoped>
-.pagina {
+.tela {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  max-width: 36rem;
-  margin: 0 auto;
-  padding: 2rem 1rem 3rem;
-}
-
-header {
-  margin-bottom: 0.5rem;
-}
-
-h1 {
-  margin: 0;
-  font-size: 2rem;
-}
-
-.subtitulo {
-  margin: 0.25rem 0 0;
-  color: var(--texto-suave);
 }
 
 .faixa-demonstracao,

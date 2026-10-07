@@ -1,3 +1,10 @@
+import type {
+  Categoria,
+  ContagemDoDia,
+  DiaDoHistorico,
+  Historico,
+  ResumoDaCategoria,
+} from '@/api/historico'
 import type { Bloco, Jornada, Marco } from '@/api/jornada'
 
 /** 09:00 em São Paulo, no dia dos testes. */
@@ -117,6 +124,100 @@ export function comExercicios(jornada: Jornada): Jornada {
         a.segundosTrabalhadosPrevistos - b.segundosTrabalhadosPrevistos ||
         Number(a.categoria === 'EXERCICIO') - Number(b.categoria === 'EXERCICIO'),
     ),
+  }
+}
+
+/** Uma categoria num dia, zerada e sem taxa, com os campos dados. */
+export function umaContagem(categoria: Categoria, campos: Partial<ContagemDoDia> = {}): ContagemDoDia {
+  return {
+    categoria,
+    concluidos: 0,
+    falhas: 0,
+    naoEntregues: 0,
+    naoConcluidos: 0,
+    emAberto: 0,
+    taxa: null,
+    metaAtingida: null,
+    ...campos,
+  }
+}
+
+/** Uma categoria no período, zerada e sem taxa, com os campos dados. */
+export function umResumo(categoria: Categoria, campos: Partial<ResumoDaCategoria> = {}): ResumoDaCategoria {
+  return { ...umaContagem(categoria), diasComDados: 0, diasNaMeta: 0, ...campos }
+}
+
+/** Um dia do período, sem jornada, com os campos dados. */
+export function umDia(data: string, campos: Partial<DiaDoHistorico> = {}): DiaDoHistorico {
+  return { data, jornada: null, futuro: false, categorias: [], ...campos }
+}
+
+/**
+ * A semana de 5 a 11/10/2026, com hoje na quarta, 7/10, em andamento. Segunda bateu a meta na água e
+ * não no exercício; terça também; quinta a domingo ainda não chegaram.
+ */
+export function umaSemana(): Historico {
+  return {
+    periodo: 'SEMANA',
+    inicio: '2026-10-05',
+    fim: '2026-10-11',
+    categorias: [
+      umResumo('HIDRATACAO', {
+        concluidos: 30,
+        falhas: 4,
+        naoEntregues: 2,
+        emAberto: 12,
+        taxa: 88.2,
+        metaAtingida: true,
+        diasComDados: 3,
+        diasNaMeta: 2,
+      }),
+      umResumo('EXERCICIO', {
+        concluidos: 12,
+        falhas: 4,
+        naoEntregues: 1,
+        emAberto: 7,
+        taxa: 75,
+        metaAtingida: false,
+        diasComDados: 3,
+        diasNaMeta: 1,
+      }),
+    ],
+    dias: [
+      umDia('2026-10-05', {
+        jornada: 'FINALIZADA',
+        categorias: [
+          umaContagem('HIDRATACAO', { concluidos: 12, falhas: 2, naoEntregues: 2, taxa: 85.7, metaAtingida: true }),
+          umaContagem('EXERCICIO', { concluidos: 5, falhas: 2, naoEntregues: 1, taxa: 71.4, metaAtingida: false }),
+        ],
+      }),
+      umDia('2026-10-06', {
+        jornada: 'FINALIZADA',
+        categorias: [
+          umaContagem('HIDRATACAO', { concluidos: 15, falhas: 1, taxa: 93.7, metaAtingida: true }),
+          umaContagem('EXERCICIO', { concluidos: 6, falhas: 2, taxa: 75, metaAtingida: false }),
+        ],
+      }),
+      umDia('2026-10-07', {
+        jornada: 'EM_ANDAMENTO',
+        categorias: [
+          umaContagem('HIDRATACAO', { concluidos: 3, falhas: 1, emAberto: 12, taxa: 75, metaAtingida: false }),
+          umaContagem('EXERCICIO', { concluidos: 1, emAberto: 7, taxa: 100, metaAtingida: true }),
+        ],
+      }),
+      ...['2026-10-08', '2026-10-09', '2026-10-10', '2026-10-11'].map((data) => umDia(data, { futuro: true })),
+    ],
+  }
+}
+
+/** Um período sem nenhuma jornada (Cenário 6). */
+export function umPeriodoVazio(periodo: Historico['periodo'], datas: string[]): Historico {
+  return {
+    periodo,
+    inicio: datas[0]!,
+    fim: datas.at(-1)!,
+    categorias: [umResumo('HIDRATACAO'), umResumo('EXERCICIO')],
+    dias: datas.map((data) => umDia(data)),
   }
 }
 

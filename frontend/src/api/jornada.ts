@@ -23,6 +23,12 @@ export async function buscarJornadaAtual(): Promise<Jornada | null> {
   return resposta.status === 204 ? null : ((await resposta.json()) as Jornada)
 }
 
+/** A jornada de um dia, com os blocos propostos; `null` se não houve jornada no dia (204). */
+export async function buscarJornadaDoDia(data: string): Promise<Jornada | null> {
+  const resposta = await requisitar('GET', `/api/v1/jornadas?${new URLSearchParams({ data })}`)
+  return resposta.status === 204 ? null : ((await resposta.json()) as Jornada)
+}
+
 /** Sem perfil físico, o backend recusa com 409 (spec H3, D7). */
 export async function iniciarJornada(
   metaAguaMl: number,

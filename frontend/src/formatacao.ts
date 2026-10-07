@@ -29,6 +29,13 @@ export function mililitros(valor: number): string {
   return `${formatoDeVolume.format(valor)} ml`
 }
 
+const formatoDeTaxa = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+
+/** Taxa de sucesso que o backend já truncou em uma casa: 85.7 → "85,7%"; 100 → "100,0%". */
+export function taxa(valor: number): string {
+  return `${formatoDeTaxa.format(valor)}%`
+}
+
 /** Quanto falta para o próximo lembrete, arredondado para cima: nunca diz "em 0 min". */
 export function tempoAte(segundos: number): string {
   if (segundos <= 0) {

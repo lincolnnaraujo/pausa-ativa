@@ -1,8 +1,19 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 import type { Jornada, Marco } from '@/api/jornada'
 import { horario, rotuloDaCategoria, rotuloDoStatus } from '@/formatacao'
 
 const props = defineProps<{ jornada: Jornada }>()
+
+/** Blocos abertos na lista: cada um mostra os exercícios propostos no disparo (spec H4, seção 8). */
+const abertos = ref(new Set<string>())
+
+function alternar(marcoId: string) {
+  if (!abertos.value.delete(marcoId)) {
+    abertos.value.add(marcoId)
+  }
+}
 
 /**
  * Horário em que o marco disparou ou, se ainda vai disparar, a previsão. A previsão parte do
@@ -64,26 +75,62 @@ function detalheDoMarco(marco: Marco): string {
           </tr>
         </thead>
         <tbody>
-          <tr
+          <template
             v-for="marco in jornada.marcos"
             :key="marco.id"
-            :data-status="marco.status"
-            :data-categoria="marco.categoria"
           >
-            <td>{{ horarioDoMarco(marco) }}</td>
-            <td class="categoria">
-              {{ rotuloDaCategoria(marco.categoria) }} {{ marco.sequencia }}
-            </td>
-            <td class="detalhe">
-              {{ detalheDoMarco(marco) }}
-            </td>
-            <td>
-              <span
-                class="status"
-                :class="marco.status.toLowerCase()"
-              >{{ rotuloDoStatus(marco.status) }}</span>
-            </td>
-          </tr>
+            <tr
+              :data-status="marco.status"
+              :data-categoria="marco.categoria"
+            >
+              <td>{{ horarioDoMarco(marco) }}</td>
+              <td class="categoria">
+                <button
+                  v-if="marco.bloco"
+                  type="button"
+                  class="link"
+                  :aria-expanded="abertos.has(marco.id)"
+                  @click="alternar(marco.id)"
+                >
+                  {{ rotuloDaCategoria(marco.categoria) }} {{ marco.sequencia }}
+                </button>
+                <template v-else>
+                  {{ rotuloDaCategoria(marco.categoria) }} {{ marco.sequencia }}
+                </template>
+              </td>
+              <td class="detalhe">
+                {{ detalheDoMarco(marco) }}
+              </td>
+              <td>
+                <span
+                  class="status"
+                  :class="marco.status.toLowerCase()"
+                >{{ rotuloDoStatus(marco.status) }}</span>
+              </td>
+            </tr>
+            <tr
+              v-if="marco.bloco && abertos.has(marco.id)"
+              class="bloco"
+              data-testid="exercicios-do-marco"
+            >
+              <td colspan="4">
+                <p
+                  v-if="marco.bloco.compensaAdiamento"
+                  class="compensa"
+                >
+                  Bloco de {{ marco.bloco.duracaoMin }} min, com o que foi adiado na hora anterior.
+                </p>
+                <ol>
+                  <li
+                    v-for="(item, indice) in marco.bloco.itens"
+                    :key="indice"
+                  >
+                    {{ item.exercicio }}: <span class="quantidade">{{ item.quantidade }}</span>
+                  </li>
+                </ol>
+              </td>
+            </tr>
+          </template>
         </tbody>
       </table>
     </div>
@@ -121,6 +168,31 @@ th {
 
 tbody tr:last-child td {
   border-bottom: 0;
+}
+
+/* Os exercícios ficam colados à linha do bloco, que perde a borda de baixo. */
+tr:has(+ .bloco) td {
+  border-bottom: 0;
+}
+
+.bloco td {
+  padding-top: 0;
+  font-size: 0.875rem;
+}
+
+.bloco ol {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.bloco .compensa {
+  margin: 0 0 0.25rem;
+  color: var(--texto-suave);
+}
+
+.bloco .quantidade {
+  color: var(--exercicio);
+  font-weight: 600;
 }
 
 /* Marcador da categoria; o ícone e o nome dizem o mesmo em texto. */

@@ -113,7 +113,6 @@ describe('JornadaView', () => {
 
       const wrapper = mount(JornadaView)
 
-      expect(wrapper.get('h1').text()).toBe('Pausa Ativa')
       expect(wrapper.find('[data-testid="carregando"]').exists()).toBe(true)
     })
 

@@ -82,7 +82,7 @@ const situacoes = computed(() =>
     </table>
 
     <p class="nota">
-      Um novo dia pode ser iniciado amanhã. O resumo completo, com gráficos, chega numa próxima versão.
+      Um novo dia pode ser iniciado amanhã. Este dia e os anteriores ficam na aba Histórico.
     </p>
   </section>
 </template>

@@ -9,11 +9,18 @@ import {
   resumoDoPerfil,
   rotuloDaCategoria,
   rotuloDoStatus,
+  taxa,
   tempoAte,
   tituloDoMarco,
 } from '@/formatacao'
 
 describe('formatação', () => {
+  it('mostra a taxa que o backend truncou com vírgula e uma casa', () => {
+    expect(taxa(85.7)).toBe('85,7%')
+    expect(taxa(100)).toBe('100,0%')
+    expect(taxa(0)).toBe('0,0%')
+  })
+
   it('mostra o horário no fuso de São Paulo, qualquer que seja o offset recebido', () => {
     expect(horario('2026-10-02T12:00:00Z')).toBe('09:00')
     expect(horario('2026-10-02T09:30:01.123-03:00')).toBe('09:30')

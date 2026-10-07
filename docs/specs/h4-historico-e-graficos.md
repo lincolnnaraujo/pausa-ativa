@@ -236,6 +236,18 @@ Nenhum evento novo. A correção publica `jornada-atualizada`. Com o Histórico 
 - **Troca de período.** Enquanto a tela busca o período novo, o gráfico anterior fica com opacidade reduzida, sem esqueleto nem salto de layout. Trocar entre semana e mês leva menos de 500 ms (Cenário 2).
 - **Celular (400 px).** O gráfico do mês cabe sem rolar para o lado: as colunas ficam mais finas, e o eixo mostra um dia a cada cinco. A verificação no Chrome inclui capturas em 400 px, como na T8 da H3.
 
+Detalhes decididos na T5:
+
+- **Abas.** São links para `#hoje` e `#historico`, e o `App.vue` ganhou o cabeçalho e as abas. A tela Hoje fica sempre montada. O Histórico é montado na primeira visita e depois só se esconde, para guardar o período escolhido. Escondido, ele não busca nada; ao voltar à aba, busca de novo, sem trocar a tela por "carregando".
+- **Ligação com Hoje.** A tela Hoje avisa ao App quantos lembretes estão pendentes, para a aba e a faixa, e cada `jornada-atualizada`, para o Histórico. A faixa diz "Um lembrete espera resposta na aba Hoje." e tem o botão **Ir para Hoje**.
+- **Filtros.** O Histórico abre na semana de hoje. **Voltar para hoje** só aparece fora do período de hoje e, no celular, desce para uma linha própria. Trocar entre dia, semana e mês mantém a data.
+- **Semana e mês.** Abaixo do resumo das categorias, cada categoria tem uma tabela com um dia por linha, até hoje: os dias futuros ficam de fora, e um dia sem jornada diz "sem jornada". A taxa vem logo depois do dia, para caber no celular; em 400 px, só "Não concluído" fica para a rolagem. Um dia com jornada abre a visão do dia. Na T6, o gráfico entra acima da tabela, que passa para "Ver como tabela".
+- **Resumo.** Cada categoria lista só as situações que aconteceram no período.
+- **Dia.** Mostra o resumo das categorias, o início, o fim ("em andamento" hoje; "encerrado automaticamente" quando foi o caso), o tempo trabalhado, a água e a lista de lembretes. Cada bloco de exercício da lista abre os exercícios propostos, nas duas abas.
+- **Concorrência.** Só a resposta do último pedido aparece: trocar de período depressa não põe um período velho por cima do novo.
+- **Resumo de fechamento.** A nota que prometia o resumo "numa próxima versão" agora aponta para a aba Histórico.
+- **No Chrome, com os dados de exemplo:** as trocas entre semana e mês levaram menos de 50 ms, e nenhuma tela transbordou em 400 px.
+
 ### 8.1 Gráficos
 
 As escolhas seguem um método de visualização com checagens calculadas, e não escolhidas a olho. As cores foram validadas com um script de daltonismo e contraste sobre o cartão (`#243156`).
@@ -327,7 +339,7 @@ Branch `feat/h4-historico-e-graficos`. A execução para ao fim de cada etapa, e
 | T2 | Agenda, domínio: correção (Concluído ↔ Falha, prazo do dia, par adiado, `editadoEm`, `podeCorrigir`) | Cenários 4 e 5 cobertos em Java puro | ✅ 2026-10-06 (15 testes novos no `JornadaTest`; 223 no backend; domínio da Agenda com 99,3% das linhas e 97,2% dos ramos). D4 a D6 no domínio; detalhes na seção 3.3. |
 | T3 | Agenda e Histórico: migração `V5`, consulta agregada por dia, `GET /historico`, `GET /jornadas?data=`, `POST /correcao`, métricas | Integração com Postgres; mês com um ano de dados em menos de 500 ms; contrato e tipos TS atualizados | ✅ 2026-10-06 (19 testes novos; 242 no backend; Histórico com 100% das linhas, Agenda com 99,0%). Cenários 1 a 6 pela API; o mês com um ano de dados ficou abaixo de 500 ms em todas as 11 consultas. Detalhes na seção 6. |
 | T4 | Modo demonstração: dados de exemplo (seção 9) | A demonstração sobe com 45 dias de histórico; o compose de uso diário, sem nenhum | ✅ 2026-10-07 (11 testes novos, 254 no backend; Agenda com 98,8% das linhas). A demonstração recriada com `down -v` subiu com 29 jornadas em 45 dias, e hoje ficou livre. O compose de uso diário não define a variável, e o padrão é desligado. Detalhes na seção 9. |
-| T5 | Frontend: abas Hoje e Histórico, filtros, resumo do período, visão do dia com os blocos, estado vazio | Lint, tipos e testes verdes, cobertura ≥ 80% | Pendente |
+| T5 | Frontend: abas Hoje e Histórico, filtros, resumo do período, visão do dia com os blocos, estado vazio | Lint, tipos e testes verdes, cobertura ≥ 80% | ✅ 2026-10-07 (frontend com 242 testes e 99,5% das linhas; lint e tipos limpos). Conferido no Chrome em 760 e 400 px com os dados de exemplo. Detalhes na seção 8. |
 | T6 | Frontend: gráficos em SVG (seção 8.1), legenda, dica de valores pelo mouse e pelo teclado, tabela equivalente, tokens novos no teste da identidade | Idem | Pendente |
 | T7 | Frontend: taxa e meta no resumo de fechamento; Corrigir e "editado" na lista | Idem; Cenários 3 a 5 no frontend | Pendente |
 | T8 | Verificação ponta a ponta no Chrome, em modo demonstração com os dados de exemplo | Cenários 1 a 6 e os 500 ms conferidos; capturas em 760 e 400 px | Pendente |
