@@ -3,6 +3,7 @@ package br.com.pausaativa.agenda.adapter.in.web;
 import br.com.pausaativa.agenda.application.JornadaNaoEncontradaException;
 import br.com.pausaativa.agenda.application.PerfilAusenteException;
 import br.com.pausaativa.agenda.domain.AdiamentoRecusadoException;
+import br.com.pausaativa.agenda.domain.CorrecaoRecusadaException;
 import br.com.pausaativa.agenda.domain.DuracaoDoBlocoInvalidaException;
 import br.com.pausaativa.agenda.domain.JornadaJaIniciadaException;
 import br.com.pausaativa.agenda.domain.MarcoNaoEncontradoException;
@@ -40,11 +41,20 @@ class TratamentoDeErrosDaAgenda {
         PerfilAusenteException.class,
         TransicaoDeJornadaInvalidaException.class,
         RespostaDeMarcoRecusadaException.class,
-        AdiamentoRecusadoException.class
+        AdiamentoRecusadoException.class,
+        CorrecaoRecusadaException.class
     })
     @ResponseStatus(HttpStatus.CONFLICT)
     ProblemDetail operacaoRecusada(RegraDeNegocioException erro) {
         return problema(HttpStatus.CONFLICT, "Operação recusada", erro);
+    }
+
+    @ExceptionHandler(CorrecaoInvalidaException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    ProblemDetail correcaoInvalida(CorrecaoInvalidaException erro) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, erro.getMessage());
+        problema.setTitle("Requisição inválida");
+        return problema;
     }
 
     private static ProblemDetail problema(HttpStatus status, String titulo, RegraDeNegocioException erro) {

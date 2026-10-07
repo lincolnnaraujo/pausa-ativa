@@ -22,8 +22,10 @@ import java.util.UUID;
             "disparadoEm",
             "recebidoEm",
             "respondidoEm",
+            "editadoEm",
             "mensagem",
             "podeAdiar",
+            "podeCorrigir",
             "bloco"
         })
 record MarcoResposta(
@@ -66,6 +68,12 @@ record MarcoResposta(
                 format = "date-time")
         OffsetDateTime respondidoEm,
 
+        @Schema(
+                description = "Instante da última correção. Nulo se o lembrete nunca foi corrigido.",
+                types = {"string", "null"},
+                format = "date-time")
+        OffsetDateTime editadoEm,
+
         @Schema(example = "Beba ~190 ml. Levante-se para buscar a água.")
         String mensagem,
 
@@ -73,6 +81,11 @@ record MarcoResposta(
                 description = "Se o botão Adiar vale agora: só no exercício pendente que não compensa um"
                         + " adiamento e não é o último do dia")
         boolean podeAdiar,
+
+        @Schema(
+                description = "Se o botão Corrigir vale agora: só no lembrete concluído ou com falha, até o fim do"
+                        + " dia em que a jornada começou")
+        boolean podeCorrigir,
 
         @Schema(
                 description = "Bloco de exercício. Nulo na água e no exercício que ainda não disparou.",
@@ -91,8 +104,10 @@ record MarcoResposta(
                 marco.disparadoEm(),
                 marco.recebidoEm(),
                 marco.respondidoEm(),
+                marco.editadoEm(),
                 marco.mensagem(),
                 marco.podeAdiar(),
+                marco.podeCorrigir(),
                 marco.bloco() == null ? null : BlocoResposta.de(marco.bloco()));
     }
 }

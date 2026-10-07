@@ -1,9 +1,11 @@
 package br.com.pausaativa.agenda.adapter.out.persistence;
 
+import br.com.pausaativa.agenda.application.port.out.ContagemDoDia;
 import br.com.pausaativa.agenda.domain.StatusJornada;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -30,4 +32,17 @@ interface JornadaJpa extends JpaRepository<JornadaEntity, UUID> {
     Optional<JornadaEntity> findByDataReferencia(LocalDate dataReferencia);
 
     boolean existsByDataReferencia(LocalDate dataReferencia);
+
+    boolean existsByDataReferenciaBefore(LocalDate dataReferencia);
+
+    /** Agrega no banco: um mês devolve no máximo 31 dias × 2 categorias × 7 situações (spec H4, seção 4). */
+    @Query("""
+            select new br.com.pausaativa.agenda.application.port.out.ContagemDoDia(
+                j.dataReferencia, j.status, m.categoria, m.status, count(m))
+            from MarcoEntity m join m.jornada j
+            where j.dataReferencia between :de and :ate
+            group by j.dataReferencia, j.status, m.categoria, m.status
+            order by j.dataReferencia, m.categoria, m.status
+            """)
+    List<ContagemDoDia> contarPorDia(LocalDate de, LocalDate ate);
 }

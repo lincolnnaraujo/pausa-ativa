@@ -9,8 +9,7 @@ flowchart LR
     N["Notificações do Chrome<br/><i>Sistema de notificação do navegador</i>"]
     G["Grafana<br/><i>Painel de métricas</i>"]
 
-    U -->|"Preenche o perfil físico; inicia, pausa<br/>e finaliza a jornada; responde lembretes"| S
-    U -.->|"Vê histórico e gráficos (H4)"| S
+    U -->|"Preenche o perfil físico; inicia, pausa<br/>e finaliza a jornada; responde e corrige lembretes;<br/>vê o histórico e os gráficos"| S
     S -->|"Lembretes de água e<br/>blocos de exercício"| N
     N -->|"Mostra o lembrete"| U
     U -.->|"Consulta métricas (H5)"| G
@@ -24,7 +23,7 @@ flowchart LR
 
 | Elemento | Tipo | Papel | Desde |
 |---|---|---|---|
-| Usuário | Pessoa | Única pessoa que usa o sistema, no próprio computador | v0.1.0 |
+| Usuário | Pessoa | Única pessoa que usa o sistema, no próprio computador. Desde a v0.4.0, vê o histórico e corrige os lembretes do dia. | v0.1.0 |
 | Pausa Ativa | Sistema | Este sistema | v0.1.0 |
 | Notificações do Chrome | Sistema externo | Exibe os lembretes, mesmo com a aba fora de foco. Na hora cheia, água e exercício vêm numa notificação só (v0.3.0). Os botões de resposta ficam na página. | v0.2.0 |
 | Grafana | Sistema externo | Painel de métricas técnicas e de negócio | H5 (planejado) |

@@ -59,6 +59,7 @@ class MarcoEntity {
     private Instant disparadoEm;
     private Instant recebidoEm;
     private Instant respondidoEm;
+    private Instant editadoEm;
 
     /** Duração e compensação do bloco: nulos na água e no exercício que ainda não disparou. */
     private Integer duracaoBlocoMin;
@@ -92,13 +93,14 @@ class MarcoEntity {
         return entidade;
     }
 
-    /** Só o que muda depois de criado: status, horários e, no disparo do exercício, o bloco. */
+    /** Só o que muda depois de criado: status, horários, a correção e, no disparo do exercício, o bloco. */
     void atualizarCom(Marco marco) {
         status = marco.status();
         previstoPara = marco.previstoPara().orElse(null);
         disparadoEm = marco.disparadoEm().orElse(null);
         recebidoEm = marco.recebidoEm().orElse(null);
         respondidoEm = marco.respondidoEm().orElse(null);
+        editadoEm = marco.editadoEm().orElse(null);
         marco.bloco().ifPresent(this::gravarBloco);
     }
 
@@ -127,6 +129,7 @@ class MarcoEntity {
                 disparadoEm,
                 recebidoEm,
                 respondidoEm,
+                editadoEm,
                 bloco());
     }
 

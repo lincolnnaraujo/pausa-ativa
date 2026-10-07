@@ -28,11 +28,13 @@ public record SituacaoDoMarco(
         OffsetDateTime disparadoEm,
         OffsetDateTime recebidoEm,
         OffsetDateTime respondidoEm,
+        OffsetDateTime editadoEm,
         String mensagem,
         boolean podeAdiar,
+        boolean podeCorrigir,
         SituacaoDoBloco bloco) {
 
-    static SituacaoDoMarco de(Marco marco, boolean podeAdiar, ZoneId fuso) {
+    static SituacaoDoMarco de(Marco marco, boolean podeAdiar, boolean podeCorrigir, ZoneId fuso) {
         return new SituacaoDoMarco(
                 marco.id(),
                 marco.categoria(),
@@ -44,8 +46,10 @@ public record SituacaoDoMarco(
                 noFuso(marco.disparadoEm().orElse(null), fuso),
                 noFuso(marco.recebidoEm().orElse(null), fuso),
                 noFuso(marco.respondidoEm().orElse(null), fuso),
+                noFuso(marco.editadoEm().orElse(null), fuso),
                 marco.mensagem(),
                 podeAdiar,
+                podeCorrigir,
                 marco.bloco().map(SituacaoDoBloco::de).orElse(null));
     }
 

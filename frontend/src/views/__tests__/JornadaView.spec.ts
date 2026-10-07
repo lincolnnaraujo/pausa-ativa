@@ -1,14 +1,16 @@
 import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { comExercicio, comExercicios, comMarco, umaJornada, umBloco } from '@/__tests__/fabrica'
+import { comExercicio, comExercicios, comMarco, umaJornada, umBloco, umResumo } from '@/__tests__/fabrica'
 import { instalarNavegadorFalso } from '@/__tests__/navegador'
+import { buscarHistorico, type Historico, type ResumoDaCategoria } from '@/api/historico'
 import { OperacaoRecusadaError, ServidorIndisponivelError } from '@/api/http'
 import {
   adiarMarco,
   buscarJornadaAtual,
   concluirMarco,
   confirmarRecebimento,
+  corrigirMarco,
   falharMarco,
   finalizarJornada,
   iniciarJornada,
@@ -44,8 +46,25 @@ vi.mock('@/api/jornada', async (importOriginal) => ({
   finalizarJornada: vi.fn(),
   concluirMarco: vi.fn(),
   falharMarco: vi.fn(),
+  corrigirMarco: vi.fn(),
   confirmarRecebimento: vi.fn(),
 }))
+
+vi.mock('@/api/historico', () => ({ buscarHistorico: vi.fn() }))
+
+/** O dia 2/10 visto pelo histórico, com a taxa e a meta de cada categoria. */
+function oDiaNoHistorico(
+  agua: Partial<ResumoDaCategoria>,
+  exercicio: Partial<ResumoDaCategoria> = {},
+): Historico {
+  return {
+    periodo: 'DIA',
+    inicio: '2026-10-02',
+    fim: '2026-10-02',
+    categorias: [umResumo('HIDRATACAO', agua), umResumo('EXERCICIO', exercicio)],
+    dias: [],
+  }
+}
 
 vi.mock('@/api/sistema', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api/sistema')>()),
@@ -102,6 +121,7 @@ describe('JornadaView', () => {
     vi.mocked(buscarStatus).mockReturnValue(new Promise(() => {}))
     vi.mocked(confirmarRecebimento).mockResolvedValue()
     vi.mocked(buscarPerfil).mockResolvedValue(PERFIL)
+    vi.mocked(buscarHistorico).mockResolvedValue(oDiaNoHistorico({ taxa: 75, metaAtingida: false }))
     localStorage.clear()
   })
 
@@ -113,7 +133,6 @@ describe('JornadaView', () => {
 
       const wrapper = mount(JornadaView)
 
-      expect(wrapper.get('h1').text()).toBe('Pausa Ativa')
       expect(wrapper.find('[data-testid="carregando"]').exists()).toBe(true)
     })
 
@@ -629,6 +648,203 @@ describe('JornadaView', () => {
       expect(wrapper.get('[data-testid="resumo-do-dia"] h2').text()).toBe(
         'Dia encerrado automaticamente às 23:59',
       )
+    })
+  })
+
+  describe('resumo de fechamento com a taxa (Cenário 3 da H4)', () => {
+    /** Finalizada às 15:00, com água e exercício respondidos e o resto não concluído. */
+    function finalizada(): Jornada {
+      let jornada = comExercicios(
+        emAndamento({
+          status: 'FINALIZADA',
+          finalizadaEm: '2026-10-02T15:00:00-03:00',
+          calculadoEm: '2026-10-02T15:00:00-03:00',
+        }),
+      )
+      jornada = comMarco(jornada, 4, { status: 'FALHA' })
+      jornada = comExercicio(jornada, 1, { status: 'CONCLUIDO' })
+      jornada = comExercicio(jornada, 2, { status: 'FALHA' })
+      return {
+        ...jornada,
+        marcos: jornada.marcos.map((m) => (m.status === 'AGENDADO' ? { ...m, status: 'NAO_CONCLUIDO' } : m)),
+      }
+    }
+
+    it('mostra a taxa e a meta de cada categoria, com a regra do histórico', async () => {
+      vi.mocked(buscarHistorico).mockResolvedValue(
+        oDiaNoHistorico({ taxa: 75, metaAtingida: false }, { taxa: 50, metaAtingida: false }),
+      )
+
+      const wrapper = await montar(finalizada())
+
+      expect(buscarHistorico).toHaveBeenCalledWith('DIA', '2026-10-02')
+      expect(texto(wrapper, 'taxa-HIDRATACAO')).toBe('75,0%')
+      expect(texto(wrapper, 'meta-HIDRATACAO')).toBe('não atingida')
+      expect(texto(wrapper, 'taxa-EXERCICIO')).toBe('50,0%')
+      expect(texto(wrapper, 'meta-EXERCICIO')).toBe('não atingida')
+      expect(
+        wrapper.findAll('[data-testid="taxa-do-dia"] th').map((linha) => linha.text()),
+      ).toEqual(['Taxa de sucesso', 'Meta de 80%'])
+      expect(texto(wrapper, 'agua-total')).toBe('562,5 ml de 3.000 ml')
+    })
+
+    it('a meta atingida ganha o ✓, e a categoria sem resposta diz "sem dados"', async () => {
+      vi.mocked(buscarHistorico).mockResolvedValue(oDiaNoHistorico({ taxa: 85.7, metaAtingida: true }))
+
+      const wrapper = await montar(finalizada())
+
+      expect(texto(wrapper, 'taxa-HIDRATACAO')).toBe('85,7%')
+      expect(texto(wrapper, 'meta-HIDRATACAO')).toBe('atingida ✓')
+      expect(texto(wrapper, 'taxa-EXERCICIO')).toBe('sem dados')
+      expect(texto(wrapper, 'meta-EXERCICIO')).toBe('sem dados')
+    })
+
+    it('sem o histórico, o resumo mostra o resto', async () => {
+      vi.mocked(buscarHistorico).mockRejectedValue(new ServidorIndisponivelError('fora'))
+
+      const wrapper = await montar(finalizada())
+
+      expect(wrapper.find('[data-testid="taxa-do-dia"]').exists()).toBe(false)
+      expect(texto(wrapper, 'contagem-HIDRATACAO-CONCLUIDO')).toBe('3')
+    })
+
+    it('corrigir o dia finalizado atualiza a taxa do resumo', async () => {
+      const antes = comMarco(finalizada(), 4, { podeCorrigir: true })
+      vi.mocked(buscarHistorico)
+        .mockResolvedValueOnce(oDiaNoHistorico({ taxa: 75, metaAtingida: false }))
+        .mockResolvedValueOnce(oDiaNoHistorico({ taxa: 100, metaAtingida: true }))
+      vi.mocked(corrigirMarco).mockResolvedValue({
+        ...comMarco(antes, 4, { status: 'CONCLUIDO', editadoEm: '2026-10-02T15:10:00-03:00' }),
+        calculadoEm: '2026-10-02T15:10:00-03:00',
+      })
+      const wrapper = await montar(antes)
+      expect(texto(wrapper, 'taxa-HIDRATACAO')).toBe('75,0%')
+
+      await botao(wrapper, 'Corrigir').trigger('click')
+      await botao(wrapper, 'Sim').trigger('click')
+      await flushPromises()
+
+      expect(corrigirMarco).toHaveBeenCalledWith('marco-4', 'CONCLUIDO')
+      expect(buscarHistorico).toHaveBeenCalledTimes(2)
+      expect(texto(wrapper, 'taxa-HIDRATACAO')).toBe('100,0%')
+      expect(texto(wrapper, 'meta-HIDRATACAO')).toBe('atingida ✓')
+      expect(texto(wrapper, 'contagem-HIDRATACAO-CONCLUIDO')).toBe('4')
+    })
+  })
+
+  describe('correção no mesmo dia (Cenários 4 e 5 da H4)', () => {
+    /** 10:30, com o marco 1 concluído e o 2 com falha, ambos corrigíveis; o 3 concluído, já não. */
+    function comCorrigiveis(): Jornada {
+      let jornada = emAndamento()
+      jornada = comMarco(jornada, 1, { podeCorrigir: true })
+      jornada = comMarco(jornada, 2, { status: 'FALHA', podeCorrigir: true })
+      return jornada
+    }
+
+    function situacao(wrapper: VueWrapper, sequencia: number) {
+      return linhaDoMarco(wrapper, sequencia).get('td.situacao')
+    }
+
+    /** O texto da célula da situação, com os espaços normalizados. */
+    function textoDaSituacao(wrapper: VueWrapper, sequencia: number) {
+      return situacao(wrapper, sequencia).text().replace(/\s+/g, ' ')
+    }
+
+    async function montarNoDocumento(jornada: Jornada) {
+      vi.mocked(buscarJornadaAtual).mockResolvedValue(jornada)
+      const wrapper = mount(JornadaView, { attachTo: document.body })
+      await flushPromises()
+      return wrapper
+    }
+
+    it('só os lembretes com podeCorrigir têm Corrigir, e só na lista', async () => {
+      const wrapper = await montar(comCorrigiveis())
+
+      expect(textoDaSituacao(wrapper, 1)).toBe('Concluído Corrigir')
+      expect(textoDaSituacao(wrapper, 2)).toBe('Falha Corrigir')
+      expect(textoDaSituacao(wrapper, 3)).toBe('Concluído')
+      expect(wrapper.findAll('button').filter((b) => b.text() === 'Corrigir')).toHaveLength(2)
+    })
+
+    it('confirma na própria linha e troca concluído por falha, que fica marcado como editado', async () => {
+      vi.mocked(corrigirMarco).mockResolvedValue({
+        ...comMarco(comCorrigiveis(), 1, { status: 'FALHA', editadoEm: '2026-10-02T10:35:00-03:00' }),
+        calculadoEm: '2026-10-02T10:35:00-03:00',
+      })
+      const wrapper = await montarNoDocumento(comCorrigiveis())
+
+      await situacao(wrapper, 1).get('button').trigger('click')
+
+      expect(
+        situacao(wrapper, 1).get('[data-testid="confirmacao-correcao"]').text().replace(/\s+/g, ' '),
+      ).toBe('Marcar como falha? Sim Cancelar')
+      expect(document.activeElement?.textContent?.trim()).toBe('Sim')
+
+      await situacao(wrapper, 1).get('[data-acao="sim"]').trigger('click')
+      await flushPromises()
+
+      expect(corrigirMarco).toHaveBeenCalledWith('marco-1', 'FALHA')
+      expect(textoDaSituacao(wrapper, 1)).toBe('Falha · editado Corrigir')
+      expect(situacao(wrapper, 1).get('[data-testid="editado"]').attributes('title')).toBe('Corrigido às 10:35')
+      expect(document.activeElement?.textContent?.trim()).toBe('Corrigir')
+    })
+
+    it('a falha vira concluído', async () => {
+      vi.mocked(corrigirMarco).mockResolvedValue(
+        comMarco(comCorrigiveis(), 2, { status: 'CONCLUIDO', editadoEm: '2026-10-02T10:35:00-03:00' }),
+      )
+      const wrapper = await montar(comCorrigiveis())
+
+      await situacao(wrapper, 2).get('button').trigger('click')
+      expect(situacao(wrapper, 2).text()).toContain('Marcar como concluído?')
+      await situacao(wrapper, 2).get('[data-acao="sim"]').trigger('click')
+      await flushPromises()
+
+      expect(corrigirMarco).toHaveBeenCalledWith('marco-2', 'CONCLUIDO')
+      expect(textoDaSituacao(wrapper, 2)).toBe('Concluído · editado Corrigir')
+    })
+
+    it('Cancelar e Esc desistem sem falar com o servidor', async () => {
+      const wrapper = await montarNoDocumento(comCorrigiveis())
+
+      await situacao(wrapper, 1).get('button').trigger('click')
+      await situacao(wrapper, 1).get('[data-acao="cancelar"]').trigger('click')
+      expect(textoDaSituacao(wrapper, 1)).toBe('Concluído Corrigir')
+      expect(document.activeElement?.textContent?.trim()).toBe('Corrigir')
+
+      await situacao(wrapper, 1).get('button').trigger('click')
+      await situacao(wrapper, 1).get('[data-testid="confirmacao-correcao"]').trigger('keydown', { key: 'Escape' })
+      expect(situacao(wrapper, 1).find('[data-testid="confirmacao-correcao"]').exists()).toBe(false)
+
+      expect(corrigirMarco).not.toHaveBeenCalled()
+    })
+
+    it('enquanto uma correção vai ao servidor, o Sim de outra espera', async () => {
+      vi.mocked(corrigirMarco).mockReturnValue(new Promise(() => {}))
+      const wrapper = await montar(comCorrigiveis())
+
+      await situacao(wrapper, 1).get('button').trigger('click')
+      await situacao(wrapper, 1).get('[data-acao="sim"]').trigger('click')
+      await situacao(wrapper, 2).get('button').trigger('click')
+
+      expect(situacao(wrapper, 2).get('[data-acao="sim"]').attributes('disabled')).toBeDefined()
+      expect(situacao(wrapper, 2).get('[data-acao="cancelar"]').attributes('disabled')).toBeUndefined()
+      expect(corrigirMarco).toHaveBeenCalledTimes(1)
+    })
+
+    it('depois da meia-noite, o servidor recusa: a tela explica e tira o Corrigir (Cenário 5)', async () => {
+      vi.mocked(corrigirMarco).mockRejectedValue(
+        new OperacaoRecusadaError(409, 'Só dá para corrigir os lembretes de hoje.'),
+      )
+      const wrapper = await montar(comCorrigiveis())
+      vi.mocked(buscarJornadaAtual).mockResolvedValue(emAndamento())
+
+      await situacao(wrapper, 1).get('button').trigger('click')
+      await situacao(wrapper, 1).get('[data-acao="sim"]').trigger('click')
+      await flushPromises()
+
+      expect(texto(wrapper, 'erro')).toBe('Só dá para corrigir os lembretes de hoje.')
+      expect(wrapper.findAll('button').map((b) => b.text())).not.toContain('Corrigir')
     })
   })
 })

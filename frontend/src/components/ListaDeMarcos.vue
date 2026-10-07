@@ -1,8 +1,67 @@
 <script setup lang="ts">
-import type { Jornada, Marco } from '@/api/jornada'
+import { nextTick, ref } from 'vue'
+
+import type { Jornada, Marco, StatusCorrigido } from '@/api/jornada'
 import { horario, rotuloDaCategoria, rotuloDoStatus } from '@/formatacao'
 
-const props = defineProps<{ jornada: Jornada }>()
+const props = withDefaults(
+  defineProps<{
+    jornada: Jornada
+    /** A lista da aba Hoje corrige; a do Histórico é só para leitura, mesmo no dia de hoje. */
+    corrigivel?: boolean
+    desabilitado?: boolean
+  }>(),
+  { corrigivel: false, desabilitado: false },
+)
+const emit = defineEmits<{ corrigir: [marcoId: string, correta: StatusCorrigido] }>()
+
+const tabela = ref<HTMLTableElement | null>(null)
+
+/** O lembrete com a confirmação da correção à vista, na própria linha (spec H4, seção 8). */
+const confirmando = ref<string | null>(null)
+
+/** Concluído vira falha, e falha vira concluído (D4). */
+function correcaoDe(marco: Marco): StatusCorrigido {
+  return marco.status === 'CONCLUIDO' ? 'FALHA' : 'CONCLUIDO'
+}
+
+function mostraCorrigir(marco: Marco): boolean {
+  return props.corrigivel && marco.podeCorrigir
+}
+
+/**
+ * O botão que some leva o foco junto: ele passa para o botão que aparece no lugar. Por isso o Corrigir
+ * nunca fica desabilitado (ele só abre a confirmação); quem espera o servidor ou a conexão é o Sim.
+ */
+async function focar(marcoId: string, acao: 'sim' | 'corrigir') {
+  await nextTick()
+  tabela.value?.querySelector<HTMLButtonElement>(`[data-marco="${marcoId}"][data-acao="${acao}"]`)?.focus()
+}
+
+function pedirConfirmacao(marco: Marco) {
+  confirmando.value = marco.id
+  void focar(marco.id, 'sim')
+}
+
+function cancelar(marco: Marco) {
+  confirmando.value = null
+  void focar(marco.id, 'corrigir')
+}
+
+function confirmar(marco: Marco) {
+  confirmando.value = null
+  emit('corrigir', marco.id, correcaoDe(marco))
+  void focar(marco.id, 'corrigir')
+}
+
+/** Blocos abertos na lista: cada um mostra os exercícios propostos no disparo (spec H4, seção 8). */
+const abertos = ref(new Set<string>())
+
+function alternar(marcoId: string) {
+  if (!abertos.value.delete(marcoId)) {
+    abertos.value.add(marcoId)
+  }
+}
 
 /**
  * Horário em que o marco disparou ou, se ainda vai disparar, a previsão. A previsão parte do
@@ -43,7 +102,10 @@ function detalheDoMarco(marco: Marco): string {
       Lembretes do dia
     </h2>
     <div class="rolagem">
-      <table data-testid="lista-de-marcos">
+      <table
+        ref="tabela"
+        data-testid="lista-de-marcos"
+      >
         <thead>
           <tr>
             <th scope="col">
@@ -64,26 +126,105 @@ function detalheDoMarco(marco: Marco): string {
           </tr>
         </thead>
         <tbody>
-          <tr
+          <template
             v-for="marco in jornada.marcos"
             :key="marco.id"
-            :data-status="marco.status"
-            :data-categoria="marco.categoria"
           >
-            <td>{{ horarioDoMarco(marco) }}</td>
-            <td class="categoria">
-              {{ rotuloDaCategoria(marco.categoria) }} {{ marco.sequencia }}
-            </td>
-            <td class="detalhe">
-              {{ detalheDoMarco(marco) }}
-            </td>
-            <td>
-              <span
-                class="status"
-                :class="marco.status.toLowerCase()"
-              >{{ rotuloDoStatus(marco.status) }}</span>
-            </td>
-          </tr>
+            <tr
+              :data-status="marco.status"
+              :data-categoria="marco.categoria"
+            >
+              <td>{{ horarioDoMarco(marco) }}</td>
+              <td class="categoria">
+                <button
+                  v-if="marco.bloco"
+                  type="button"
+                  class="link"
+                  :aria-expanded="abertos.has(marco.id)"
+                  @click="alternar(marco.id)"
+                >
+                  {{ rotuloDaCategoria(marco.categoria) }} {{ marco.sequencia }}
+                </button>
+                <template v-else>
+                  {{ rotuloDaCategoria(marco.categoria) }} {{ marco.sequencia }}
+                </template>
+              </td>
+              <td class="detalhe">
+                {{ detalheDoMarco(marco) }}
+              </td>
+              <td class="situacao">
+                <span
+                  class="status"
+                  :class="marco.status.toLowerCase()"
+                >{{ rotuloDoStatus(marco.status) }}</span>
+                <span
+                  v-if="marco.editadoEm"
+                  class="editado"
+                  :title="`Corrigido às ${horario(marco.editadoEm)}`"
+                  data-testid="editado"
+                > · editado</span>
+                <span
+                  v-if="mostraCorrigir(marco) && confirmando === marco.id"
+                  class="confirmacao"
+                  data-testid="confirmacao-correcao"
+                  @keydown.esc="cancelar(marco)"
+                >
+                  <span>{{ correcaoDe(marco) === 'FALHA' ? 'Marcar como falha?' : 'Marcar como concluído?' }}</span>
+                  <button
+                    type="button"
+                    class="link"
+                    data-acao="sim"
+                    :data-marco="marco.id"
+                    :disabled="desabilitado"
+                    @click="confirmar(marco)"
+                  >
+                    Sim
+                  </button>
+                  <button
+                    type="button"
+                    class="link"
+                    data-acao="cancelar"
+                    :data-marco="marco.id"
+                    @click="cancelar(marco)"
+                  >
+                    Cancelar
+                  </button>
+                </span>
+                <button
+                  v-else-if="mostraCorrigir(marco)"
+                  type="button"
+                  class="link corrigir"
+                  data-acao="corrigir"
+                  :data-marco="marco.id"
+                  @click="pedirConfirmacao(marco)"
+                >
+                  Corrigir
+                </button>
+              </td>
+            </tr>
+            <tr
+              v-if="marco.bloco && abertos.has(marco.id)"
+              class="bloco"
+              data-testid="exercicios-do-marco"
+            >
+              <td colspan="4">
+                <p
+                  v-if="marco.bloco.compensaAdiamento"
+                  class="compensa"
+                >
+                  Bloco de {{ marco.bloco.duracaoMin }} min, com o que foi adiado na hora anterior.
+                </p>
+                <ol>
+                  <li
+                    v-for="(item, indice) in marco.bloco.itens"
+                    :key="indice"
+                  >
+                    {{ item.exercicio }}: <span class="quantidade">{{ item.quantidade }}</span>
+                  </li>
+                </ol>
+              </td>
+            </tr>
+          </template>
         </tbody>
       </table>
     </div>
@@ -123,6 +264,31 @@ tbody tr:last-child td {
   border-bottom: 0;
 }
 
+/* Os exercícios ficam colados à linha do bloco, que perde a borda de baixo. */
+tr:has(+ .bloco) td {
+  border-bottom: 0;
+}
+
+.bloco td {
+  padding-top: 0;
+  font-size: 0.875rem;
+}
+
+.bloco ol {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.bloco .compensa {
+  margin: 0 0 0.25rem;
+  color: var(--texto-suave);
+}
+
+.bloco .quantidade {
+  color: var(--exercicio);
+  font-weight: 600;
+}
+
 /* Marcador da categoria; o ícone e o nome dizem o mesmo em texto. */
 .categoria {
   border-left: 3px solid var(--agua);
@@ -145,6 +311,33 @@ tr[data-categoria='EXERCICIO'] .categoria {
 
 .status {
   font-size: 0.875rem;
+}
+
+.editado {
+  font-size: 0.875rem;
+  color: var(--texto-suave);
+}
+
+/* Corrigir e a confirmação ficam na própria linha, depois da situação; no celular, descem. */
+.corrigir,
+.confirmacao {
+  margin-left: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.confirmacao {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0 0.5rem;
+}
+
+.confirmacao > span {
+  font-weight: 600;
+}
+
+.link:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 /* Coral só na falha. Não entregue e não concluído ficam fora da taxa: não são falha. */

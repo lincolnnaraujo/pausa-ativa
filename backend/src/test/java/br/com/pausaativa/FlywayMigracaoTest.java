@@ -26,7 +26,8 @@ class FlywayMigracaoTest {
                         "V1__baseline.sql",
                         "V2__jornada_pausa_marco.sql",
                         "V3__treino_catalogo_perfil.sql",
-                        "V4__agenda_exercicio.sql");
+                        "V4__agenda_exercicio.sql",
+                        "V5__marco_editado_em.sql");
         assertThat(historico).allSatisfy(migracao -> assertThat(migracao).containsEntry("success", true));
     }
 }

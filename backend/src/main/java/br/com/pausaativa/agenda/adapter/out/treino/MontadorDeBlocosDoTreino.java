@@ -29,8 +29,19 @@ class MontadorDeBlocosDoTreino implements MontadorDeBlocos {
 
     @Override
     public List<ExercicioProposto> montar(PedidoDeBloco pedido) {
-        MontarBloco.BlocoMontado bloco = montarBloco.montar(
-                new MontarBloco.Pedido(pedido.duracao().duracao(), pedido.numeroDoMarco(), pedido.propostosNoDia()));
+        return propostos(montarBloco.montar(paraOTreino(pedido)));
+    }
+
+    @Override
+    public List<ExercicioProposto> montarDeExemplo(PedidoDeBloco pedido) {
+        return propostos(montarBloco.montarDeExemplo(paraOTreino(pedido)));
+    }
+
+    private static MontarBloco.Pedido paraOTreino(PedidoDeBloco pedido) {
+        return new MontarBloco.Pedido(pedido.duracao().duracao(), pedido.numeroDoMarco(), pedido.propostosNoDia());
+    }
+
+    private static List<ExercicioProposto> propostos(MontarBloco.BlocoMontado bloco) {
         return bloco.itens().stream()
                 .map(item -> new ExercicioProposto(
                         item.codigo(),

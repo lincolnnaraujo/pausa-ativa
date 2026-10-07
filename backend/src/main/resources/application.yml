@@ -47,6 +47,10 @@ pausa-ativa:
     agendador:
       # Tick de 1 s e heartbeat do SSE. Desligado nos testes, que avançam a agenda à mão.
       habilitado: true
+  demonstracao:
+    # Na subida, cria jornadas de exemplo nos 45 dias anteriores a hoje, se o banco não tiver jornada de
+    # dia anterior (spec H4, seção 9). Só o docker-compose.demo.yml liga.
+    historico: ${PAUSA_ATIVA_DEMO_HISTORICO:false}
 
 management:
   endpoints:

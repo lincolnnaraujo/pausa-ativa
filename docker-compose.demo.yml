@@ -1,5 +1,7 @@
 # Modo demonstração: um lembrete de água por minuto e um bloco de exercício a cada 2 min de tempo
-# trabalhado, para testar o dia inteiro em cerca de 16 min (spec H2, seção 9; spec H3, seção 9).
+# trabalhado, para testar o dia inteiro em cerca de 16 min (spec H2, seção 9; spec H3, seção 9). Na
+# primeira subida, o banco ganha 45 dias de histórico de exemplo, para o Histórico ter o que mostrar
+# (spec H4, seção 9).
 #
 #   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --wait
 #   docker compose -f docker-compose.yml -f docker-compose.demo.yml down -v
@@ -13,6 +15,7 @@ services:
   backend:
     environment:
       PAUSA_ATIVA_INTERVALO: 1m
+      PAUSA_ATIVA_DEMO_HISTORICO: "true"
 
   frontend:
     ports: !override

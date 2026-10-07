@@ -1,11 +1,13 @@
 package br.com.pausaativa.agenda.application;
 
 import br.com.pausaativa.agenda.application.port.in.ConfirmarRecebimento;
+import br.com.pausaativa.agenda.application.port.in.CorrigirMarco;
 import br.com.pausaativa.agenda.application.port.in.ResponderMarco;
 import br.com.pausaativa.agenda.application.port.in.SituacaoDaJornada;
 import br.com.pausaativa.agenda.application.port.out.JornadaRepository;
 import br.com.pausaativa.agenda.domain.Jornada;
 import br.com.pausaativa.agenda.domain.MarcoNaoEncontradoException;
+import br.com.pausaativa.agenda.domain.StatusMarco;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
@@ -18,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
  * cujo prazo venceu há menos de um segundo, antes do tick, é recusado como deveria.
  */
 @Service
-class MarcoService implements ResponderMarco, ConfirmarRecebimento {
+class MarcoService implements ResponderMarco, ConfirmarRecebimento, CorrigirMarco {
 
     private final JornadaRepository repositorio;
     private final AvancoDaJornada avanco;
@@ -49,6 +51,12 @@ class MarcoService implements ResponderMarco, ConfirmarRecebimento {
     @Transactional
     public SituacaoDaJornada adiar(UUID marcoId) {
         return alterar(marcoId, (jornada, agora) -> jornada.adiarMarco(marcoId, agora));
+    }
+
+    @Override
+    @Transactional
+    public SituacaoDaJornada corrigir(UUID marcoId, StatusMarco correta) {
+        return alterar(marcoId, (jornada, agora) -> jornada.corrigirMarco(marcoId, correta, agora, clock.getZone()));
     }
 
     @Override

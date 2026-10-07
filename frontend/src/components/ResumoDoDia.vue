@@ -1,12 +1,60 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 
+import { buscarHistorico, type ResumoDaCategoria } from '@/api/historico'
 import type { Jornada, Marco, StatusMarco } from '@/api/jornada'
-import { duracao, horario, mililitros, rotuloDaCategoria, rotuloDoStatus } from '@/formatacao'
+import { duracao, horario, mililitros, rotuloDaCategoria, rotuloDoStatus, taxa } from '@/formatacao'
 
 type Categoria = Marco['categoria']
 
 const props = defineProps<{ jornada: Jornada }>()
+
+/**
+ * A taxa e a meta de cada categoria vêm do Histórico, com a mesma regra das outras visões (spec H4,
+ * seção 3.4). Sem elas, o resumo mostra o resto.
+ */
+const resumos = shallowRef<ResumoDaCategoria[] | null>(null)
+
+/** Muda quando uma resposta muda: o dia finalizado ainda pode ser corrigido até a meia-noite (D5). */
+const situacoesDoDia = computed(
+  () => `${props.jornada.id}:${props.jornada.marcos.map((marco) => marco.status).join(',')}`,
+)
+
+let ultimoPedido = 0
+watch(
+  situacoesDoDia,
+  async () => {
+    const pedido = ++ultimoPedido
+    try {
+      const historico = await buscarHistorico('DIA', props.jornada.dataReferencia)
+      if (pedido === ultimoPedido) {
+        resumos.value = historico.categorias
+      }
+    } catch {
+      if (pedido === ultimoPedido) {
+        resumos.value = null
+      }
+    }
+  },
+  { immediate: true },
+)
+
+function resumoDa(categoria: Categoria): ResumoDaCategoria | undefined {
+  return resumos.value?.find((resumo) => resumo.categoria === categoria)
+}
+
+function taxaDa(categoria: Categoria): string {
+  const valor = resumoDa(categoria)?.taxa ?? null
+  return valor === null ? 'sem dados' : taxa(valor)
+}
+
+function metaDa(categoria: Categoria): string {
+  const atingida = resumoDa(categoria)?.metaAtingida ?? null
+  if (atingida === null) {
+    return 'sem dados'
+  }
+  return atingida ? 'atingida ✓' : 'não atingida'
+}
 
 const ORDEM: StatusMarco[] = ['CONCLUIDO', 'FALHA', 'NAO_ENTREGUE', 'NAO_CONCLUIDO', 'ADIADO']
 
@@ -79,10 +127,40 @@ const situacoes = computed(() =>
           </td>
         </tr>
       </tbody>
+      <tbody
+        v-if="resumos !== null"
+        class="taxas"
+        data-testid="taxa-do-dia"
+      >
+        <tr>
+          <th scope="row">
+            Taxa de sucesso
+          </th>
+          <td
+            v-for="categoria in categorias"
+            :key="categoria"
+            :data-testid="`taxa-${categoria}`"
+          >
+            {{ taxaDa(categoria) }}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">
+            Meta de 80%
+          </th>
+          <td
+            v-for="categoria in categorias"
+            :key="categoria"
+            :data-testid="`meta-${categoria}`"
+          >
+            {{ metaDa(categoria) }}
+          </td>
+        </tr>
+      </tbody>
     </table>
 
     <p class="nota">
-      Um novo dia pode ser iniciado amanhã. O resumo completo, com gráficos, chega numa próxima versão.
+      Um novo dia pode ser iniciado amanhã. Este dia e os anteriores ficam na aba Histórico.
     </p>
   </section>
 </template>
@@ -135,6 +213,18 @@ tbody th {
 
 td {
   text-align: right;
+}
+
+/* A taxa e a meta fecham a tabela, em destaque: são a resposta do dia. */
+.taxas th,
+.taxas td {
+  border-bottom: 0;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.taxas tr:first-child > * {
+  padding-top: 0.5rem;
 }
 
 .nota {

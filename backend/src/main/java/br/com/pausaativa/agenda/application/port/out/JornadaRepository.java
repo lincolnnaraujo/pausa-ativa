@@ -2,6 +2,7 @@ package br.com.pausaativa.agenda.application.port.out;
 
 import br.com.pausaativa.agenda.domain.Jornada;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,6 +23,16 @@ public interface JornadaRepository {
     Optional<Jornada> buscarDoDia(LocalDate dia);
 
     boolean existeNoDia(LocalDate dia);
+
+    /** Se há jornada de algum dia anterior a {@code dia}. */
+    boolean existeAntesDe(LocalDate dia);
+
+    /**
+     * Quantos marcos de cada categoria estão em cada situação, por dia, nas jornadas de {@code de} a
+     * {@code ate} (inclusive), em ordem de data. A contagem é feita no banco: o histórico não carrega
+     * jornadas inteiras (spec H4, seção 4).
+     */
+    List<ContagemDoDia> contarPorDia(LocalDate de, LocalDate ate);
 
     /**
      * Grava e envia ao banco na hora, para as restrições valerem dentro da transação.

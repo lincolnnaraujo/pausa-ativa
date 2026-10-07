@@ -312,6 +312,46 @@ public final class Jornada {
         return true;
     }
 
+    /**
+     * Corrige a resposta de um lembrete do dia da jornada: concluído vira falha, ou o contrário (spec H4,
+     * seção 3.3). Num par adiado, corrige os dois, que contam juntos (decisão D6). Corrigir para a
+     * situação atual não muda nada.
+     *
+     * @param fuso o fuso do dia de negócio, para saber se {@code agora} ainda é o dia da jornada
+     * @return se a jornada mudou
+     * @throws CorrecaoRecusadaException depois do dia da jornada (D5), ou se o marco não é concluído nem
+     *     falha (D4)
+     */
+    public boolean corrigirMarco(UUID marcoId, StatusMarco correta, Instant agora, ZoneId fuso) {
+        if (correta != CONCLUIDO && correta != FALHA) {
+            throw new IllegalArgumentException("Só se corrige para concluído ou falha: " + correta);
+        }
+        Marco marco = marco(marcoId);
+        if (!doDia(agora, fuso)) {
+            throw CorrecaoRecusadaException.foraDoDia();
+        }
+        if (!marco.corrigivel()) {
+            throw CorrecaoRecusadaException.situacao();
+        }
+        if (marco.status() == correta) {
+            return false;
+        }
+        List<Marco> corrigidos = new ArrayList<>(List.of(marco));
+        parAdiado(marco).filter(Marco::corrigivel).ifPresent(corrigidos::add);
+        for (Marco corrigido : corrigidos) {
+            StatusMarco antes = corrigido.status();
+            corrigido.corrigir(correta, agora);
+            eventos.add(new MarcoCorrigido(
+                    corrigido.id(), corrigido.categoria(), corrigido.sequencia(), antes, corrigido.status()));
+        }
+        return true;
+    }
+
+    /** Se o botão Corrigir vale para o marco agora. Calculado aqui para a tela não repetir a regra. */
+    public boolean podeCorrigir(Marco marco, Instant agora, ZoneId fuso) {
+        return marco.corrigivel() && doDia(agora, fuso);
+    }
+
     /** Se o botão Adiar vale para o marco agora. Calculado aqui para a tela não repetir a regra. */
     public boolean podeAdiar(Marco marco) {
         return marco.categoria() == Categoria.EXERCICIO
@@ -392,6 +432,26 @@ public final class Jornada {
 
     private boolean compensaAdiamento(Marco marco) {
         return anterior(marco).filter(anterior -> anterior.status() == ADIADO).isPresent();
+    }
+
+    /** Até 23:59:59 do dia em que a jornada começou, no fuso do negócio (decisão D5 da spec H4). */
+    private boolean doDia(Instant agora, ZoneId fuso) {
+        return LocalDate.ofInstant(agora, fuso).equals(dataReferencia);
+    }
+
+    /**
+     * O outro bloco de um par adiado. Depois de resolvido, o adiado já não está {@code ADIADO}: quem diz
+     * que houve o par é o bloco gravado do seguinte, que compensou o anterior.
+     */
+    private Optional<Marco> parAdiado(Marco marco) {
+        if (compensou(marco)) {
+            return anterior(marco);
+        }
+        return seguinte(marco).filter(Jornada::compensou);
+    }
+
+    private static boolean compensou(Marco marco) {
+        return marco.bloco().map(BlocoDoMarco::compensaAdiamento).orElse(false);
     }
 
     private Optional<Marco> anterior(Marco marco) {
