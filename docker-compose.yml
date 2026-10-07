@@ -112,6 +112,35 @@ services:
       timeout: 3s
       retries: 24
 
+  # Backup e restauração (spec H5, seções 3.3 e 3.4), no perfil "ferramentas": o "up" não os sobe, e o
+  # "run" sobe só o serviço pedido. Usam a imagem do banco, para o pg_dump bater com a versão do servidor,
+  # e não dependem do Postgres: com o banco parado, o backup recusa em vez de subir o banco sozinho.
+  #   docker compose run --rm backup
+  #   docker compose stop backend
+  #   docker compose run --rm restauracao <arquivo>
+  #   docker compose up -d --wait
+  backup:
+    image: postgres:18-alpine
+    profiles: [ferramentas]
+    environment: &ambiente-das-ferramentas
+      PGHOST: postgres
+      PGDATABASE: ${POSTGRES_DB:?defina POSTGRES_DB no .env (copie o .env.example)}
+      PGUSER: ${POSTGRES_USER:?defina POSTGRES_USER no .env (copie o .env.example)}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env (copie o .env.example)}
+      PASTA_DE_BACKUPS: ${BACKUP_DIR:-./backups}
+      TZ: America/Sao_Paulo
+    volumes: &volumes-das-ferramentas
+      - ./scripts:/scripts:ro
+      - ${BACKUP_DIR:-./backups}:/backups
+    entrypoint: ["sh", "/scripts/backup.sh"]
+
+  restauracao:
+    image: postgres:18-alpine
+    profiles: [ferramentas]
+    environment: *ambiente-das-ferramentas
+    volumes: *volumes-das-ferramentas
+    entrypoint: ["sh", "/scripts/restaurar.sh"]
+
 volumes:
   pgdata:
   prometheus-dados:

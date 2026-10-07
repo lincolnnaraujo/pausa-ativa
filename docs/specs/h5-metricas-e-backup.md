@@ -112,10 +112,20 @@ Detalhes decididos na T3:
 | Antes | O backend precisa estar parado (`docker compose stop backend`). Com outra conexão aberta no banco, a restauração recusa e diz o comando **(D9)**. |
 | Confirmação | Pergunta o que vai acontecer e pede para digitar `RESTAURAR`. Para scripts e para o CI, `--sim` pula a pergunta **(D9)**. |
 | Rede de segurança | Se o banco tiver dados, grava antes um backup dele, `antes-da-restauracao-AAAA-MM-DD-HHMMSS.dump` **(D9)** |
-| Como restaura | `pg_restore --clean --if-exists --no-owner --single-transaction`: ou volta tudo, ou nada muda |
+| Como restaura | O esquema é apagado e recriado a partir do backup, numa transação só: ou volta tudo, ou nada muda (detalhes da T4 abaixo) |
 | Depois | `docker compose up -d --wait`. O Flyway confere o esquema; um backup de uma versão anterior é migrado para a atual na subida. |
 | Volume novo (Cenário 2) | `docker compose down -v`, `docker compose up -d --wait postgres`, a restauração e `docker compose up -d --wait`. Sem o backend no ar, ninguém escreve no banco vazio antes da restauração. |
 | Saída | Quantas jornadas e qual o último dia do banco restaurado |
+
+Detalhes decididos na T4:
+
+- **Esquema recriado, em vez do `--clean`.** A restauração apaga o esquema `public` e o recria a partir do backup, na mesma transação. O `pg_restore --clean` só remove o que está no backup: uma tabela criada por uma versão mais nova sobraria, e o Flyway falharia ao migrar o backup. O "ou volta tudo, ou nada muda" continua valendo.
+- **O backup vira SQL antes de tocar no banco.** Ligado direto ao `psql`, um arquivo corrompido no meio deixaria o `psql` confirmar a parte que chegou. Por isso, o `pg_restore` gera o SQL inteiro antes, e só então a transação começa.
+- **Sem dependência do Postgres.** Os serviços `backup` e `restauracao` não declaram `depends_on`, e o `docker compose run` não sobe o banco sozinho: com o banco parado, o backup recusa de verdade (Cenário 3).
+- **Mensagens.** Os scripts recebem o caminho da pasta no computador (`PASTA_DE_BACKUPS`) para dizer onde gravaram, rodam com `TZ=America/Sao_Paulo` para o nome do arquivo usar a hora local, e silenciam os avisos do `drop ... cascade`.
+- **Linux.** Se a pasta de backups não existir, o Docker a cria como `root`. Os arquivos ficam legíveis (644), mas para apagá-los é preciso criar a pasta antes (`mkdir backups`). O README da T6 diz isso.
+- **Verificação.** Os Cenários 2 e 3 estão em `.github/scripts/verificar-backup.sh`, que o CI roda na demonstração e que roda igual no Git Bash. O script também confere a recusa com o backend no ar, o cancelamento sem a confirmação e o backup de segurança ao restaurar por cima de dados. O `shellcheck` confere os três scripts no CI.
+- **Rodado localmente na demonstração:** 30 jornadas, 720 marcos e 1.213 exercícios propostos; backup de 64 KB. A impressão digital do banco e o Histórico do mês voltaram iguais depois do `down -v`. No GitHub, a verificação roda quando o pull request abrir.
 
 ## 4. Arquitetura
 
@@ -211,7 +221,7 @@ Branch `feat/h5-metricas-e-backup`. A execução para ao fim de cada etapa, e a 
 | T1 | Backend: histogramas e faixas das métricas de tempo, tag `application` | `verify` verde; teste de integração lendo o `/actuator/prometheus` | ✅ 2026-10-07 (4 testes novos; 258 no backend). Detalhes na seção 5. |
 | T2 | Prometheus no compose e na demonstração: configuração, volume, retenção, limite de memória e healthcheck | `docker compose up -d --wait` com o alvo `up`; o CI confere | ✅ 2026-10-07 (na demonstração: alvo `up`, 492 séries, 33 MiB). Detalhes na seção 3.1. |
 | T3 | Grafana: fonte de dados e painel provisionados, acesso anônimo, sem internet, em português e com a paleta | O painel abre sem login com dados; o CI confere o painel e as consultas | ✅ 2026-10-07 (2 testes novos, 260 no backend; painel conferido no Chrome com um dia ao vivo na demonstração). Detalhes na seção 3.2. |
-| T4 | Backup e restauração: scripts, serviços `backup` e `restauracao`, `BACKUP_DIR`, `shellcheck` | Cenários 2 e 3 no CI, com a demonstração | Pendente |
+| T4 | Backup e restauração: scripts, serviços `backup` e `restauracao`, `BACKUP_DIR`, `shellcheck` | Cenários 2 e 3 no CI, com a demonstração | ✅ 2026-10-07 (verificação em script, rodada localmente contra a demonstração; no GitHub, roda com o PR). Detalhes na seção 3.4. |
 | T5 | Verificação ponta a ponta: Grafana no Chrome com um dia ao vivo, backup e restauração no PowerShell, banco parado, memória dos cinco containers | Cenários 1 a 3 conferidos, com capturas | Pendente |
 | T6 | README, C4 (Prometheus e Grafana deixam de ser planejados), release notes, PR e CI | Aceite do usuário; merge e tag `v0.5.0` | Pendente |
 
