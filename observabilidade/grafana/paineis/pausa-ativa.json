@@ -457,7 +457,7 @@
     },
     {
       "id": 10,
-      "type": "bargauge",
+      "type": "stat",
       "title": "Consulta do histórico no período (p95)",
       "description": "Tempo para montar cada visão do histórico no intervalo escolhido. O épico pede menos de 500 ms na agregação mensal.",
       "gridPos": { "h": 8, "w": 10, "x": 14, "y": 16 },
@@ -466,8 +466,24 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "histogram_quantile(0.95, sum by (le, periodo) (increase(pausaativa_historico_consultas_seconds_bucket[$__range]))) > 0",
-          "legendFormat": "{{periodo}}",
+          "expr": "histogram_quantile(0.95, sum by (le) (increase(pausaativa_historico_consultas_seconds_bucket{periodo=\"DIA\"}[$__range]))) > 0",
+          "legendFormat": "Dia",
+          "range": false,
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le) (increase(pausaativa_historico_consultas_seconds_bucket{periodo=\"SEMANA\"}[$__range]))) > 0",
+          "legendFormat": "Semana",
+          "range": false,
+          "instant": true
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le) (increase(pausaativa_historico_consultas_seconds_bucket{periodo=\"MES\"}[$__range]))) > 0",
+          "legendFormat": "Mês",
           "range": false,
           "instant": true
         }
@@ -475,8 +491,6 @@
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "min": 0,
-          "max": 1,
           "color": { "mode": "thresholds" },
           "thresholds": {
             "mode": "absolute",
@@ -487,31 +501,16 @@
           },
           "noValue": "Nenhuma consulta no período"
         },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "DIA" },
-            "properties": [{ "id": "displayName", "value": "Dia" }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "SEMANA" },
-            "properties": [{ "id": "displayName", "value": "Semana" }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "MES" },
-            "properties": [{ "id": "displayName", "value": "Mês" }]
-          }
-        ]
+        "overrides": []
       },
       "options": {
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "orientation": "horizontal",
-        "displayMode": "basic",
-        "valueMode": "color",
-        "showUnfilled": true,
-        "namePlacement": "top",
-        "sizing": "auto",
-        "minVizHeight": 16,
-        "maxVizHeight": 24
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "text": { "titleSize": 13, "valueSize": 32 }
       }
     },
     {
