@@ -242,7 +242,7 @@ Branch `feat/h5-metricas-e-backup`. A execução para ao fim de cada etapa, e a 
 | T3 | Grafana: fonte de dados e painel provisionados, acesso anônimo, sem internet, em português e com a paleta | O painel abre sem login com dados; o CI confere o painel e as consultas | ✅ 2026-10-07 (2 testes novos, 260 no backend; painel conferido no Chrome com um dia ao vivo na demonstração). Detalhes na seção 3.2. |
 | T4 | Backup e restauração: scripts, serviços `backup` e `restauracao`, `BACKUP_DIR`, `shellcheck` | Cenários 2 e 3 no CI, com a demonstração | ✅ 2026-10-07 (verificação em script, rodada localmente contra a demonstração; no GitHub, roda com o PR). Detalhes na seção 3.4. |
 | T5 | Verificação ponta a ponta: Grafana no Chrome com um dia ao vivo, backup e restauração no PowerShell, banco parado, memória dos cinco containers | Cenários 1 a 3 conferidos, com capturas | ✅ 2026-10-08 (1 teste novo, 261 no backend; três ajustes). Resultado na seção 8. |
-| T6 | README, C4 (Prometheus e Grafana deixam de ser planejados), release notes, PR e CI. A pedido do usuário (2026-10-08), também `docs/apresentacao.md`: a jornada de um dia em capturas de tela, do perfil ao painel do Grafana, para apresentar a aplicação | Aceite do usuário; merge e tag `v0.5.0` | Pendente |
+| T6 | README, C4 (Prometheus e Grafana deixam de ser planejados), release notes, PR e CI. A pedido do usuário (2026-10-08), também `docs/apresentacao.md`: a jornada de um dia em capturas de tela, do perfil ao painel do Grafana, para apresentar a aplicação | Aceite do usuário; merge e tag `v0.5.0` | Documentação, apresentação (15 capturas) e [PR #8](https://github.com/lincolnnaraujo/pausa-ativa/pull/8) prontos em 2026-10-08, com o CI verde; aguarda o aceite do usuário |
 
 ## 10. Riscos
 
