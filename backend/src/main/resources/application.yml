@@ -58,6 +58,33 @@ management:
       exposure:
         # Só /actuator/health chega ao host (via nginx). info e prometheus ficam na rede interna.
         include: health, info, prometheus
+  metrics:
+    tags:
+      # Identifica a aplicação nas séries do Prometheus (spec H5, seção 5).
+      application: pausa-ativa
+    distribution:
+      # Histogramas nas métricas de tempo, para o painel do Grafana mostrar o p95 contra os limites do
+      # épico (spec H5, seção 5). O teto corta as faixas longas; o slo garante uma faixa no limite.
+      percentiles-histogram:
+        http.server.requests: true
+        pausaativa.marcos.atraso.disparo: true
+        pausaativa.historico.consultas: true
+      # As chaves valem por prefixo: http.server.requests também pega o http.server.requests.active, de
+      # tarefas longas, cujo mínimo padrão é de 2 min. Sem um mínimo menor, o teto de 5 s fica abaixo dele,
+      # e o Micrometer recusa a configuração na primeira requisição.
+      minimum-expected-value:
+        http.server.requests: 1ms
+      maximum-expected-value:
+        http.server.requests: 5s
+        pausaativa.marcos.atraso.disparo: 30s
+        pausaativa.historico.consultas: 5s
+      slo:
+        # p95 < 200 ms nas operações de marco
+        http.server.requests: 200ms
+        # Notificação em até 5 s do instante calculado
+        pausaativa.marcos.atraso.disparo: 1s,5s
+        # Agregação mensal < 500 ms
+        pausaativa.historico.consultas: 500ms
   endpoint:
     health:
       show-components: always

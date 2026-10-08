@@ -100,6 +100,10 @@ jobs:
       - name: Criar o .env a partir do exemplo
         run: cp .env.example .env
 
+      # Os scripts de backup e restauração rodam no container do Postgres (sh); o da verificação, aqui.
+      - name: Conferir os scripts (shellcheck)
+        run: shellcheck scripts/*.sh .github/scripts/*.sh
+
       - name: Subir a stack e aguardar todos os serviços saudáveis
         run: docker compose up -d --build --wait --wait-timeout 300
 
@@ -113,11 +117,72 @@ jobs:
           curl -fsS "$base/api/v1/sistema/status" | tee /dev/stderr | grep -q '"aplicacao":"pausa-ativa"'
           echo
           curl -fsS "$base/actuator/health" | tee /dev/stderr | grep -q '"status":"UP"'
+          echo
+          # O resto do Actuator, inclusive o /actuator/prometheus, não chega ao host.
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$base/actuator/prometheus")" = 404
+
+      # Cenário 1 da H5: o Prometheus coleta o backend pela rede interna, com os histogramas da spec H5,
+      # seção 5. A requisição do passo anterior já gerou a faixa de 200 ms; a coleta é a cada 15 s.
+      - name: Conferir a coleta do Prometheus
+        run: |
+          set -euo pipefail
+          consultar() {
+            docker compose exec -T prometheus wget -qO- \
+              "http://localhost:9090/api/v1/query?query=$(jq -rn --arg q "$1" '$q | @uri')" \
+              | jq -r '.data.result[0].value[1] // "0"'
+          }
+          for _ in $(seq 1 12); do
+            alvo=$(consultar 'up{job="pausa-ativa"}')
+            faixas=$(consultar 'count(http_server_requests_seconds_bucket{application="pausa-ativa",le="0.2"})')
+            if [ "$alvo" = "1" ] && [ "$faixas" != "0" ]; then
+              echo "Backend coletado, com a faixa de 200 ms em $faixas séries"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::O Prometheus não coletou o backend: up=$alvo, séries com a faixa de 200 ms=$faixas"
+          exit 1
+
+      # Cenário 1 da H5: o Grafana abre, sem login, o painel provisionado, e cada consulta do painel roda no
+      # Prometheus sem erro. As variáveis do Grafana viram valores fixos só para a consulta de teste.
+      - name: Conferir o painel do Grafana
+        run: |
+          set -euo pipefail
+          porta=$(grep '^GRAFANA_PORT=' .env | cut -d= -f2)
+          grafana="http://127.0.0.1:${porta}"
+          curl -fsS "$grafana/api/health" | jq -e '.database == "ok"' > /dev/null
+          curl -fsS "$grafana/api/dashboards/uid/pausa-ativa" \
+            | jq -e '.meta.provisioned and (.dashboard.panels | length) == 15' > /dev/null
+          consultas=0
+          # O $__interval e os outros são variáveis do Grafana, literais no sed, e não do shell.
+          # shellcheck disable=SC2016
+          while IFS= read -r expr; do
+            resposta=$(docker compose exec -T prometheus wget -qO- \
+              "http://localhost:9090/api/v1/query?query=$(jq -rn --arg q "$expr" '$q | @uri')" < /dev/null || true)
+            if ! echo "$resposta" | jq -e '.status == "success"' > /dev/null 2>&1; then
+              echo "::error::Consulta do painel com erro: $expr"
+              exit 1
+            fi
+            consultas=$((consultas + 1))
+          done < <(jq -r '.panels[].targets[]?.expr' observabilidade/grafana/paineis/pausa-ativa.json \
+            | sed -e 's/\$__rate_interval/1m/g' -e 's/\$__interval/1h/g' -e 's/\$__range/1h/g')
+          echo "Painel provisionado e aberto sem login; as $consultas consultas rodam no Prometheus"
+
+      # Cenários 2 e 3 da H5 na demonstração, que tem 45 dias de histórico de exemplo para o backup.
+      - name: Subir a demonstração
+        run: docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build --wait --wait-timeout 300
+
+      - name: Conferir backup e restauração (Cenários 2 e 3 da H5)
+        run: bash .github/scripts/verificar-backup.sh
 
       - name: Logs dos containers (em caso de falha)
         if: failure()
-        run: docker compose logs --no-color
+        run: |
+          docker compose logs --no-color
+          docker compose -f docker-compose.yml -f docker-compose.demo.yml logs --no-color
 
-      - name: Derrubar a stack
+      - name: Derrubar a stack e a demonstração
         if: always()
-        run: docker compose down -v
+        run: |
+          docker compose down -v
+          docker compose -f docker-compose.yml -f docker-compose.demo.yml down -v

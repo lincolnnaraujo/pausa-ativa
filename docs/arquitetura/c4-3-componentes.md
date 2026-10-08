@@ -112,8 +112,8 @@ flowchart LR
 | `ReconciliacaoService` | Na subida: marcos que passaram com o backend fora viram `NAO_ENTREGUE`, sem disparo atrasado. |
 | `AgendadorDaAgenda` | Chama a reconciliação e **só depois** liga o tick de 1 s. Um `@Scheduled` comum poderia rodar antes. |
 | `PublicadorDeAlteracoes` | Depois de gravar, publica `JornadaAlterada` (situação + eventos). Comandos sem mudança não publicam. |
-| `CanalDeEventos` | Conexões SSE das abas. Recebe `JornadaAlterada` depois do commit e envia `marco-disparado` e `jornada-atualizada`; ping a cada 20 s. |
-| `ObservabilidadeDaAgenda` | Métricas `pausaativa.marcos.*` (com a tag `categoria`), `pausaativa.marcos.adiados`, `pausaativa.marcos.corrigidos` (tag `para`), `pausaativa.blocos.montados` e `pausaativa.blocos.itens`; logs JSON com `jornadaId`, `marcoId`, os códigos dos exercícios do bloco e a situação antes e depois de cada correção. |
+| `CanalDeEventos` | Conexões SSE das abas. Recebe `JornadaAlterada` depois do commit e envia `marco-disparado` e `jornada-atualizada`; ping a cada 20 s. Ao parar o backend (`ContextClosedEvent`), fecha as conexões antes do encerramento gracioso, que senão esperaria por elas (v0.5.0). |
+| `ObservabilidadeDaAgenda` | Métricas `pausaativa.marcos.*` (com a tag `categoria`), `pausaativa.marcos.adiados`, `pausaativa.marcos.corrigidos` (tag `para`), `pausaativa.blocos.montados` e `pausaativa.blocos.itens`; logs JSON com `jornadaId`, `marcoId`, os códigos dos exercícios do bloco e a situação antes e depois de cada correção. Desde a v0.5.0, cria as séries zeradas na subida, para o `increase()` do painel não perder o primeiro evento depois de cada subida. |
 | `JornadaRepositoryJpa` | Carrega a jornada com lock pessimista (`SELECT … FOR NO KEY UPDATE`): o tick e os cliques nunca alteram a mesma jornada ao mesmo tempo. Os itens dos blocos vêm numa consulta só (`@BatchSize`), porque o tick lê a jornada a cada segundo. Para o Histórico, conta os marcos por dia, categoria e situação numa JPQL com `group by`: um mês devolve no máximo 434 linhas, e o Histórico não carrega jornadas inteiras. |
 | `TratamentoDeErrosDaAgenda` | Regras recusadas viram Problem Details: 400, 404 ou 409, com a mensagem do domínio. |
 
@@ -149,7 +149,7 @@ flowchart LR
 | `ResumoDoPeriodo` | Soma os marcos do período (e não a média das taxas dos dias), conta os dias com dados e os dias na meta, e completa os dias sem jornada e os futuros. Hoje entra com os números parciais, marcado em andamento. |
 | `HistoricoService` | Implementa `ConsultarHistorico`: monta o período com o `Clock` da aplicação e pede à porta de saída só os dias até hoje. |
 | `RegistrosDiariosDaAgenda` | Implementa a porta `RegistrosDiarios` chamando a `ConsultarRegistrosDiarios` da Agenda e traduz o texto das situações para o domínio do Histórico, com agendado, pendente e adiado em "em aberto". É a única peça do Histórico que conhece a Agenda. |
-| `HistoricoController` | `GET /api/v1/historico?periodo=&data=`. Mede cada consulta no timer `pausaativa.historico.consultas` (tag `periodo`), o requisito de 500 ms da agregação mensal. |
+| `HistoricoController` | `GET /api/v1/historico?periodo=&data=`. Mede cada consulta no timer `pausaativa.historico.consultas` (tag `periodo`, com as séries zeradas na subida), o requisito de 500 ms da agregação mensal. |
 
 **Sem tabela própria** (decisão D1 da H4): o Histórico calcula tudo a partir das contagens da Agenda. O pacote `adapter.out.persistence` do módulo continua vazio.
 
@@ -208,7 +208,7 @@ Cada regra tem uma classe de exemplo que a viola de propósito (`backend/src/tes
 |---|---|
 | `RelogioConfig` | Único `Clock` da aplicação, em `America/Sao_Paulo`, com precisão de milissegundos. A JVM e o banco trabalham em UTC. Os testes trocam o `Clock` por um controlável, que avança sem `sleep`. |
 | `OpenApiConfig` | Metadados do contrato OpenAPI (springdoc). Reescreve as referências anuláveis (como o `bloco` do marco) em `oneOf: [$ref, null]`, para o tipo TypeScript gerado aceitar `null`. O `ContratoOpenApiTest` compara o gerado com `docs/api/openapi.json`. |
-| Spring Boot Actuator | Health (com liveness e readiness), info e métricas Prometheus |
+| Spring Boot Actuator e Micrometer | Health (com liveness e readiness), info e `/actuator/prometheus`, lido só pelo Prometheus, na rede interna. Todas as métricas levam a tag `application="pausa-ativa"`. Desde a v0.5.0, as de tempo publicam histogramas, com faixas nos limites do épico: `http.server.requests` (200 ms), `pausaativa.marcos.atraso.disparo` (1 s e 5 s) e `pausaativa.historico.consultas` (500 ms). A configuração fica no `application.yml`. |
 | Flyway | Migrações em `src/main/resources/db/migration`. A `V1` é só o baseline; a `V2`, a `V4` e a `V5` são da Agenda, e a `V3`, do Treino. O Histórico não tem migração. |
 | HikariCP | Pool de conexões com timeouts curtos e `socketTimeout` de 10 s, para nenhuma thread travar com o banco sem resposta |
 | Threads virtuais | `spring.threads.virtual.enabled`: as conexões SSE ficam abertas o dia todo sem prender threads de plataforma |

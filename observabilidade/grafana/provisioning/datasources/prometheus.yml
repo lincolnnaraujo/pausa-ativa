@@ -1,0 +1,16 @@
+# Fonte de dados do Grafana (spec H5, seção 3.2), carregada na subida. O uid fixo é o que o painel usa.
+# As pastas seguem os nomes que o Grafana espera em /etc/grafana/provisioning.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      # O mesmo intervalo da coleta: o $__rate_interval do painel parte dele.
+      timeInterval: 15s

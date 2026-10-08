@@ -557,7 +557,7 @@ export interface components {
             aplicacao: string;
             /** @example America/Sao_Paulo */
             fuso: string;
-            /** @example 0.4.0 */
+            /** @example 0.5.0 */
             versao: string;
         };
     };

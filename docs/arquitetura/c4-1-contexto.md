@@ -5,28 +5,25 @@ O Pausa Ativa é usado por **uma pessoa**, no próprio computador, sem login. N�
 ```mermaid
 flowchart LR
     U(["👤 Usuário em home office<br/><i>Trabalha no computador e quer<br/>beber água e se mexer ao longo do dia</i>"])
-    S["<b>Pausa Ativa</b><br/><i>Aplicação web local que agenda<br/>marcos de hidratação e exercício</i>"]
+    S["<b>Pausa Ativa</b><br/><i>Aplicação web local que agenda<br/>marcos de hidratação e exercício,<br/>com painel de métricas e backup</i>"]
     N["Notificações do Chrome<br/><i>Sistema de notificação do navegador</i>"]
-    G["Grafana<br/><i>Painel de métricas</i>"]
+    P[("Pasta de backups<br/><i>No computador do usuário</i>")]
 
-    U -->|"Preenche o perfil físico; inicia, pausa<br/>e finaliza a jornada; responde e corrige lembretes;<br/>vê o histórico e os gráficos"| S
+    U -->|"Preenche o perfil físico; inicia, pausa<br/>e finaliza a jornada; responde e corrige lembretes;<br/>vê o histórico, os gráficos e o painel de métricas"| S
     S -->|"Lembretes de água e<br/>blocos de exercício"| N
     N -->|"Mostra o lembrete"| U
-    U -.->|"Consulta métricas (H5)"| G
-    G -.->|"Lê métricas (H5)"| S
-
-    classDef futuro stroke-dasharray: 5 5
-    class G futuro
+    U -->|"Faz backup e restaura<br/>pelo terminal"| S
+    S -->|"Grava e lê os backups"| P
 ```
 
 ## Elementos
 
 | Elemento | Tipo | Papel | Desde |
 |---|---|---|---|
-| Usuário | Pessoa | Única pessoa que usa o sistema, no próprio computador. Desde a v0.4.0, vê o histórico e corrige os lembretes do dia. | v0.1.0 |
-| Pausa Ativa | Sistema | Este sistema | v0.1.0 |
+| Usuário | Pessoa | Única pessoa que usa o sistema, no próprio computador. Desde a v0.4.0, vê o histórico e corrige os lembretes do dia. Desde a v0.5.0, acompanha o painel de métricas e faz backup e restauração pelo terminal. | v0.1.0 |
+| Pausa Ativa | Sistema | Este sistema. Desde a v0.5.0, inclui o Prometheus e o Grafana, que sobem no mesmo compose: são containers dele ([nível 2](c4-2-containers.md)), e não sistemas externos. | v0.1.0 |
 | Notificações do Chrome | Sistema externo | Exibe os lembretes, mesmo com a aba fora de foco. Na hora cheia, água e exercício vêm numa notificação só (v0.3.0). Os botões de resposta ficam na página. | v0.2.0 |
-| Grafana | Sistema externo | Painel de métricas técnicas e de negócio | H5 (planejado) |
+| Pasta de backups | Armazenamento externo | `./backups` ou a pasta do `BACKUP_DIR`, por exemplo uma pasta sincronizada com a nuvem. Fica fora do git. | v0.5.0 |
 
 ## Restrições
 

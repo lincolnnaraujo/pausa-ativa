@@ -1,8 +1,8 @@
 # Pausa Ativa: sobe a aplicação inteira com `docker compose up -d --wait`.
 # Antes, copie o .env.example para .env. A aplicação abre em http://127.0.0.1:${FRONTEND_PORT}.
 #
-# Só o frontend tem porta no host, e só em 127.0.0.1. O nginx do frontend encaminha /api/ e
-# /actuator/health para o backend; o Postgres fica acessível apenas na rede interna.
+# Só o frontend e o Grafana têm porta no host, e só em 127.0.0.1. O nginx do frontend encaminha /api/
+# e /actuator/health para o backend; o Postgres e o Prometheus ficam acessíveis apenas na rede interna.
 
 name: pausa-ativa
 
@@ -49,5 +49,99 @@ services:
       backend:
         condition: service_healthy
 
+  # Coleta as métricas do backend a cada 15 s (spec H5, seção 3.1). Sem porta no host: o Grafana o lê
+  # pela rede interna. O backend não depende dele, e com o backend fora a métrica "up" vira 0.
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      # 90 dias ou 1 GB, o que vier primeiro (D4). O histórico de negócio fica no banco, sem limite.
+      - --storage.tsdb.retention.time=90d
+      - --storage.tsdb.retention.size=1GB
+    volumes:
+      - ./observabilidade/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-dados:/prometheus
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  # Painel "Pausa Ativa" em http://127.0.0.1:${GRAFANA_PORT} (spec H5, seção 3.2). A fonte de dados e o
+  # painel vêm dos arquivos de observabilidade/grafana; o acesso é anônimo, só de leitura, sem login (D3).
+  grafana:
+    image: grafana/grafana:13.2.3
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-38744}:3000"
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_AUTH_BASIC_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/paineis/pausa-ativa.json
+      # Tema escuro e português, como a aplicação (D10).
+      GF_USERS_DEFAULT_THEME: dark
+      GF_USERS_DEFAULT_LANGUAGE: pt-BR
+      # Nada sai para a internet: o épico não depende de serviço externo.
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_ANALYTICS_FEEDBACK_LINKS_ENABLED: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_SNAPSHOTS_EXTERNAL_ENABLED: "false"
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+      # Sem alertas nesta versão (spec H5, seção 2): o motor de alertas só gastaria memória.
+      GF_UNIFIED_ALERTING_ENABLED: "false"
+    volumes:
+      - ./observabilidade/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observabilidade/grafana/paineis:/etc/grafana/paineis:ro
+      - grafana-dados:/var/lib/grafana
+    # O Grafana 13 usa uns 250 MB só de memória própria: com 256 MB, vivia no limite.
+    mem_limit: 512m
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+
+  # Backup e restauração (spec H5, seções 3.3 e 3.4), no perfil "ferramentas": o "up" não os sobe, e o
+  # "run" sobe só o serviço pedido. Usam a imagem do banco, para o pg_dump bater com a versão do servidor,
+  # e não dependem do Postgres: com o banco parado, o backup recusa em vez de subir o banco sozinho.
+  #   docker compose run --rm backup
+  #   docker compose stop backend
+  #   docker compose run --rm restauracao <arquivo>
+  #   docker compose up -d --wait
+  backup:
+    image: postgres:18-alpine
+    profiles: [ferramentas]
+    environment: &ambiente-das-ferramentas
+      PGHOST: postgres
+      PGDATABASE: ${POSTGRES_DB:?defina POSTGRES_DB no .env (copie o .env.example)}
+      PGUSER: ${POSTGRES_USER:?defina POSTGRES_USER no .env (copie o .env.example)}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env (copie o .env.example)}
+      PASTA_DE_BACKUPS: ${BACKUP_DIR:-./backups}
+      TZ: America/Sao_Paulo
+    volumes: &volumes-das-ferramentas
+      - ./scripts:/scripts:ro
+      - ${BACKUP_DIR:-./backups}:/backups
+    entrypoint: ["sh", "/scripts/backup.sh"]
+
+  restauracao:
+    image: postgres:18-alpine
+    profiles: [ferramentas]
+    environment: *ambiente-das-ferramentas
+    volumes: *volumes-das-ferramentas
+    entrypoint: ["sh", "/scripts/restaurar.sh"]
+
 volumes:
   pgdata:
+  prometheus-dados:
+  grafana-dados:

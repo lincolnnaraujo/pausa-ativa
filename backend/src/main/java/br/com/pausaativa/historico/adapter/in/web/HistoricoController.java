@@ -22,9 +22,16 @@ class HistoricoController {
     private final ConsultarHistorico consultarHistorico;
     private final MeterRegistry metricas;
 
+    /**
+     * Os timers de cada período nascem zerados: criados só na primeira consulta, o painel do Grafana
+     * perderia essa consulta (spec H5, seção 3.2).
+     */
     HistoricoController(ConsultarHistorico consultarHistorico, MeterRegistry metricas) {
         this.consultarHistorico = consultarHistorico;
         this.metricas = metricas;
+        for (TipoDePeriodo periodo : TipoDePeriodo.values()) {
+            timer(periodo);
+        }
     }
 
     /** O timer mede o requisito de 500 ms da agregação mensal (spec H4, seção 10). */
@@ -37,10 +44,14 @@ class HistoricoController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate data) {
         Timer.Sample amostra = Timer.start(metricas);
         HistoricoResposta resposta = HistoricoResposta.de(consultarHistorico.consultar(periodo, data));
-        amostra.stop(Timer.builder("pausaativa.historico.consultas")
+        amostra.stop(timer(periodo));
+        return resposta;
+    }
+
+    private Timer timer(TipoDePeriodo periodo) {
+        return Timer.builder("pausaativa.historico.consultas")
                 .description("Tempo para montar uma visão do histórico")
                 .tag("periodo", periodo.name())
-                .register(metricas));
-        return resposta;
+                .register(metricas);
     }
 }

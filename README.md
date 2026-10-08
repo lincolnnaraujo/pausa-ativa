@@ -2,7 +2,16 @@
 
 Aplicação web que roda no seu computador e distribui hidratação e exercício curto ao longo da jornada de home office.
 
-> **Versão atual: v0.4.0 (histórico e gráficos).** Você inicia o dia, e a cada 30 min de trabalho o Chrome lembra de beber água. A cada hora, propõe um bloco curto de exercícios, montado para o seu perfil físico. A aba Histórico mostra a taxa de sucesso por dia, semana e mês, com gráficos. Veja o [plano completo](docs/epico-pausa-ativa.md) e [o que mudou](docs/releases/v0.4.0.md).
+> **Versão atual: v0.5.0 (métricas e backup).** Você inicia o dia, e a cada 30 min de trabalho o Chrome lembra de beber água. A cada hora, propõe um bloco curto de exercícios, montado para o seu perfil físico. A aba Histórico mostra a taxa de sucesso por dia, semana e mês, com gráficos. Um painel do Grafana acompanha os lembretes e a saúde da aplicação, e um comando faz o backup do banco. Veja o [plano completo](docs/epico-pausa-ativa.md) e [o que mudou](docs/releases/v0.5.0.md).
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/apresentacao/05-hora-cheia.png" alt="Na hora cheia, o lembrete de água e o bloco de exercícios, cada um com os seus botões"></td>
+    <td width="50%"><img src="docs/apresentacao/11-historico-mes.png" alt="O Histórico do mês, com a taxa de sucesso, a meta e um gráfico por categoria"></td>
+  </tr>
+</table>
+
+A [apresentação](docs/apresentacao.md) mostra a jornada de um dia, tela por tela, do perfil físico ao painel de métricas.
 
 ## O que você precisa
 
@@ -39,7 +48,7 @@ docker compose up -d --wait
 
 Na primeira vez leva alguns minutos, porque o Docker baixa e monta as imagens. O comando só termina quando tudo estiver pronto.
 
-**Pronto.** Abra **http://127.0.0.1:38742** no Chrome.
+**Pronto.** Abra **http://127.0.0.1:38742** no Chrome. O painel de métricas fica em **http://127.0.0.1:38744** (veja [Painel de métricas](#painel-de-métricas)).
 
 ## Como usar
 
@@ -91,11 +100,54 @@ Para ver o dia inteiro em 16 min, com um lembrete de água por minuto e um bloco
 docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build --wait
 ```
 
-Abra **http://127.0.0.1:38743**. A demonstração tem banco próprio, e o histórico de exemplo só é criado com o banco vazio de dias anteriores. Para apagá-lo ao terminar (e ter o histórico de exemplo de novo na próxima subida):
+Abra **http://127.0.0.1:38743**, e o painel de métricas em **http://127.0.0.1:38745**. A demonstração tem banco próprio, e o histórico de exemplo só é criado com o banco vazio de dias anteriores. O painel começa vazio e enche com o dia ao vivo: o histórico de exemplo não passa pelas métricas. Para apagá-lo ao terminar (e ter o histórico de exemplo de novo na próxima subida):
 
 ```sh
 docker compose -f docker-compose.yml -f docker-compose.demo.yml down -v
 ```
+
+O backup e a restauração também funcionam na demonstração, com `-f docker-compose.yml -f docker-compose.demo.yml` antes do `run`.
+
+## Painel de métricas
+
+Abra **http://127.0.0.1:38744** no Chrome. O painel **Pausa Ativa** abre direto, sem login, no intervalo "hoje". O seletor de tempo, no alto, troca para a semana ou o mês.
+
+- **Lembretes:** água e exercício por situação, em barras por hora; quantos lembretes foram disparados, adiados e corrigidos; o atraso do disparo (o épico pede até 5 s); e quantas abas da aplicação estão abertas. Sem nenhuma aberta, os lembretes viram "não entregue".
+- **Aplicação:** se o backend está no ar, o tempo de cada operação da API (limite de 200 ms) e da consulta do histórico (limite de 500 ms), a memória da JVM, a CPU, as pausas do GC, os erros da API e as conexões do banco.
+
+A taxa de sucesso oficial é a da aba **Histórico**. O painel conta a resposta original: um lembrete corrigido de concluído para falha continua concluído nas barras, e a correção aparece em "Respostas corrigidas". Os números recomeçam a cada subida do backend, mas o Prometheus soma os trechos. As métricas ficam guardadas por 90 dias ou até 1 GB.
+
+O painel é só para leitura. Para mudá-lo, edite `observabilidade/grafana/paineis/pausa-ativa.json`: o Grafana relê o arquivo em até 30 s. Nada sai para a internet, e a aplicação não depende do painel: com o Grafana ou o Prometheus parado, ela segue igual.
+
+## Backup e restauração
+
+**Fazer um backup:**
+
+```sh
+docker compose run --rm backup
+```
+
+O backup vai para a pasta `backups`, com a data e a hora no nome, por exemplo `pausa-ativa-2026-10-08-055151.dump`, e a tela diz quantas jornadas ele tem. A aplicação precisa estar no ar. **Faça um por semana** e guarde uma cópia fora do computador: um backup no mesmo disco não protege contra a perda do disco. Para gravar em outra pasta, por exemplo uma sincronizada com a nuvem, mude `BACKUP_DIR` no `.env`.
+
+**Restaurar um backup** (substitui todos os dados atuais):
+
+```sh
+docker compose stop backend
+docker compose run --rm restauracao pausa-ativa-2026-10-08-055151.dump
+docker compose up -d --wait
+```
+
+A restauração pede para digitar `RESTAURAR`. Antes de trocar os dados, ela guarda o banco atual em `backups/antes-da-restauracao-<data>.dump`, para o caso de você se arrepender. Ou volta tudo, ou nada muda. Sem o nome do arquivo, ela lista os backups da pasta. Um backup de uma versão anterior é atualizado sozinho na subida.
+
+**Restaurar num computador novo** (ou depois de um `down -v`): suba só o banco, restaure e suba o resto. Assim nada escreve no banco vazio antes da restauração.
+
+```sh
+docker compose up -d --wait postgres
+docker compose run --rm restauracao pausa-ativa-2026-10-08-055151.dump
+docker compose up -d --wait
+```
+
+No Linux, crie a pasta antes do primeiro backup (`mkdir backups`): se ela não existir, o Docker a cria como `root`, e você não consegue apagar os arquivos sem `sudo`.
 
 ## Conferir se está funcionando
 
@@ -107,7 +159,7 @@ Se quiser conferir pelo terminal:
 docker compose ps
 ```
 
-Os três serviços (`postgres`, `backend` e `frontend`) devem aparecer como `healthy`.
+Os cinco serviços (`postgres`, `backend`, `frontend`, `prometheus` e `grafana`) devem aparecer como `healthy`. O `backup` e a `restauracao` só aparecem enquanto rodam.
 
 ## Parar e voltar
 
@@ -119,6 +171,8 @@ Os três serviços (`postgres`, `backend` e `frontend`) devem aparecer como `hea
 | **Apagar todos os dados** (não tem volta) | `docker compose down -v` |
 
 A aplicação volta sozinha quando o Docker Desktop abre, por exemplo depois de reiniciar o computador.
+
+**Vindo da v0.4.0?** Os dados continuam, e o `.env` antigo vale sem mudança: as novidades têm valores padrão (`GRAFANA_PORT=38744` e `BACKUP_DIR=./backups`). Depois do `up`, a stack tem dois serviços a mais, o Prometheus e o Grafana, e usa uns 350 MB a mais de memória. O painel começa a contar a partir da atualização.
 
 **Vindo da v0.3.0?** Os dados continuam, e os dias anteriores já aparecem no Histórico.
 
@@ -133,7 +187,19 @@ Falta o arquivo `.env`. Faça o passo 2.
 O Docker Desktop está fechado. Abra-o, espere ele terminar de iniciar e repita o passo 3.
 
 **`port is already allocated`, `address already in use` ou `forbidden by its access permissions` ao subir**
-Outro programa usa a porta 38742. No `.env`, troque `FRONTEND_PORT` por outra porta **abaixo de 49152** (no Windows, as portas acima disso podem estar reservadas pelo sistema) e repita o passo 3. O endereço passa a ser `http://127.0.0.1:<nova porta>`.
+Outro programa usa a porta 38742 (ou a 38744, do painel). No `.env`, troque `FRONTEND_PORT` (ou `GRAFANA_PORT`) por outra porta **abaixo de 49152** (no Windows, as portas acima disso podem estar reservadas pelo sistema) e repita o passo 3. O endereço passa a ser `http://127.0.0.1:<nova porta>`.
+
+**O backup diz "O banco não respondeu"**
+O banco está parado. Suba a aplicação com `docker compose up -d --wait` e repita. Nenhum arquivo fica para trás.
+
+**A restauração diz "O backend está conectado ao banco"**
+Pare o backend com `docker compose stop backend` e repita. Depois da restauração, suba tudo com `docker compose up -d --wait`.
+
+**A restauração diz "Restauração cancelada: nada mudou"**
+A resposta não foi `RESTAURAR`. Em scripts, sem ninguém para digitar, use `--sim` depois do nome do arquivo.
+
+**O painel mostra o backend "Fora do ar" ou fica sem dados**
+O backend está parado ou ainda subindo: veja `docker compose ps`. Depois que ele volta, o painel se atualiza em até 30 s.
 
 **A página mostra "Reconectando…" ou "Não foi possível carregar a jornada"**
 O servidor ainda está iniciando ou parou. Veja o estado com `docker compose ps` e os erros com `docker compose logs backend`. Quando o servidor volta, a página se reconecta sozinha.
@@ -168,6 +234,7 @@ O banco guarda a senha usada na **primeira** subida e ignora mudanças depois di
 
 | Documento | Conteúdo |
 |---|---|
+| [Apresentação](docs/apresentacao.md) | A jornada de um dia em capturas de tela, para conhecer ou apresentar a aplicação |
 | [Épico](docs/epico-pausa-ativa.md) | Objetivo, regras de negócio, histórias e critérios de aceitação |
 | [Arquitetura](docs/arquitetura/README.md) | Diagramas C4 (contexto, containers e componentes) e regras de arquitetura |
 | [Contrato da API](docs/api/openapi.json) | OpenAPI 3.1, gerado pelo código e conferido em teste |
@@ -202,9 +269,11 @@ O fluxo de trabalho é SDD (Spec-Driven Development): cada história ganha uma s
 ### Estrutura
 
 ```
-backend/    API em Spring Boot 4 (Java 25), arquitetura hexagonal
-frontend/   Página em Vue 3 + TypeScript, servida por nginx
-docs/       Épico, specs, arquitetura, contrato da API e releases
+backend/          API em Spring Boot 4 (Java 25), arquitetura hexagonal
+frontend/         Página em Vue 3 + TypeScript, servida por nginx
+observabilidade/  Configuração do Prometheus e do Grafana, com o painel em JSON
+scripts/          Backup e restauração, rodados pelos serviços do compose
+docs/             Épico, specs, arquitetura, contrato da API, releases e apresentação
 docker-compose.yml
 .env.example
 ```
