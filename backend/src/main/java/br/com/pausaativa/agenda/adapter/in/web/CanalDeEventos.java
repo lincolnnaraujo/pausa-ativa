@@ -10,6 +10,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.event.ContextClosedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -65,6 +67,17 @@ class CanalDeEventos {
     @Scheduled(fixedRate = 20_000, initialDelay = 20_000)
     void manterConexoesVivas() {
         transmitir(() -> SseEmitter.event().comment("ping"));
+    }
+
+    /**
+     * Fecha as abas ao encerrar o backend (spec H5, seção 3.4). O encerramento gracioso, que vem depois deste
+     * evento, espera as requisições ativas terminarem, e uma conexão SSE nunca termina sozinha: o backend seria
+     * morto pelo {@code docker stop}. As abas reconectam quando ele volta.
+     */
+    @EventListener(ContextClosedEvent.class)
+    void fecharConexoes() {
+        conexoes.forEach(SseEmitter::complete);
+        conexoes.clear();
     }
 
     int quantidadeDeConexoes() {

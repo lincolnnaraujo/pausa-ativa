@@ -1,6 +1,7 @@
 package br.com.pausaativa.agenda.adapter.in.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 
@@ -198,6 +199,26 @@ class EventosApiTest {
         canal.manterConexoesVivas();
 
         assertThat(recebido(aba)).contains(":ping");
+    }
+
+    /**
+     * Chama o método direto: publicar o {@code ContextClosedEvent} também desligaria os executores do contexto,
+     * que os testes compartilham. A parada do container com uma aba aberta foi conferida na T5 da H5.
+     */
+    @Test
+    void aoEncerrarOBackendAsAbasSaoFechadasParaOEncerramentoGraciosoTerminar() throws Exception {
+        MvcResult primeira = abrirAba();
+        MvcResult segunda = abrirAba();
+
+        canal.fecharConexoes();
+
+        assertThatCode(() -> primeira.getAsyncResult(1_000))
+                .as("a requisição da primeira aba terminou")
+                .doesNotThrowAnyException();
+        assertThatCode(() -> segunda.getAsyncResult(1_000))
+                .as("a requisição da segunda aba terminou")
+                .doesNotThrowAnyException();
+        assertThat(canal.quantidadeDeConexoes()).isZero();
     }
 
     @Test
