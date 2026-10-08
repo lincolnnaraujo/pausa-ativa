@@ -65,6 +65,8 @@ if [ "$confirmado" != sim ]; then
   printf "Digite RESTAURAR para continuar: "
   resposta=""
   read -r resposta || true
+  # Só as letras contam: o pipe do PowerShell 5.1 manda um BOM antes da palavra e \r\n no fim.
+  resposta=$(printf '%s' "$resposta" | tr -cd 'A-Za-z')
   if [ "$resposta" != RESTAURAR ]; then
     falhar "Restauração cancelada: nada mudou."
   fi
