@@ -89,8 +89,12 @@ Detalhes decididos na T3:
 - **Atraso do disparo.** Sem disparos no período, o painel diz "sem disparos". O p95 é estimado pelas faixas do histograma e pode passar um pouco do maior atraso medido; a descrição do painel diz isso.
 - **Operações da API em tabela.** Com muitas rotas, as barras ficavam ilegíveis. A tabela fica ordenada pelo p95, com a cor do limite na célula.
 - **D5 na prática.** As barras contam a resposta original: um lembrete corrigido de concluído para falha continua como concluído na barra, e a correção aparece em "Respostas corrigidas". A descrição dos painéis manda para a aba Histórico, que tem a taxa oficial.
-- **CI.** Um passo novo confere o Grafana, o painel provisionado com os 15 painéis aberto sem login, e roda as 27 consultas do painel no Prometheus, com as variáveis do Grafana trocadas por valores fixos. Testado localmente contra a demonstração; uma consulta quebrada de propósito foi recusada, então o passo pega erro de verdade.
+- **CI.** Um passo novo confere o Grafana, o painel provisionado com os 15 itens (13 painéis e 2 linhas) aberto sem login, e roda as consultas do painel no Prometheus (29 depois da T5), com as variáveis do Grafana trocadas por valores fixos. Testado localmente contra a demonstração; uma consulta quebrada de propósito foi recusada, então o passo pega erro de verdade.
 - **Na demonstração, com um dia ao vivo:** água com 2 concluídos, 1 falha e 13 não concluídos, e exercício com 1, 1 e 6, iguais ao que foi feito. Atraso do disparo abaixo de 1 s, backend no ar e todas as rotas abaixo de 200 ms.
+
+Ajuste da T5:
+
+- **Consulta do histórico em números.** O painel era uma barra por período. Com um período só (o comum no começo do dia), a barra ocupava o painel inteiro e o Grafana escondia o nome do período. Agora são três números, Dia, Semana e Mês, sempre com o nome e nessa ordem (uma consulta por período), em coral acima de 500 ms, como o atraso do disparo.
 
 ### 3.3 Backup
 
@@ -127,6 +131,11 @@ Detalhes decididos na T4:
 - **Verificação.** Os Cenários 2 e 3 estão em `.github/scripts/verificar-backup.sh`, que o CI roda na demonstração e que roda igual no Git Bash. O script também confere a recusa com o backend no ar, o cancelamento sem a confirmação e o backup de segurança ao restaurar por cima de dados. O `shellcheck` confere os três scripts no CI.
 - **Rodado localmente na demonstração:** 30 jornadas, 720 marcos e 1.213 exercícios propostos; backup de 64 KB. A impressão digital do banco e o Histórico do mês voltaram iguais depois do `down -v`. No GitHub, a verificação roda quando o pull request abrir.
 
+Ajustes da T5:
+
+- **O backend para de forma limpa com uma aba aberta.** O `docker compose stop backend` terminava com SIGKILL (código 137) sempre que havia uma aba da aplicação aberta: o encerramento gracioso do Spring espera as requisições ativas terminarem, e a conexão SSE da aba nunca termina sozinha. Agora, ao receber o sinal de parada, o backend fecha as conexões SSE antes do encerramento gracioso, e para em menos de 1 s com o código 143. A aba reconecta sozinha quando o backend volta. O problema existia desde a H2; a T5 o achou porque a restauração pede essa parada. (No computador da verificação, o Docker dá 1 s antes do SIGKILL a qualquer container; o padrão é 10 s.)
+- **A confirmação só olha as letras.** Pelo pipe do PowerShell 5.1, a resposta chega com um BOM antes da palavra e `\r\n` no fim, e `RESTAURAR` não era aceito. O script agora compara só as letras da resposta. Para scripts, o `--sim` continua sendo o caminho.
+
 ## 4. Arquitetura
 
 ```mermaid
@@ -156,8 +165,8 @@ Arquivos novos:
 | Caminho | Conteúdo |
 |---|---|
 | `observabilidade/prometheus/prometheus.yml` | O alvo `pausa-ativa` (`backend:8080`, `/actuator/prometheus`, 15 s) |
-| `observabilidade/grafana/provisionamento/fontes/prometheus.yml` | A fonte de dados, com `uid: prometheus` |
-| `observabilidade/grafana/provisionamento/paineis/paineis.yml` | Onde o Grafana procura os painéis |
+| `observabilidade/grafana/provisioning/datasources/prometheus.yml` | A fonte de dados, com `uid: prometheus` |
+| `observabilidade/grafana/provisioning/dashboards/pausa-ativa.yml` | Onde o Grafana procura os painéis |
 | `observabilidade/grafana/paineis/pausa-ativa.json` | O painel da seção 3.2 |
 | `scripts/backup.sh`, `scripts/restaurar.sh` | Os scripts que os serviços rodam, em `sh` (POSIX). Montados só para leitura e chamados com `sh`, sem depender do bit de execução no Windows. |
 
@@ -196,7 +205,7 @@ O backup e a restauração também funcionam na demonstração, com `-f docker-c
 - O Grafana só escuta em `127.0.0.1`. Sem login, qualquer programa do próprio computador pode ler o painel, como já acontece com a aplicação.
 - O Prometheus e o Actuator completo continuam sem porta no host.
 - Os backups ficam fora do git (`backups/` no `.gitignore` desde a H1). Eles têm os dados da aplicação e nenhuma senha.
-- A stack sobe de três para cinco containers. A soma dos limites de memória passa de 512 MB (backend) para 1,28 GB (backend e Grafana com 512 MB, Prometheus com 256 MB). Na demonstração, a T3 mediu uns 380 MB a mais de uso real: o Grafana com uns 340 MiB e o Prometheus com uns 37 MiB. A T5 confere de novo.
+- A stack sobe de três para cinco containers. A soma dos limites de memória passa de 512 MB (backend) para 1,28 GB (backend e Grafana com 512 MB, Prometheus com 256 MB). Na demonstração, a T3 mediu uns 380 MB a mais de uso real: o Grafana com uns 340 MiB e o Prometheus com uns 37 MiB. A T5 mediu uns 350 MiB a mais, com o painel aberto: o Grafana com 311 MiB (61% do limite) e o Prometheus com 39 MiB (15%); o backend ficou com 298 MiB, o Postgres com 44 MiB e o nginx com 15 MiB.
 
 ## 8. Critérios de aceitação: como cada um é verificado
 
@@ -212,6 +221,16 @@ Também:
 - A restauração recusa com o backend conectado, e pede a confirmação sem `--sim` (CI e manual).
 - A aplicação continua no ar com o Prometheus e o Grafana parados (manual).
 
+**Resultado da verificação (T5, 2026-10-08).** Na demonstração recriada com `down -v`, com o Chrome (headless, roteiro Playwright fora do repositório) e o PowerShell 5.1 do Windows:
+
+| Cenário | O que foi feito | Resultado |
+|---|---|---|
+| 1. Dashboard pronto | Um dia ao vivo respondido pela tela, passando por todas as situações: água concluída, com falha, não entregue (aba fechada no disparo) e vencida no prazo; exercício adiado, concluído com o bloco seguinte e com falha; uma correção; o dia finalizado | O painel abre sem login na página inicial, no intervalo "hoje", em 1400 e 400 px. Os encerrados do Prometheus batem com a API, com a correção desfeita (D5): água 4 concluídos, 2 falhas, 1 não entregue e 9 não concluídos; exercício 2, 1, 0 e 5. No período: 10 disparados, 3 blocos, 1 adiado e 1 corrigido. Abas abertas em 0 com a aba fechada. Atraso do disparo com p95 de 783 ms e máximo de 798 ms. Rotas da API abaixo de 37 ms. Com o backend parado, o painel mostra "Fora do ar". |
+| 2. Backup e restauração | No PowerShell: backup, `down -v`, só o Postgres no ar, restauração com a confirmação e subida | Backup de 64 KB com 31 jornadas. Impressão digital do banco (31 jornadas, 744 marcos, 1.262 exercícios) igual antes e depois. O Histórico do mês igual na tela e na API. O Flyway validou as 5 migrações. |
+| 3. Dump com banco parado | No PowerShell: Postgres parado e backup | Código 1, a mensagem da seção 3.3, nenhum arquivo novo, e o Postgres continuou parado. |
+
+Também: a restauração recusou com o backend no ar e cancelou com outra resposta que não `RESTAURAR`. Com o Prometheus e o Grafana parados, a aplicação respondeu normalmente, sem erro no log. A verificação do CI (`verificar-backup.sh`) passou de novo pelo Git Bash, depois dos ajustes. A T5 achou e corrigiu três problemas: a parada do backend com uma aba aberta e a confirmação pelo pipe do PowerShell (seção 3.4), e o painel da consulta do histórico (seção 3.2).
+
 ## 9. Plano de entrega em etapas
 
 Branch `feat/h5-metricas-e-backup`. A execução para ao fim de cada etapa, e a próxima sessão retoma pela primeira etapa sem ✅.
@@ -222,7 +241,7 @@ Branch `feat/h5-metricas-e-backup`. A execução para ao fim de cada etapa, e a 
 | T2 | Prometheus no compose e na demonstração: configuração, volume, retenção, limite de memória e healthcheck | `docker compose up -d --wait` com o alvo `up`; o CI confere | ✅ 2026-10-07 (na demonstração: alvo `up`, 492 séries, 33 MiB). Detalhes na seção 3.1. |
 | T3 | Grafana: fonte de dados e painel provisionados, acesso anônimo, sem internet, em português e com a paleta | O painel abre sem login com dados; o CI confere o painel e as consultas | ✅ 2026-10-07 (2 testes novos, 260 no backend; painel conferido no Chrome com um dia ao vivo na demonstração). Detalhes na seção 3.2. |
 | T4 | Backup e restauração: scripts, serviços `backup` e `restauracao`, `BACKUP_DIR`, `shellcheck` | Cenários 2 e 3 no CI, com a demonstração | ✅ 2026-10-07 (verificação em script, rodada localmente contra a demonstração; no GitHub, roda com o PR). Detalhes na seção 3.4. |
-| T5 | Verificação ponta a ponta: Grafana no Chrome com um dia ao vivo, backup e restauração no PowerShell, banco parado, memória dos cinco containers | Cenários 1 a 3 conferidos, com capturas | Pendente |
+| T5 | Verificação ponta a ponta: Grafana no Chrome com um dia ao vivo, backup e restauração no PowerShell, banco parado, memória dos cinco containers | Cenários 1 a 3 conferidos, com capturas | ✅ 2026-10-08 (1 teste novo, 261 no backend; três ajustes). Resultado na seção 8. |
 | T6 | README, C4 (Prometheus e Grafana deixam de ser planejados), release notes, PR e CI | Aceite do usuário; merge e tag `v0.5.0` | Pendente |
 
 ## 10. Riscos
