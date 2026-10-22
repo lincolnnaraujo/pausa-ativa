@@ -73,7 +73,7 @@ services:
   # Painel "Pausa Ativa" em http://127.0.0.1:${GRAFANA_PORT} (spec H5, seção 3.2). A fonte de dados e o
   # painel vêm dos arquivos de observabilidade/grafana; o acesso é anônimo, só de leitura, sem login (D3).
   grafana:
-    image: grafana/grafana:13.2.3
+    image: grafana/grafana:13.2.4
     restart: unless-stopped
     ports:
       - "127.0.0.1:${GRAFANA_PORT:-38744}:3000"
