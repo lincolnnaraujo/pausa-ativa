@@ -52,7 +52,7 @@ services:
   # Coleta as métricas do backend a cada 15 s (spec H5, seção 3.1). Sem porta no host: o Grafana o lê
   # pela rede interna. O backend não depende dele, e com o backend fora a métrica "up" vira 0.
   prometheus:
-    image: prom/prometheus:v3.15.0
+    image: prom/prometheus:v3.15.1
     restart: unless-stopped
     command:
       - --config.file=/etc/prometheus/prometheus.yml
